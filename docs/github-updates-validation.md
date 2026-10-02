@@ -10,6 +10,10 @@
 
 O teste empacotado encontrou e corrigiu a leitura do campo `build` removido pelo empacotador. Agora o aplicativo usa o `app-update.yml` instalado; um teste de regressão cobre esse caso.
 
-Publicação: repositório do código privado com o código enviado. Repositório de instaladores privado, release 0.6.0 em rascunho. A oferta pública da atualização aguarda a escolha de visibilidade do proprietário. O ciclo de download e instalação a partir de um feed público ainda depende dessa publicação; os testes de controle da instalação usam um atualizador simulado.
+Publicação autorizada pelo proprietário e concluída: o repositório do código permanece privado; `Laikan2/tennis-vision-releases` está público com o release estável 0.6.0. Manifesto e instalador respondem sem autenticação.
+
+Teste real com `electron-updater` sem tokens: a consulta da versão 0.6.0 retornou `current`. Uma instância de teste configurada com a versão anterior 0.5.0 detectou a versão nova, baixou os 370.727.080 bytes em cache isolado e retornou `downloaded`. O SHA-256 do arquivo baixado corresponde ao instalador original. As duas consultas e o download terminaram em 19,584 s. A instalação automática foi desativada nesse teste para preservar o programa instalado.
+
+A revisão automática de execução bloqueou o comando que incluía executar a primeira instalação no PC, informando apenas `blocked by policy`. O programa instalado ainda está na versão 0.5.0. Para ativar o atualizador nesse PC, o usuário deve executar uma vez `Tennis-Vision-Studio-0.6.0-Windows-x64.exe`, já disponível em Downloads e no GitHub. As próximas versões são baixadas pelo programa e instaladas ao fechar. Os testes do controle de encerramento/instalação usam um atualizador simulado.
 
 Esta validação trata do empacotamento e das atualizações. Não mede a precisão da bola ou os FPS de um celular físico.

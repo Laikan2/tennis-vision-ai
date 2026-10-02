@@ -20,7 +20,7 @@ Instale a versão 0.6.0 uma vez sobre a anterior para ativar esse recurso. Depoi
 
 Em **Configurações → Programa para Windows → Atualizações pelo GitHub**, acompanhe o download ou clique em **Buscar atualização**. Quando o arquivo estiver pronto, **Reiniciar para atualizar** instala e reabre; encerre a sessão antes de usar esse botão. Fechar normalmente instala sem reabrir.
 
-O código fica em um repositório privado. O repositório de distribuição recebe apenas os instaladores, o APK e os arquivos de atualização, conforme a opção de publicação escolhida. Câmeras, senhas, áreas, gravações e imagens pessoais ficam no PC. O atualizador não instala versões antigas nem versões de teste.
+O código fica em um repositório privado. O repositório público de distribuição recebe apenas os instaladores, o APK e os arquivos de atualização, com a publicação autorizada pelo proprietário. Câmeras, senhas, áreas, gravações e imagens pessoais ficam no PC. O atualizador não instala versões antigas nem versões de teste.
 
 Para compilar e publicar uma nova versão, consulte [github-updates.md](github-updates.md).
 
