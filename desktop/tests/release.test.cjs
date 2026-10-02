@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const {createHash} = require('node:crypto');
 const {verifyRelease} = require('../verify-release.cjs');
+const {loadUpdateRepository} = require('../updater.cjs');
 function fixture(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(),'tennis-release-test-'));
   t.after(()=>{if(path.dirname(dir)===os.tmpdir() && path.basename(dir).startsWith('tennis-release-test-')) fs.rmSync(dir,{recursive:true,force:true});});
@@ -29,4 +30,11 @@ test('a stale manifest or wrong GitHub feed cannot be published',t=>{
   const {dir}=fixture(t);
   assert.throws(()=>verifyRelease(dir,'0.7.0'),/versão/);
   assert.throws(()=>verifyRelease(dir,'0.6.0',{owner:'example',repo:'wrong'}),/repositório/);
+});
+test('installed app loads its feed without the build field stripped from package.json',t=>{
+  const {dir}=fixture(t);
+  const resources = path.join(dir,'win-unpacked','resources');
+  assert.deepEqual(loadUpdateRepository(resources),{owner:'example',repo:'releases'});
+  fs.writeFileSync(path.join(resources,'app-update.yml'),'provider: generic\nurl: http://untrusted.invalid\n');
+  assert.throws(()=>loadUpdateRepository(resources),/inválido/);
 });

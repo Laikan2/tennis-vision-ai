@@ -1,4 +1,17 @@
 'use strict';
+const fs = require('node:fs');
+const path = require('node:path');
+
+function loadUpdateRepository(resourcesPath) {
+  // electron-builder intentionally removes `build` from the packaged
+  // package.json. The installed app must use the generated app-update.yml.
+  const updaterRoot = path.dirname(require.resolve('electron-updater/package.json'));
+  const yaml = require(require.resolve('js-yaml', {paths:[updaterRoot]}));
+  const config = yaml.load(fs.readFileSync(path.join(resourcesPath,'app-update.yml'),'utf8'));
+  if (config?.provider !== 'github' || !/^[a-z0-9-]+$/i.test(config.owner || '') || !/^[a-z0-9_.-]+$/i.test(config.repo || ''))
+    throw new Error('Repositório de atualizações inválido.');
+  return {owner:config.owner, repo:config.repo};
+}
 
 // Keep update state separate from camera/analysis state. A failed GitHub request
 // must never interrupt the engine or prevent the studio from opening offline.
@@ -118,4 +131,4 @@ function createStudioUpdater({ updater, isPackaged, version, repository, onStatu
   }
   return { snapshot, check, install, start, dispose };
 }
-module.exports = { createStudioUpdater };
+module.exports = { createStudioUpdater, loadUpdateRepository };

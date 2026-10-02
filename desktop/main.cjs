@@ -4,7 +4,7 @@ const path = require('node:path');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
 const { createStudioServer } = require('./server.cjs');
-const { createStudioUpdater } = require('./updater.cjs');
+const { createStudioUpdater, loadUpdateRepository } = require('./updater.cjs');
 
 const option = name => process.argv.find(a=>a.startsWith(`--${name}=`))?.slice(name.length+3);
 if (option('state-dir')) app.setPath('userData', path.resolve(option('state-dir')));
@@ -183,8 +183,13 @@ else {
       item.setSavePath(path.join(app.getPath('downloads'),filename));
     });
     handle('studio:info',()=>info());
-    const packageInfo = require('./package.json');
-    const repository = (Array.isArray(packageInfo.build.publish) ? packageInfo.build.publish[0] : packageInfo.build.publish);
+    let repository;
+    if (app.isPackaged) {
+      try {repository = loadUpdateRepository(resources);} catch {log('Atualizações: configuração indisponível.');}
+    } else {
+      const publish = require('./package.json').build?.publish;
+      repository = Array.isArray(publish) ? publish[0] : publish;
+    }
     updates = createStudioUpdater({updater:require('electron-updater').autoUpdater,
       isPackaged:app.isPackaged, version:app.getVersion(), repository,
       log, isSessionActive:sessionActive, prepareInstall:stopServices,
