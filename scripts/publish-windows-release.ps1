@@ -55,6 +55,8 @@ Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador i
         $localAsset = Get-Item -LiteralPath $asset
         $remoteAsset = $remoteAssets | Where-Object name -EQ $localAsset.Name
         if (-not $remoteAsset -or $remoteAsset.size -ne $localAsset.Length) { throw 'Arquivos incompletos no GitHub. A versão permanece em rascunho.' }
+        $localDigest = 'sha256:' + (Get-FileHash -LiteralPath $asset -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($remoteAsset.digest -and $remoteAsset.digest -ne $localDigest) { throw 'O hash do arquivo no GitHub não corresponde ao arquivo local. A versão permanece em rascunho.' }
     }
     if (-not $KeepDraft) {
         & $releaseGh release edit $releaseTag --repo $releaseRepo --draft=false --latest
