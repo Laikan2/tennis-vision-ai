@@ -53,3 +53,16 @@ def test_desktop_existing_project_preserves_encrypted_credentials(tmp_path, monk
     assert not (tmp_path / 'state' / 'camera.key').exists()
     monkeypatch.delenv('TV_DATA_DIR', raising=False)
     monkeypatch.delenv('TV_SECRET_KEY', raising=False)
+
+
+def test_desktop_serves_the_latest_android_when_resources_keep_previous_apks(tmp_path, monkeypatch):
+    monkeypatch.delenv('TV_SECRET_KEY', raising=False)
+    for name in ('TV_DATA_DIR', 'TV_ANDROID_APK_PATH'):
+        monkeypatch.setenv(name, '')
+    folder = tmp_path / 'resources' / 'android'
+    folder.mkdir(parents=True)
+    for version in ('0.5.1', '0.5.9', '0.5.10', '0.5.2'):
+        (folder / f'Tennis-Vision-Camera-Android-v{version}.apk').write_bytes(version.encode())
+    engine_module().prepare_state(tmp_path / 'state', folder.parent)
+    import os
+    assert Path(os.environ['TV_ANDROID_APK_PATH']).read_bytes() == b'0.5.10'

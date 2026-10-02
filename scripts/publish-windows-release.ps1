@@ -8,6 +8,9 @@ if ($feed.provider -ne 'github' -or $feed.owner -notmatch '^[A-Za-z0-9-]+$' -or 
 }
 $releaseRepo = "$($feed.owner)/$($feed.repo)"
 $releaseVersion = $package.version
+$androidGradle = Get-Content -LiteralPath (Join-Path $studioRoot 'mobile\android\app\build.gradle.kts') -Raw
+$androidVersion = [regex]::Match($androidGradle, 'versionName\s*=\s*"(\d+\.\d+\.\d+)"').Groups[1].Value
+if (-not $androidVersion) { throw 'Não foi possível identificar a versão Android.' }
 if ($releaseVersion -notmatch '^\d+\.\d+\.\d+$') { throw 'Publique uma versão estável no formato 0.6.0.' }
 $releaseTag = "v$releaseVersion"
 $ghCommand = Get-Command gh -ErrorAction SilentlyContinue
@@ -38,13 +41,13 @@ O programa para Windows recebe as câmeras e executa a análise no PC.
 
 Atualizações: versões a partir de 0.6.0 consultam este repositório automaticamente, baixam quando a sessão está parada e instalam ao fechar. Para atualizar um programa anterior à 0.6.0, execute este instalador uma vez sobre a instalação existente.
 
-Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador inclui o aplicativo Android 0.5.1; a instalação do APK no celular continua separada.
+Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador inclui o aplicativo Android $androidVersion; a instalação do APK no celular continua separada.
 "@
     [IO.File]::WriteAllText($notesFile, $releaseNotes, [Text.UTF8Encoding]::new($false))
     & $releaseGh release create $releaseTag --repo $releaseRepo --draft --title "Tennis Vision Studio $releaseVersion" --notes-file $notesFile
     if ($LASTEXITCODE) { throw 'Não foi possível criar o rascunho da versão.' }
     $releaseAssets = @($releaseFiles.files)
-    $android = Join-Path $studioRoot 'mobile\releases\Tennis-Vision-Camera-Android-v0.5.1.apk'
+    $android = Join-Path $studioRoot "mobile\releases\Tennis-Vision-Camera-Android-v$androidVersion.apk"
     if (Test-Path -LiteralPath $android) { $releaseAssets += $android }
     & $releaseGh release upload $releaseTag --repo $releaseRepo @releaseAssets
     if ($LASTEXITCODE) { throw 'O envio falhou. A versão permanece em rascunho e não será oferecida aos programas instalados.' }

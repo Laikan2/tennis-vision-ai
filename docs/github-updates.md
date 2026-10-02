@@ -9,7 +9,7 @@ Publicar código no GitHub não muda o programa instalado: é preciso compilar e
 ## Repositórios
 
 - Código privado: `Laikan2/tennis-vision-ai`.
-- Feed público ativo: `Laikan2/tennis-vision-releases`, com a versão estável Windows 0.6.0 publicada. Os instaladores podem ser baixados sem conta GitHub.
+- Feed público ativo: `Laikan2/tennis-vision-releases`. Os instaladores estáveis podem ser baixados sem conta GitHub.
 - Não enviar `.env`, chaves, bancos de dados, configurações das câmeras, gravações, imagens de treino nem diretórios de trabalho. O `.gitignore` os exclui. `release-assets/models` contém apenas pesos redistribuíveis e o classificador numérico de aparência.
 
 O consumidor do feed público não precisa de conta GitHub. Um feed privado exige autenticação própria; tokens de quem publica nunca devem entrar no EXE.

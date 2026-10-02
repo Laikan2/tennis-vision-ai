@@ -1,0 +1,3 @@
+# Keep Next.js' transitive CSS processor on the patched PostCSS release.
+overrides:
+  postcss: 8.5.28

@@ -1,7 +1,7 @@
 {
   "name": "tennis-vision-studio",
   "productName": "Tennis Vision Studio",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Estúdio local de análise de tênis e câmeras de alta velocidade",
   "author": "Tennis Vision",
   "private": true,
@@ -67,7 +67,7 @@
         "from": "../mobile/releases",
         "to": "android",
         "filter": [
-          "*v0.5.1.apk"
+          "*v0.5.2.apk"
         ]
       }
     ],

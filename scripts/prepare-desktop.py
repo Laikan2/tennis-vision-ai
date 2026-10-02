@@ -1,6 +1,7 @@
 """Prepare redistributable assets, keeping recordings and camera secrets out."""
 from pathlib import Path
 import json
+import re
 import shutil
 from PIL import Image, ImageDraw
 
@@ -42,4 +43,6 @@ if active.exists():
 print('Windows icon and bundled model weights prepared. No camera profiles or videos included.')
 android = ROOT / 'desktop' / 'build' / 'android'
 android.mkdir(exist_ok=True)
-shutil.copy2(ROOT / 'mobile' / 'releases' / 'Tennis-Vision-Camera-Android-v0.5.1.apk', android)
+mobile_gradle = (ROOT / 'mobile/android/app/build.gradle.kts').read_text(encoding='utf-8')
+mobile_version = re.search(r'versionName\s*=\s*"(\d+\.\d+\.\d+)"', mobile_gradle).group(1)
+shutil.copy2(ROOT / 'mobile' / 'releases' / f'Tennis-Vision-Camera-Android-v{mobile_version}.apk', android)

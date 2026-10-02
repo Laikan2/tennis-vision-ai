@@ -1,6 +1,7 @@
 """Packaged local engine. No Python/Node installation is needed by the user."""
 import argparse
 import os
+import re
 import shutil
 import sys
 import threading
@@ -44,7 +45,12 @@ def prepare_state(state, resources, project=None):
     appearance = data / 'learning'
     if not (appearance / 'active.json').exists() and (packaged / 'learning').exists():
         shutil.copytree(packaged / 'learning', appearance, dirs_exist_ok=True)
-    apk = next((Path(resources) / 'android').glob('*.apk'), None)
+    def apk_version(path):
+        match = re.search(r'-v(\d+)\.(\d+)\.(\d+)\.apk$', path.name)
+        return tuple(map(int, match.groups())) if match else (-1, -1, -1)
+    # A development/resource folder may still contain the previous APK. Do not
+    # let directory enumeration silently offer an older mobile application.
+    apk = max((Path(resources) / 'android').glob('*.apk'), key=apk_version, default=None)
     if apk: os.environ['TV_ANDROID_APK_PATH'] = str(apk)
     return data
 

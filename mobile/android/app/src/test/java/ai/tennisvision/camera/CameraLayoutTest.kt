@@ -114,4 +114,15 @@ class CameraLayoutTest {
     assertEquals(activity.getString(R.string.connect), activity.findViewById<Button>(R.id.connectButton).text)
     controller.pause().stop().destroy()
   }
+  @Test fun aConnectionErrorDoesNotDisplayAnOldPreviewAsLive() {
+    val controller = Robolectric.buildActivity(MainActivity::class.java).create().start().resume().visible()
+    val activity = controller.get()
+    activity.findViewById<View>(R.id.previewEmpty).visibility = View.GONE
+    activity.onAuthError()
+    shadowOf(Looper.getMainLooper()).idle()
+    assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.previewEmpty).visibility)
+    assertTrue(activity.findViewById<TextView>(R.id.statusText).text.contains("recusada"))
+    assertEquals(activity.getString(R.string.connect), activity.findViewById<Button>(R.id.connectButton).text)
+    controller.pause().stop().destroy()
+  }
 }

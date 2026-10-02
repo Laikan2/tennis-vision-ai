@@ -5,12 +5,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parents[1]
 PREFIX = "Tennis-Vision-AI"
-ANDROID_APK_NAME = "Tennis-Vision-Camera-Android-v0.5.1.apk"
+mobile_version = re.search(r'versionName\s*=\s*"(\d+\.\d+\.\d+)"',
+    (ROOT / 'mobile/android/app/build.gradle.kts').read_text(encoding='utf-8')).group(1)
+ANDROID_APK_NAME = f"Tennis-Vision-Camera-Android-v{mobile_version}.apk"
 SKIP_DIRS = {
     "__pycache__", ".pytest_cache", "node_modules", ".next", ".gradle",
     ".kotlin", ".idea", "build", ".git", ".pnpm-store", ".turbo", ".cache", "out", "releases",

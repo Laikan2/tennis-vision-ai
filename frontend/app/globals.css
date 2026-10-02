@@ -2272,15 +2272,16 @@ details.metrics-column[open] > summary svg { transform:rotate(90deg); }
   display:grid; place-items:center; min-height:84px; font-size:50px; line-height:1;
   font-weight:950; letter-spacing:1px; text-shadow:0 2px 0 #0004;
 }
-.official-review>div { display:flex; flex-direction:column; justify-content:center; gap:4px; padding:10px 14px; }
+.official-review>div { display:flex; flex-direction:column; justify-content:center; gap:4px; padding:10px 14px; min-width:0; overflow-wrap:anywhere; }
 .official-review>div b { font-size:10px; letter-spacing:1px; }
 .official-review>div span { font-size:10px; color:#d8e5dc; text-transform:uppercase; }
 .official-review.decision-out>strong { background:#d52b34; }
 .official-review.decision-in>strong { background:#2d9c57; }
 .official-review.decision-revisar>strong { background:#cc8a22; font-size:31px; }
 @keyframes official-review-pop { from { opacity:0; transform:translate(-50%,18px) scale(.92); } }
-.camera-wall.is-dual .official-review { width:min(330px,calc(100% - 18px)); grid-template-columns:105px 1fr; bottom:6%; }
+.camera-wall.is-dual .official-review { width:min(330px,calc(100% - 18px)); grid-template-columns:105px minmax(0,1fr); bottom:6%; }
 .camera-wall.is-dual .official-review>strong { min-height:64px; font-size:37px; }
+.camera-wall.is-dual .official-review.decision-revisar>strong { font-size:24px; letter-spacing:.5px; }
 .camera-wall.is-dual .official-review>div { padding:7px 9px; gap:2px; }
 .camera-wall.is-dual .official-review>div span { font-size:8px; }
 @media (prefers-reduced-motion: reduce) { .official-review { animation:none; } }

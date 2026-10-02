@@ -98,6 +98,12 @@ O teste físico de câmera, exposição, foco, Wi-Fi e 120/240 fps continua pend
 4. Sincronização temporal de duas câmeras para melhorar a posição do impacto.
 
 
+## Correções Android 0.5.2
+
+O aplicativo detecta quando o codificador H.264 deixa de produzir vídeo, mesmo que os callbacks da câmera continuem. Depois de uma falha de rede/autenticação, a prévia local pode ser reaberta sem manter a última imagem congelada. Parar a transmissão mostra o estado de espera até haver uma imagem nova. Falhas reais da captura não disparam reaberturas em ciclo.
+
+Validação: 47 testes JVM/Robolectric, Android Lint e APK release compilados. O Studio 0.6.1 inclui este APK, com o mesmo certificado local das versões anteriores. Sem dispositivo no ADB, os modos físicos 120/240 fps continuam pendentes de medição. A revisão completa está em [app-audit-2026-10-02.md](app-audit-2026-10-02.md).
+
 ## Correções Android 0.5.1
 
 - Leitor de QR próprio com ZXing incluído no APK. Instalação manual e leitura não dependem de Google Play Services ou de baixar o módulo `barcode_ui`. A câmera é liberada antes de abrir o leitor; cancelar restaura os controles sem apagar o pareamento.

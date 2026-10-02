@@ -27,6 +27,15 @@ class StreamReliabilityTest {
     assertEquals(0L, StreamHealth.queueMs(-1, 100))
     assertEquals(8_000_000_000L, StreamHealth.queueMs(1_000_000_000_000, 1_000_000))
   }
+  @Test fun aLiveCameraCannotHideAStalledHardwareEncoder() {
+    assertFalse(StreamHealth.encoderStalled(1_000, 0, 9_000, true))
+    assertTrue(StreamHealth.encoderStalled(1_000, 0, 9_001, true))
+    assertFalse(StreamHealth.encoderStalled(1_000, 8_900, 10_000, true))
+    assertTrue(StreamHealth.encoderStalled(1_000, 8_900, 11_901, true))
+    assertFalse(StreamHealth.encoderStalled(1_000, 0, 20_000, false))
+    assertFalse(StreamHealth.encoderStalled(0, 0, 20_000, true))
+    assertFalse(StreamHealth.encoderStalled(20_000, 21_000, 19_000, true))
+  }
   @Test fun fastPresetSelectsSupported120Before240AndPrefers720() {
     val modes = listOf(StreamProfile.stableProfiles.first(),
       StreamProfile("720p120", 1280, 720, 120, 16_000_000, highSpeed = true),

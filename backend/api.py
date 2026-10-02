@@ -48,7 +48,7 @@ async def lifespan(app):
 
 
 app=FastAPI(title='Tennis Vision AI',version='0.1.0',lifespan=lifespan)
-ANDROID_APP_VERSION='0.5.1'
+ANDROID_APP_VERSION='0.5.2'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
 desktop_origin=os.getenv('TV_DESKTOP_ORIGIN','')

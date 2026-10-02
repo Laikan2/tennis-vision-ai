@@ -604,7 +604,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       .onFailure { stopTransmission("Não conectou: ${it.message}", true) }
   }
 
-  private fun stopTransmission(message: String, error: Boolean = false) {
+  private fun stopTransmission(message: String, error: Boolean = false, resumePreview: Boolean = true) {
     requestedStream = false
     startAfterPermission = false
     connected = false
@@ -615,6 +615,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     generation++
     openingCamera = false
     cameraReady = false
+    findViewById<View>(R.id.previewEmpty).visibility = View.VISIBLE
     actualFps = 0.0
     captureFps = 0.0
     sentFps = 0.0
@@ -634,7 +635,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
         closePreview()
         updateControls()
         if (failure != null) setStatus(failure.message ?: "Falha ao encerrar a câmera.", true)
-        if (!error && failure == null && resumed && !scanning && !destroyed) ensurePreview()
+        // A network/authentication failure must not leave the local camera
+        // frozen. Capture/codec failures explicitly suppress reopening.
+        if (resumePreview && failure == null && resumed && !scanning && !destroyed) ensurePreview()
       }
     }
   }
@@ -673,8 +676,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   }
 
   private fun failCamera(message: String) {
-    stopTransmission(message, true)
-    closePreview()
+    stopTransmission(message, true, resumePreview = false)
   }
 
   private fun applyCaptureControls() {
@@ -877,6 +879,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     if (stalled && !warnedStall) {
       warnedStall = true
       failCamera("A captura parou de produzir quadros. Tente transmitir novamente ou escolha menos FPS.")
+    }
+    if (!warnedStall && StreamHealth.encoderStalled(camera.encodingStartedMs, camera.lastEncodedMs,
+        SystemClock.elapsedRealtime(), requestedStream && camera.isStreaming && resumed && !closingCamera)) {
+      warnedStall = true
+      failCamera("O H.264 parou de produzir vídeo. Tente um perfil de menor FPS ou resolução.")
     }
     deviceText.text = "$connection · ${if (batteryPercent >= 0) "$batteryPercent%" else "bateria —"}" +
       (if (batteryCelsius > 0) String.format(Locale.getDefault(), " · %.1f °C bateria", batteryCelsius) else "") +

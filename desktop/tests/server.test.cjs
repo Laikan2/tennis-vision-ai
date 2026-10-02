@@ -56,3 +56,29 @@ test('packaged UI, API relay and shutdown work without a Next server',async()=>{
     assert.equal(foreignHost,403);
   } finally {await app.close();await new Promise(resolve=>backend.close(resolve));fs.rmSync(root,{recursive:true});}
 });
+
+test('MJPEG fallback streams immediately through the random-port desktop relay',async()=>{
+  let received;
+  const backend=http.createServer((req,res)=>{
+    received=req.url;
+    res.writeHead(200,{'Content-Type':'multipart/x-mixed-replace; boundary=frame'});
+    res.write('--frame\r\nContent-Type: image/jpeg\r\nContent-Length: 3\r\n\r\nABC\r\n');
+  });
+  const sockets=new Set();
+  backend.on('connection',socket=>{sockets.add(socket);socket.on('close',()=>sockets.delete(socket));});
+  await new Promise(resolve=>backend.listen(0,'127.0.0.1',resolve));
+  const app=await createStudioServer(path.resolve('ui'),()=>`http://127.0.0.1:${backend.address().port}`);
+  const abort=new AbortController();
+  try {
+    const response=await fetch(app.url+'/api/preview?cameraId=second',{signal:abort.signal});
+    assert.equal(response.status,200);
+    assert.match(response.headers.get('content-type'),/multipart/);
+    const chunk=await response.body.getReader().read();
+    assert.match(Buffer.from(chunk.value).toString(),/ABC/);
+    assert.equal(received,'/api/preview?cameraId=second');
+  } finally {
+    abort.abort();await app.close();
+    for(const socket of sockets)socket.destroy();
+    await new Promise(resolve=>backend.close(resolve));
+  }
+});

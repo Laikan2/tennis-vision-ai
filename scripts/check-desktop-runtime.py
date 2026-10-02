@@ -34,7 +34,7 @@ def main():
     phone = request('/mobile-camera')
     with urlopen(origin + phone['androidApp']['downloadUrl'], timeout=10) as download:
         apk_hash = hashlib.sha256(download.read()).hexdigest()
-    source = Path(__file__).parents[1] / 'mobile/releases/Tennis-Vision-Camera-Android-v0.5.1.apk'
+    source = Path(__file__).parents[1] / f"mobile/releases/Tennis-Vision-Camera-Android-v{phone['androidApp']['version']}.apk"
     assert apk_hash == hashlib.sha256(source.read_bytes()).hexdigest()
     cameras = request('/cameras')
     assert len(cameras) == 2

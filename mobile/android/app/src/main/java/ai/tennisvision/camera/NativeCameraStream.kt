@@ -45,12 +45,17 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     private set
   @Volatile var isOnPreview = false
     private set
+  @Volatile var encodingStartedMs = 0L
+    private set
+  @Volatile var lastEncodedMs = 0L
+    private set
 
   private val encoder = object : VideoEncoder(object : GetVideoData {
     override fun onVideoInfo(sps: ByteBuffer, pps: ByteBuffer?, vps: ByteBuffer?) { srt.setVideoInfo(sps, pps, vps) }
     override fun onVideoFormat(mediaFormat: MediaFormat) = Unit
     override fun getVideoData(videoBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
       if (isStreaming && info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+        lastEncodedMs = SystemClock.elapsedRealtime()
         encoderMeter.frame(SystemClock.elapsedRealtimeNanos())?.let { encodedFpsListener?.invoke(it) }
         synchronized(recovery) {
           if (isStreaming && recovery.accepts(info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
@@ -140,6 +145,8 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     check(encoder.prepareVideoEncoder(config.width, config.height, config.fps, maxBitrate, 0, 1,
       FormatVideoEncoder.SURFACE, avc.profile, avc.level)) { "O codificador não aceitou ${config.label}. Escolha outro perfil." }
     isStreaming = true
+    encodingStartedMs = SystemClock.elapsedRealtime()
+    lastEncodedMs = 0L
     synchronized(recovery) { recovery.reset() }
     encoderMeter.reset()
     encoder.start()
@@ -155,6 +162,8 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
 
   fun stopStream() {
     isStreaming = false
+    encodingStartedMs = 0L
+    lastEncodedMs = 0L
     callbackEpoch.advance()
     encoderMeter.reset()
     val stoppedClient = srt

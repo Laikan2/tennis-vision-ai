@@ -2,6 +2,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { WebRtcVideo } from "./WebRtcVideo";
+import { videoEndpoints } from "../lib/video-playback";
 import {
   Camera,
   Crosshair,
@@ -276,37 +277,48 @@ export function LiveVideo({
   const [surfaceEditing, setSurfaceEditing] = useState(false);
   const [controlsMount, setControlsMount] = useState<HTMLDivElement | null>(null);
   const [previewOrigin, setPreviewOrigin] = useState("");
+  const [directSrc, setDirectSrc] = useState<string>();
   const [pageVisible, setPageVisible] = useState(true);
   const [directFailed, setDirectFailed] = useState(false);
-  useEffect(() => { setDirectFailed(false); }, [cameraId, webrtcPath, status.session?.id, status.stale]);
+  const [directReady, setDirectReady] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  useEffect(() => {
+    setDirectFailed(false); setDirectReady(false); setPreviewFailed(false);
+  }, [cameraId, webrtcPath, status.session?.id, status.stale]);
   useEffect(() => {
     // The Next.js proxy is useful for normal JSON calls, but relaying every
     // 1080p JPEG through it drops several live frames. The browser can read an
     // image stream cross-origin, so connect it straight to the local backend.
-    setPreviewOrigin(`${location.protocol}//${location.hostname}:8000`);
-  }, []);
+    const endpoints = videoEndpoints(location.href, Boolean(window.tennisStudio), webrtcPath);
+    setPreviewOrigin(endpoints.previewOrigin);
+    setDirectSrc(endpoints.directUrl);
+  }, [webrtcPath]);
   useEffect(() => {
     const update = () => setPageVisible(document.visibilityState === "visible");
     update();
     document.addEventListener("visibilitychange", update);
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
-  const encodedPath = webrtcPath
-    ?.split("/")
-    .filter(Boolean)
-    .map(encodeURIComponent)
-    .join("/");
-  const directSrc = encodedPath
-    ? `http://127.0.0.1:8889/${encodedPath}/whep`
-    : undefined;
-  const directActive = Boolean(
+  const directConnecting = Boolean(
     pageVisible && !surfaceEditing && !synchronized && !directFailed && directSrc && !status.stale &&
     status.cameraStatus === "online",
   );
+  const directActive = directConnecting && directReady;
+  useEffect(() => {
+    if (!directConnecting) setDirectReady(false);
+  }, [directConnecting]);
+  useEffect(() => {
+    if (!pageVisible || surfaceEditing || synchronized || status.stale || status.cameraStatus !== "online" ||
+        (!directFailed && !previewFailed)) return;
+    const retry = window.setTimeout(() => {
+      setDirectFailed(false); setPreviewFailed(false);
+    }, 15000);
+    return () => window.clearTimeout(retry);
+  }, [pageVisible, surfaceEditing, synchronized, status.stale, status.cameraStatus, directFailed, previewFailed]);
   const cameraQuery = cameraId ? `&cameraId=${encodeURIComponent(cameraId)}` : "";
   const previewQuery = cameraId ? `?cameraId=${encodeURIComponent(cameraId)}` : "";
   const fluidPreview = Boolean(
-    pageVisible && !surfaceEditing && !synchronized && !directActive && !status.stale &&
+    pageVisible && !surfaceEditing && !synchronized && !directActive && !previewFailed && !status.stale &&
     status.cameraStatus === "online",
   );
   useEffect(() => {
@@ -474,18 +486,19 @@ export function LiveVideo({
     <div className="video-stage">
       {hasVideo ? (
         <>
-          {directActive ? (
-            <WebRtcVideo url={directSrc!} onFailure={() => setDirectFailed(true)} />
-          ) : fluidPreview ? (
+          {fluidPreview ? (
             <img
               className="video-frame fluid-video"
               src={`${previewOrigin}/api/preview${previewQuery}`}
               alt="Vídeo fluido da câmera"
               draggable={false}
+              onError={() => setPreviewFailed(true)}
             />
-          ) : (
+          ) : !directActive ? (
             <img className="video-frame" src={src} alt="Frames reais da câmera" />
-          )}
+          ) : null}
+          {directConnecting && <WebRtcVideo url={directSrc!} visible={directActive}
+            onReady={() => setDirectReady(true)} onFailure={() => { setDirectReady(false); setDirectFailed(true); }} />}
           <svg
             className="video-overlay"
             style={{ visibility: surfaceEditing ? "hidden" : "visible" }}
