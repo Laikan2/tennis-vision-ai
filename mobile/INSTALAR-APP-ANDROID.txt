@@ -1,0 +1,62 @@
+TENNIS VISION CAMERA 0.5.1 — ANDROID
+
+INSTALAR / ATUALIZAR
+1. Envie Tennis-Vision-Camera-Android-v0.5.1.apk para o Galaxy S25 Ultra.
+2. Abra o APK e toque em Atualizar. O arquivo usa o mesmo certificado dos APKs
+   anteriores entregues neste PC; a atualização mantém o pareamento.
+3. Abra Tennis Vision Studio no computador.
+4. No PC: Conectar celular. No Galaxy: Conexão > Ler QR do computador.
+5. Use a mesma rede no PC e no celular. Ethernet no PC e Wi-Fi no Galaxy
+   funcionam quando os dois pertencem à mesma rede.
+6. Toque em Transmitir para o PC. No painel, adicione a câmera e inicie a sessão.
+
+SE NÃO CONECTAR
+O leitor QR agora está incluído no APK e não exige módulos do Google ou
+download pela internet. Conceda acesso à câmera. Voltar cancela a leitura e
+mantém o computador configurado. O app libera a câmera antes de abrir o leitor.
+
+No programa do PC, use Preparar rede do PC e confira IP, porta e nome no
+receptor. Para inserir esses dados no Galaxy, abra Inserir IP manualmente.
+Se a câmera não tiver permissão, use Permitir câmera ou Abrir configurações
+do app. O aplicativo transmite vídeo sem áudio.
+
+CAPTURA
+O padrão é 1080p60 quando câmera e H.264 oferecem esse modo. Caso contrário,
+o app adapta o perfil ao hardware. Os números Captura, H.264 e Envio mostram
+taxas medidas; a taxa solicitada fica separada no alto da prévia.
+
+Ao selecionar 120/240 fps, a prévia antes de transmitir continua em até
+60 fps. Toque em Transmitir para iniciar a captura de alta velocidade. Durante
+a transmissão, a prévia da tela pode continuar em 30/60 fps; confira os
+números Captura, H.264 e Envio para saber as taxas medidas da transmissão.
+O servidor não impõe um limite artificial de 60 fps.
+
+Em Captura, Bola rápida prefere 120 fps em 720p quando disponível. Com um
+perfil comum, solicita exposição de 1/1000 s se o sensor permitir controle
+manual. Isso exige boa iluminação. Se a imagem escurecer, volte à exposição
+automática. 240 fps continuam disponíveis na lista quando câmera e encoder
+anunciam uma combinação compatível; o botão Bola rápida não força 240 fps.
+
+Toque na imagem para focar; depois trave o foco com o celular fixo. Zoom,
+perfil e rede são alterados antes da transmissão, para não deslocar a área
+marcada no PC durante o treino. O guia ajuda o enquadramento; a seleção da
+superfície e a detecção de bola, impacto e velocidade acontecem no computador.
+Qualidade, obturador e guia ficam salvos. Luz e bloqueio de foco precisam ser
+ativados novamente, pois a distância e a iluminação podem mudar.
+
+REDE / FLUIDEZ
+Comece com Mínimo atraso. Em Wi-Fi instável, teste Equilibrado ou menos FPS.
+O bitrate se adapta à rede, a fila é limitada e a retomada pede um quadro-chave
+para evitar enviar imagens dependentes de frames perdidos. A captura usa
+Camera2 direto no codificador H.264 por hardware.
+
+O buffer SRT e a fila de envio não são medidas do atraso total até o PC.
+O desempenho real de 120/240 fps precisa ser verificado no aparelho.
+
+USO
+Tela cheia mantém Transmitir/Parar disponível; Voltar restaura os controles.
+Ao sair com a transmissão ativa, o app pede confirmação. Ao ir para outro
+aplicativo, a transmissão para; volte e toque em Transmitir novamente.
+Rede mostra bateria, temperatura, exposição e diagnóstico para copiar.
+
+Este APK é para Android. Ele não instala no iPhone 15 Pro.

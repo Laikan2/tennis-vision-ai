@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <color name="tv_background">#0B1115</color>
+  <color name="tv_panel">#131D23</color>
+  <color name="tv_panel_border">#2A3942</color>
+  <color name="tv_text">#F0F5F6</color>
+  <color name="tv_muted">#A1B1BA</color>
+  <color name="tv_accent">#C5FA64</color>
+  <color name="tv_accent_dark">#283A20</color>
+  <color name="tv_error">#FF736B</color>
+  <color name="tv_warning">#FFD479</color>
+  <color name="tv_overlay">#DC0B1115</color>
+</resources>

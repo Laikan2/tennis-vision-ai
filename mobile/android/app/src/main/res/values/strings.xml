@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="app_name">Tennis Vision Camera</string>
+  <string name="scan_qr">Ler QR do computador</string>
+  <string name="scanner_title">Conectar ao computador</string>
+  <string name="scanner_prompt">Enquadre o QR do Tennis Vision Studio. A leitura funciona sem internet.</string>
+  <string name="cancel_scan">Voltar</string>
+  <string name="connect">Transmitir para o PC</string>
+  <string name="disconnect">Parar</string>
+  <string name="host_hint">IP do computador</string>
+  <string name="port_hint">Porta SRT do computador</string>
+  <string name="path_hint">Caminho</string>
+  <string name="camera_disconnected">CÂMERA DESCONECTADA</string>
+  <string name="metrics_empty">— fps · — Mbps</string>
+  <string name="brand_name">TENNIS VISION</string>
+  <string name="analysis_camera">Capture o jogo.</string>
+  <string name="app_summary">Sua câmera. A inteligência no computador.</string>
+  <string name="computer">Computador</string>
+  <string name="default_path">galaxy</string>
+  <string name="quality">Qualidade</string>
+  <string name="checking_capabilities">Consultando os modos da câmera…</string>
+  <string name="local_stream_summary">Mesmo Wi-Fi · SRT local · sem áudio</string>
+  <string name="camera_preview_description">Prévia da câmera; toque para focar</string>
+  <string name="fast_shutter">Congelar bola · exposição curta</string>
+  <string name="focus_lock">Travar foco na distância atual</string>
+  <string name="capture_hint">Toque na imagem para focar. Depois trave o foco se o celular estiver fixo.</string>
+  <string name="connection_tab">Conexão</string><string name="capture_tab">Captura</string><string name="network_tab">Rede</string>
+  <string name="pairing_help">No Tennis Vision Studio do PC, abra Conectar celular e leia o QR. Use a mesma rede.</string>
+  <string name="fullscreen">Tela cheia</string><string name="exit_fullscreen">Mostrar controles</string>
+  <string name="torch">Luz do celular</string><string name="shutter_speed">Velocidade do obturador</string>
+  <string name="zoom_label">Zoom para enquadrar antes de transmitir</string><string name="zoom_default">Enquadramento · 1,0×</string>
+  <string name="zoom_hint">Ajuste o zoom antes de marcar a área no painel do PC.</string>
+  <string name="composition_guide">Guia de enquadramento</string>
+  <string name="transmission_mode">Prioridade da transmissão</string>
+  <string name="network_help">Mínimo atraso usa uma fila curta e retoma com um quadro-chave após perdas. Se o Wi-Fi falhar, teste Equilibrado. O buffer solicitado não é a medida do atraso total até o PC.</string>
+  <string name="copy_diagnostics">Copiar diagnóstico</string><string name="diagnostics_copied">Diagnóstico copiado</string>
+  <string name="preview_title">Seu campo de visão.</string>
+  <string name="preview_hint">Permita a câmera para enquadrar o treino.\nA detecção da bola acontece no PC.</string>
+  <string name="connect_short">Transmitir</string>
+  <string name="capture_rate">CAPTURA</string><string name="encoder_rate">H.264</string><string name="sending_rate">ENVIO</string><string name="empty_fps">— fps</string>
+  <string name="pairing_step">01 / CONECTAR AO PC</string><string name="capture_step">02 / PREPARAR A IMAGEM</string><string name="network_step">03 / CONFERIR A TRANSMISSÃO</string>
+  <string name="manual_connection">Inserir IP manualmente</string><string name="hide_manual">Fechar conexão manual</string>
+  <string name="pairing_empty">Nenhum computador configurado.</string><string name="port_label">Porta</string><string name="camera_name_label">Nome no receptor</string>
+  <string name="fast_preset">Bola rápida</string><string name="stable_preset">Equilibrado</string><string name="reset_capture">Voltar à imagem automática</string>
+  <string name="allow_camera">Permitir câmera</string><string name="open_settings">Abrir configurações do app</string>
+</resources>

@@ -1,0 +1,2 @@
+-keep class com.pedro.** { *; }
+-dontwarn org.bouncycastle.**

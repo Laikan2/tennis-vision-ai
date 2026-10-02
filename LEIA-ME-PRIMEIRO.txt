@@ -1,0 +1,74 @@
+TENNIS VISION AI — COMO ABRIR EM OUTRO COMPUTADOR
+
+1. Extraia todo o arquivo ZIP para uma pasta comum.
+2. Instale o Python 3.12 (https://python.org) e o Node.js LTS
+   (https://nodejs.org), caso ainda não estejam instalados.
+3. Dê dois cliques em INSTALAR.bat e aguarde a conclusão.
+4. Dê dois cliques em ABRIR.bat.
+5. Abra http://127.0.0.1:3000 no navegador desse computador.
+6. Cadastre a câmera novamente. Senhas e gravações pessoais não foram
+   colocadas neste pacote.
+
+O pacote inclui os modelos gerais e os pesos ativos do detector já treinado.
+Fotos, recortes de treino, perfis de câmera, calibrações e sessões não são
+copiados. No novo computador, configure cada câmera e sua área novamente.
+
+Para transmitir do celular, o celular e o computador precisam alcançar um ao
+outro pela rede. O MediaMTX já está incluído em tools\mediamtx.
+
+CÂMERA DO GALAXY S25 ULTRA SEM LARIX
+
+O aplicativo Android já está pronto para instalar em
+mobile\releases\Tennis-Vision-Camera-Android-v0.4.1.apk. Envie esse arquivo ao
+Galaxy por USB ou Quick Share e abra-o no celular para instalar. O código-fonte
+também está em mobile\android. Ele envia H.264 por SRT direto ao computador. A IA, o vídeo
+anotado, os impactos, a velocidade e as estatísticas continuam aparecendo no
+painel do PC. Veja mobile\INSTALAR-APP-ANDROID.txt para todos os passos.
+
+Depois de instalar o app:
+
+1. Deixe o Galaxy e o PC na mesma rede. Execute LIBERAR-CAMERA-CELULAR.bat uma
+   vez. Abra o painel, clique na câmera, escolha Câmera Tennis Vision e Preparar.
+2. No app, permita a câmera, toque em Ler QR do computador e leia o QR exibido.
+3. Toque em Transmitir para o PC.
+4. No painel, clique em Adicionar ao painel e inicie a sessão.
+
+O app nativo não precisa de HTTPS. Mantenha-o aberto durante o treino. Comece
+em 1080p60. Para alta velocidade, pare a transmissão e abra Captura > Qualidade:
+120/240 fps aparecem quando a câmera e o H.264 do celular oferecem suporte.
+O app mede Captura, H.264 e envio separadamente. Em alta velocidade, o Android
+controla foco e exposição; ilumine bem a cena. O PC recebe a taxa da fonte sem
+um limite fixo de 60 fps, mas a IA e o painel têm taxas próprias de trabalho.
+A instalação e a taxa sustentada no S25 ainda precisam de teste físico.
+
+Na versão 0.4, o app tem Conexão, Captura e Rede, tela cheia, zoom, grade,
+lanterna e exposição curta ajustável nos modos comuns. Em Rede, comece com
+Mínimo atraso. O detector busca bolas verdes pequenas nos pixels originais
+e verifica melhor propostas borradas. O atraso real ainda depende da câmera,
+rede, receptor e capacidade da IA no computador.
+
+ALTERNATIVA TEMPORÁRIA PELO CHROME
+
+1. Deixe o Galaxy S25 Ultra e o computador no mesmo Wi-Fi.
+2. Execute LIBERAR-CAMERA-CELULAR.bat uma vez e aceite a janela de administrador.
+3. Abra o painel, clique na câmera, escolha Câmera Tennis Vision e Preparar.
+4. Leia o QR Code no Galaxy. No Chrome, permita câmera e microfone, escolha a
+   câmera traseira e toque em publish. O áudio fica desativado na transmissão.
+5. No computador, clique em Adicionar ao painel e inicie uma sessão.
+
+O Galaxy usa /galaxy e o iPhone com Larix usa /iphone. Assim, você pode
+cadastrar os dois e selecioná-los juntos na mesma sessão.
+
+O perfil solicita 1080p, 60 fps, H.264 e 12 Mbps. O FPS efetivo depende do que
+o navegador e a câmera do celular disponibilizarem. No iPhone, este modo exige
+HTTPS com certificado confiável; o caminho simples acima foi preparado para o
+Chrome do Galaxy.
+
+DETECÇÃO RÁPIDA
+
+O vídeo continua sendo exibido em 1080p. A cópia usada pelo detector trabalha
+em 640 px e refina a bola em resolução original depois da aquisição. No replay
+de 18/09, esse perfil manteve os 23 candidatos a impacto e baixou a mediana do
+detector de 23,36 ms para 13,82 ms. Isso aumenta a capacidade de acompanhar
+bolas rápidas, mas não substitui quadros que a câmera ou a transmissão não
+capturaram.

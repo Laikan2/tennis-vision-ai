@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+ android:id="@+id/cameraRoot" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/tv_background">
+ <FrameLayout android:id="@+id/previewContainer" android:layout_width="0dp" android:layout_height="0dp" android:layout_margin="12dp" android:background="#000000"
+  app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toStartOf="@id/controlPanel" app:layout_constraintStart_toStartOf="parent" app:layout_constraintTop_toTopOf="parent">
+  <ai.tennisvision.camera.CameraPreviewView android:id="@+id/cameraPreview" android:contentDescription="@string/camera_preview_description" android:layout_width="match_parent" android:layout_height="match_parent"/>
+  <LinearLayout android:id="@+id/previewEmpty" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:orientation="vertical" android:padding="24dp" android:background="@color/tv_background">
+   <ImageView android:id="@+id/previewLogo" android:layout_width="52dp" android:layout_height="52dp" android:src="@drawable/ic_launcher" android:importantForAccessibility="no"/>
+   <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/preview_title" android:textColor="@color/tv_text" android:textSize="22sp" android:fontFamily="sans-serif-medium"/>
+   <TextView android:id="@+id/previewHint" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center" android:text="@string/preview_hint" android:textColor="@color/tv_muted" android:textSize="12sp" android:maxWidth="300dp"/>
+   <Button android:id="@+id/permissionButton" style="@style/CameraSecondary" android:layout_width="wrap_content" android:layout_marginTop="12dp" android:text="@string/allow_camera"/>
+  </LinearLayout>
+  <ai.tennisvision.camera.CompositionGuideView android:id="@+id/compositionGuide" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:importantForAccessibility="no"/>
+  <ai.tennisvision.camera.FocusIndicatorView android:id="@+id/focusIndicator" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no"/>
+  <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:layout_margin="12dp" android:background="@drawable/overlay_background" android:orientation="vertical" android:padding="10dp">
+   <TextView android:id="@+id/statusText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxWidth="310dp" android:maxLines="2" android:text="@string/camera_disconnected" android:textColor="@color/tv_accent" android:textSize="10sp" android:textStyle="bold" android:accessibilityLiveRegion="polite"/>
+   <TextView android:id="@+id/profileBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+  </LinearLayout>
+  <LinearLayout android:id="@+id/previewTelemetry" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|start" android:layout_margin="12dp" android:orientation="vertical" android:background="@drawable/overlay_background" android:padding="10dp" android:visibility="gone">
+   <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
+    <LinearLayout style="@style/TelemetryColumn"><TextView style="@style/TelemetryLabel" android:text="@string/capture_rate"/><TextView android:id="@+id/captureValue" style="@style/TelemetryValue" android:text="@string/empty_fps"/></LinearLayout>
+    <LinearLayout style="@style/TelemetryColumn"><TextView style="@style/TelemetryLabel" android:text="@string/encoder_rate"/><TextView android:id="@+id/encoderValue" style="@style/TelemetryValue" android:text="@string/empty_fps"/></LinearLayout>
+    <LinearLayout style="@style/TelemetryColumn"><TextView style="@style/TelemetryLabel" android:text="@string/sending_rate"/><TextView android:id="@+id/sendValue" style="@style/TelemetryValue" android:text="@string/empty_fps"/></LinearLayout>
+   </LinearLayout>
+   <TextView android:id="@+id/metricsText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="@string/metrics_empty" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+  </LinearLayout>
+  <LinearLayout android:id="@+id/previewActions" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="12dp" android:orientation="horizontal">
+   <Button android:id="@+id/quickConnect" style="@style/CameraPrimary" android:layout_width="wrap_content" android:layout_height="48dp" android:visibility="gone" android:text="@string/connect_short"/>
+   <Button android:id="@+id/fullScreenButton" style="@style/CameraSecondary" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/fullscreen"/>
+  </LinearLayout>
+ </FrameLayout>
+ <LinearLayout android:id="@+id/controlPanel" android:layout_width="350dp" android:layout_height="0dp" android:layout_marginTop="12dp" android:layout_marginEnd="12dp" android:layout_marginBottom="12dp" android:background="@drawable/panel_background" android:orientation="vertical" android:padding="16dp"
+  app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent">
+  <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+   <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_launcher" android:importantForAccessibility="no"/>
+   <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="@string/brand_name" android:textColor="@color/tv_text" android:textSize="10sp" android:letterSpacing=".1" android:textStyle="bold"/>
+   <TextView android:id="@+id/versionText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+  </LinearLayout>
+  <TextView android:id="@+id/panelTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/analysis_camera" android:textColor="@color/tv_text" android:textSize="25sp" android:fontFamily="sans-serif-medium"/>
+  <TextView android:id="@+id/panelSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/app_summary" android:textColor="@color/tv_muted" android:textSize="11sp"/>
+  <LinearLayout android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:orientation="horizontal">
+   <Button android:id="@+id/connectionTab" style="@style/CameraTab" android:text="@string/connection_tab"/>
+   <Button android:id="@+id/captureTab" style="@style/CameraTab" android:layout_marginHorizontal="4dp" android:text="@string/capture_tab"/>
+   <Button android:id="@+id/networkTab" style="@style/CameraTab" android:text="@string/network_tab"/>
+  </LinearLayout>
+  <ScrollView android:id="@+id/settingsScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:layout_marginTop="10dp" android:fillViewport="true" android:clipToPadding="false">
+   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingBottom="8dp">
+    <LinearLayout android:id="@+id/connectionSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+     <TextView style="@style/CameraEyebrow" android:text="@string/pairing_step"/>
+     <Button android:id="@+id/scanButton" style="@style/CameraSecondary" android:layout_marginTop="10dp" android:drawableStart="@drawable/ic_qr" android:drawablePadding="8dp" android:text="@string/scan_qr"/>
+     <TextView style="@style/CameraBody" android:layout_marginTop="10dp" android:text="@string/pairing_help"/>
+     <TextView android:id="@+id/pairingText" style="@style/CameraBody" android:layout_marginTop="10dp" android:text="@string/pairing_empty"/>
+     <Button android:id="@+id/manualButton" style="@style/CameraSecondary" android:layout_marginTop="10dp" android:text="@string/manual_connection"/>
+     <LinearLayout android:id="@+id/manualFields" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+      <TextView style="@style/CameraLabel" android:text="@string/computer" android:labelFor="@id/hostInput"/>
+      <EditText android:id="@+id/hostInput" style="@style/CameraInput" android:hint="@string/host_hint" android:inputType="textUri" android:maxLength="253"/>
+      <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="4dp">
+       <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical"><TextView style="@style/CameraLabel" android:text="@string/port_label" android:labelFor="@id/portInput"/><EditText android:id="@+id/portInput" style="@style/CameraInput" android:hint="@string/port_hint" android:inputType="number" android:maxLength="5" android:text="8890"/></LinearLayout>
+       <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="2" android:layout_marginStart="8dp" android:orientation="vertical"><TextView style="@style/CameraLabel" android:text="@string/camera_name_label" android:labelFor="@id/pathInput"/><EditText android:id="@+id/pathInput" style="@style/CameraInput" android:hint="@string/path_hint" android:inputType="textNoSuggestions" android:maxLength="64" android:text="@string/default_path"/></LinearLayout>
+      </LinearLayout>
+     </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/captureSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+     <TextView style="@style/CameraEyebrow" android:text="@string/capture_step"/>
+     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
+      <Button android:id="@+id/fastPreset" style="@style/CameraSecondary" android:layout_width="0dp" android:layout_weight="1" android:text="@string/fast_preset"/>
+      <Button android:id="@+id/stablePreset" style="@style/CameraSecondary" android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="@string/stable_preset"/>
+     </LinearLayout>
+     <TextView style="@style/CameraLabel" android:text="@string/quality" android:labelFor="@id/qualitySpinner"/>
+     <Spinner android:id="@+id/qualitySpinner" style="@style/CameraSpinner" android:contentDescription="@string/quality"/>
+     <TextView android:id="@+id/capabilitiesText" style="@style/CameraBody" android:layout_marginTop="6dp" android:text="@string/checking_capabilities"/>
+     <CheckBox android:id="@+id/fastShutter" style="@style/CameraCheck" android:text="@string/fast_shutter"/>
+     <Spinner android:id="@+id/shutterSpinner" style="@style/CameraSpinner" android:contentDescription="@string/shutter_speed"/>
+     <CheckBox android:id="@+id/focusLock" style="@style/CameraCheck" android:text="@string/focus_lock"/>
+     <CheckBox android:id="@+id/torch" style="@style/CameraCheck" android:text="@string/torch"/>
+     <TextView android:id="@+id/zoomText" style="@style/CameraLabel" android:text="@string/zoom_default" android:labelFor="@id/zoomSlider"/>
+     <SeekBar android:id="@+id/zoomSlider" android:layout_width="match_parent" android:layout_height="48dp" android:max="100" android:progress="0" android:contentDescription="@string/zoom_label" android:progressTint="@color/tv_accent" android:thumbTint="@color/tv_accent"/>
+     <CheckBox android:id="@+id/guideSwitch" style="@style/CameraCheck" android:text="@string/composition_guide"/>
+     <TextView style="@style/CameraBody" android:text="@string/zoom_hint"/>
+     <TextView android:id="@+id/captureText" style="@style/CameraBody" android:layout_marginTop="8dp" android:text="@string/capture_hint"/>
+     <TextView android:id="@+id/sensorText" style="@style/CameraBody" android:layout_marginTop="8dp"/>
+     <Button android:id="@+id/resetCapture" style="@style/CameraSecondary" android:layout_marginTop="12dp" android:text="@string/reset_capture"/>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/networkSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+     <TextView style="@style/CameraEyebrow" android:text="@string/network_step"/>
+     <TextView style="@style/CameraLabel" android:text="@string/transmission_mode" android:labelFor="@id/transportSpinner"/>
+     <Spinner android:id="@+id/transportSpinner" style="@style/CameraSpinner" android:contentDescription="@string/transmission_mode"/>
+     <TextView style="@style/CameraBody" android:layout_marginTop="8dp" android:text="@string/network_help"/>
+     <TextView android:id="@+id/networkText" style="@style/CameraBody" android:layout_marginTop="12dp"/>
+     <TextView android:id="@+id/deviceText" style="@style/CameraBody" android:layout_marginTop="12dp"/>
+     <Button android:id="@+id/copyDiagnostics" style="@style/CameraSecondary" android:layout_marginTop="12dp" android:text="@string/copy_diagnostics"/>
+    </LinearLayout>
+   </LinearLayout>
+  </ScrollView>
+  <Button android:id="@+id/connectButton" style="@style/CameraPrimary" android:layout_marginTop="10dp" android:text="@string/connect"/>
+  <TextView android:id="@+id/detailText" style="@style/CameraBody" android:layout_marginTop="8dp" android:maxLines="3" android:textSize="10sp" android:text="@string/local_stream_summary"/>
+ </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

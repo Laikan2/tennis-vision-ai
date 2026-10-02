@@ -1,0 +1,3 @@
+# Build tools only. End users receive the bundled Windows engine.
+pyinstaller==6.22.3
+pillow>=11,<13
