@@ -35,4 +35,6 @@ Os 73 testes Android passaram, incluindo consultas, download em rede móvel, int
 
 Os 182 testes do backend e 20 testes do desktop também passaram. O Windows 0.6.2 foi recompilado e abriu com dados de teste isolados em 1,407 s, com a ponte nativa e o motor disponíveis. A API anunciou Android 0.5.3 e serviu os mesmos 3.147.536 bytes do APK original. SHA-256 do APK: `f5ffc832597b4f362acdb3689b9201400f8790c2165313366d1e37b137763eaa`.
 
+A release pública [Windows 0.6.2 / Android 0.5.3](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.2) foi publicada em 3 de outubro de 2026. Um teste adicional usou o próprio `GitHubAppUpdateSource`, sem autenticação: encontrou a atualização para uma versão anterior, baixou e conferiu todos os bytes, e não ofereceu downgrade para 0.5.3. O manifesto público do Windows também corresponde ao arquivo local. Essa verificação não executou instalação no celular.
+
 Os testes do controlador simulam a fronteira do instalador e a URI Android: o `FileProvider` não interpreta caminhos Windows da mesma forma que caminhos de um celular. Há testes instrumentados separados para verificar a leitura e o isolamento da pasta no Android; seu APK de teste foi compilado. Como nenhum aparelho estava conectado, a instalação e esses testes instrumentados ainda precisam ser executados em um aparelho ou emulador.
