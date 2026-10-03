@@ -61,6 +61,8 @@ class CameraLayoutTest {
     draw(activity, "android-capture")
     activity.findViewById<Button>(R.id.networkTab).performClick()
     draw(activity, "android-network")
+    assertNotNull(activity.findViewById<View>(R.id.updateSection))
+    assertTrue(activity.findViewById<Button>(R.id.checkUpdates).isShown)
     activity.findViewById<Button>(R.id.fullScreenButton).performClick()
     draw(activity, "android-fullscreen")
     activity.onBackPressedDispatcher.onBackPressed()
@@ -123,6 +125,21 @@ class CameraLayoutTest {
     assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.previewEmpty).visibility)
     assertTrue(activity.findViewById<TextView>(R.id.statusText).text.contains("recusada"))
     assertEquals(activity.getString(R.string.connect), activity.findViewById<Button>(R.id.connectButton).text)
+    controller.pause().stop().destroy()
+  }
+
+  @Test fun versionBadgeOpensTheUpdateSectionWithoutChangingPairing() {
+    val controller = Robolectric.buildActivity(MainActivity::class.java).create().start().resume().visible()
+    val activity = controller.get()
+    shadowOf(Looper.getMainLooper()).idle()
+    activity.findViewById<TextView>(R.id.versionText).performClick()
+    shadowOf(Looper.getMainLooper()).idle()
+    assertTrue(activity.findViewById<Button>(R.id.networkTab).isSelected)
+    assertEquals(View.VISIBLE, activity.findViewById<View>(R.id.networkSection).visibility)
+    draw(activity, "android-updates")
+    val visible = android.graphics.Rect()
+    assertTrue(activity.findViewById<View>(R.id.checkUpdates).getGlobalVisibleRect(visible))
+    assertTrue(visible.height() > 0)
     controller.pause().stop().destroy()
   }
 }

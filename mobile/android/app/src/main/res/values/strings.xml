@@ -1,5 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="update_title">ATUALIZAÇÕES DO APLICATIVO</string>
+  <string name="update_automatic_help">Consulta automática ao abrir. O download espera a transmissão parar e uma rede sem cobrança.</string>
+  <string name="update_install_help">O Android pede autorização para instalar. O pareamento e os ajustes continuam salvos.</string>
+  <string name="update_check">Buscar atualização</string>
+  <string name="update_install">Instalar atualização</string>
+  <string name="update_download">Baixar atualização</string>
+  <string name="update_current">Câmera %1$s atualizada.</string>
+  <string name="update_checking">Consultando atualizações…</string>
+  <string name="update_downloading">Baixando atualização · %1$d%%</string>
+  <string name="update_verifying">Verificando arquivo e assinatura…</string>
+  <string name="update_available">Versão %1$s disponível. O download começa automaticamente.</string>
+  <string name="update_wait_wifi">Versão %1$s disponível. Aguardando Wi-Fi sem cobrança. Você também pode baixar agora.</string>
+  <string name="update_wait_idle">Atualização disponível. Encerre a transmissão para continuar.</string>
+  <string name="update_ready">Versão %1$s pronta. Toque em Instalar atualização.</string>
+  <string name="update_ready_notice">Câmera %1$s pronta para atualizar. Abra Rede → Atualizações.</string>
+  <string name="update_offline">Sem internet para consultar. A câmera local continua disponível.</string>
+  <string name="update_failed">Não foi possível verificar a atualização. Tente novamente com internet.</string>
+  <string name="update_invalid_cache">O arquivo salvo não passou na verificação. Baixe a atualização novamente.</string>
+  <string name="update_save_failed">Não foi possível salvar a atualização. Confira o espaço livre.</string>
+  <string name="update_permission_denied">Permita que o Tennis Vision Camera instale atualizações e tente novamente.</string>
+  <string name="update_install_unavailable">O Android não abriu o instalador. Confira as permissões de instalação.</string>
+  <string name="update_install_cancelled">Instalação não concluída. O arquivo continua pronto para tentar novamente.</string>
+  <string name="update_install_sent">Instalação enviada ao Android. Reabra o aplicativo após atualizar.</string>
+  <string name="update_badge">v%1$s · ATUALIZAR</string>
+  <string name="update_version">CAMERA / %1$s</string>
+  <string name="update_badge_description">Câmera %1$s. Abrir atualizações do aplicativo.</string>
   <string name="app_name">Tennis Vision Camera</string>
   <string name="scan_qr">Ler QR do computador</string>
   <string name="scanner_title">Conectar ao computador</string>

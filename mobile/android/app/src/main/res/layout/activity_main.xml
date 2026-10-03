@@ -34,7 +34,7 @@
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
    <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_launcher" android:importantForAccessibility="no"/>
    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="@string/brand_name" android:textColor="@color/tv_text" android:textSize="10sp" android:letterSpacing=".1" android:textStyle="bold"/>
-   <TextView android:id="@+id/versionText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+   <TextView android:id="@+id/versionText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="88dp" android:maxWidth="150dp" android:maxLines="2" android:gravity="end|center_vertical" android:focusable="true" android:background="?attr/selectableItemBackground" android:textColor="@color/tv_muted" android:textSize="10sp"/>
   </LinearLayout>
   <TextView android:id="@+id/panelTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/analysis_camera" android:textColor="@color/tv_text" android:textSize="25sp" android:fontFamily="sans-serif-medium"/>
   <TextView android:id="@+id/panelSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/app_summary" android:textColor="@color/tv_muted" android:textSize="11sp"/>
@@ -82,6 +82,14 @@
      <Button android:id="@+id/resetCapture" style="@style/CameraSecondary" android:layout_marginTop="12dp" android:text="@string/reset_capture"/>
     </LinearLayout>
     <LinearLayout android:id="@+id/networkSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+     <LinearLayout android:id="@+id/updateSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginBottom="20dp">
+      <TextView style="@style/CameraEyebrow" android:text="@string/update_title"/>
+      <TextView android:id="@+id/updateStatus" style="@style/CameraBody" android:layout_marginTop="8dp" android:text="@string/update_automatic_help" android:accessibilityLiveRegion="polite"/>
+      <ProgressBar android:id="@+id/updateProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="10dp" android:progressTint="@color/tv_accent" android:indeterminateTint="@color/tv_accent" android:max="100" android:visibility="gone"/>
+      <Button android:id="@+id/installUpdate" style="@style/CameraPrimary" android:layout_marginTop="10dp" android:text="@string/update_install" android:visibility="gone"/>
+      <Button android:id="@+id/checkUpdates" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="@string/update_check"/>
+      <TextView style="@style/CameraBody" android:layout_marginTop="8dp" android:textSize="10sp" android:text="@string/update_install_help"/>
+     </LinearLayout>
      <TextView style="@style/CameraEyebrow" android:text="@string/network_step"/>
      <TextView style="@style/CameraLabel" android:text="@string/transmission_mode" android:labelFor="@id/transportSpinner"/>
      <Spinner android:id="@+id/transportSpinner" style="@style/CameraSpinner" android:contentDescription="@string/transmission_mode"/>

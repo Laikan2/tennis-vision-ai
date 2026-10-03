@@ -4,6 +4,8 @@
 
 Retirar a dependência do Larix e manter a análise no computador, onde há mais CPU/GPU, armazenamento e espaço para o painel completo. O celular funciona como câmera especializada; o PC recebe, analisa e apresenta os resultados.
 
+A versão Android **0.5.3** inclui consulta e download de atualizações pelo GitHub. Instale essa versão uma vez para ativar o recurso e use **Rede → Atualizações do aplicativo** para confirmar a instalação das próximas. Veja [android-updates.md](android-updates.md).
+
 ```mermaid
 flowchart LR
     A[Galaxy S25 Ultra\nTennis Vision Camera] -->|H.264 + SRT\nWi-Fi local| B[MediaMTX no PC]

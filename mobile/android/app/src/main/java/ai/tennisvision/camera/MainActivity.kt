@@ -62,6 +62,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback {
+  private lateinit var updates: CameraUpdates
   private lateinit var camera: NativeCameraStream
   private lateinit var preview: SurfaceView
   private lateinit var statusText: TextView
@@ -98,7 +99,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   private val closeWorker = Executors.newSingleThreadExecutor()
   private var wifiLock: WifiManager.WifiLock? = null
   private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+    override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = onMain {
+      if (::updates.isInitialized) updates.networkChanged()
+    }
     override fun onLost(network: Network) = onMain {
+      if (::updates.isInitialized) updates.networkChanged()
       val manager = getSystemService(ConnectivityManager::class.java)
       if (requestedStream && connected && manager.activeNetwork == null) onConnectionFailed("A rede foi desconectada.")
     }
@@ -169,6 +174,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       findViewById<Button>(R.id.permissionButton).setText(R.string.open_settings)
       setStatus("Permita a câmera nas configurações do app para capturar o treino.", true)
     }
+    updateControls()
   }
   private val networkPermission = registerForActivityResult(
     ActivityResultContracts.RequestPermission(),
@@ -178,6 +184,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       startAfterPermission = false
       if (!granted) setStatus("Permita acesso à rede local para conectar ao PC.", true)
     }
+    updateControls()
   }
   private val qrScanner = registerForActivityResult(ScanContract()) { result ->
     scanning = false
@@ -323,6 +330,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       }
     })
     ContextCompat.registerReceiver(this, batteryReceiver, IntentFilter(Intent.ACTION_BATTERY_CHANGED), ContextCompat.RECEIVER_NOT_EXPORTED)
+    updates = CameraUpdates(this)
     runCatching { getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback) }
     mainHandler.post(telemetry)
     if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -819,6 +827,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   }
 
   private fun updateControls() {
+    if (::updates.isInitialized) updates.activityState(updatesAllowed())
     connectButton.setText(if (requestedStream) R.string.disconnect else R.string.connect)
     findViewById<Button>(R.id.quickConnect).setText(if (requestedStream) R.string.disconnect else R.string.connect)
     connectButton.isSelected = requestedStream
@@ -995,9 +1004,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     mainHandler.removeCallbacks(telemetry); mainHandler.post(telemetry)
     updateControls()
     ensurePreview()
+    if (::updates.isInitialized) updates.resume(updatesAllowed())
   }
   override fun onPause() {
     resumed = false
+    if (::updates.isInitialized) updates.pause()
     mainHandler.removeCallbacks(telemetry)
     saveCapturePreferences()
     if (::camera.isInitialized) {
@@ -1008,6 +1019,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   }
   override fun onDestroy() {
     destroyed = true
+    if (::updates.isInitialized) updates.close()
     resumed = false
     if (::camera.isInitialized) {
       stopTransmission("ENCERRADO")
@@ -1030,5 +1042,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     outState.putBoolean("fullscreen", fullScreen)
     super.onSaveInstanceState(outState)
   }
+
+  private fun updatesAllowed() = resumed && !requestedStream && !scanning && !closingCamera &&
+    !cameraPermissionInFlight && !networkPermissionInFlight
 }
 

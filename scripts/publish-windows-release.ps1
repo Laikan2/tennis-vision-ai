@@ -41,7 +41,7 @@ O programa para Windows recebe as câmeras e executa a análise no PC.
 
 Atualizações: versões a partir de 0.6.0 consultam este repositório automaticamente, baixam quando a sessão está parada e instalam ao fechar. Para atualizar um programa anterior à 0.6.0, execute este instalador uma vez sobre a instalação existente.
 
-Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador inclui o aplicativo Android $androidVersion; a instalação do APK no celular continua separada.
+Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador inclui o aplicativo Android $androidVersion com atualizações pelo GitHub. Instale o APK uma vez sobre o app anterior para ativar o recurso; depois, abra Rede > Atualizações do aplicativo no celular para confirmar a instalação das próximas versões. O download automático espera a transmissão parar e uma rede sem cobrança por dados.
 "@
     [IO.File]::WriteAllText($notesFile, $releaseNotes, [Text.UTF8Encoding]::new($false))
     & $releaseGh release create $releaseTag --repo $releaseRepo --draft --title "Tennis Vision Studio $releaseVersion" --notes-file $notesFile

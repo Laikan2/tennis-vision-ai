@@ -4,7 +4,9 @@
 
 A versão Windows 0.6.0 inclui o atualizador. A instalação inicial substitui o programa anterior e preserva `%APPDATA%\TennisVisionStudio`, incluindo a configuração do projeto existente. Futuras versões são consultadas no GitHub, baixadas automaticamente quando a sessão termina e instaladas ao fechar. O menu **Ajuda → Buscar atualização** e o painel de Configurações permitem conferir o estado.
 
-Publicar código no GitHub não muda o programa instalado: é preciso compilar e publicar uma versão com número maior. Apenas releases estáveis completos são oferecidos. Sem internet, o estúdio permanece funcional. O Android continua com instalação própria de APK.
+Publicar código no GitHub não muda o programa instalado: é preciso compilar e publicar uma versão com número maior. Apenas releases estáveis completos são oferecidos. Sem internet, o estúdio permanece funcional.
+
+O Android **0.5.3** também consulta e baixa atualizações pelo GitHub quando a transmissão está parada. Instale essa versão uma vez sobre a anterior para ativar o recurso. Para instalar uma atualização baixada, abra **Rede → Atualizações do aplicativo**; o Android pede sua confirmação. Consulte [android-updates.md](android-updates.md).
 
 ## Repositórios
 
@@ -16,7 +18,7 @@ O consumidor do feed público não precisa de conta GitHub. Um feed privado exig
 
 ## Publicar uma nova versão pelo PC de desenvolvimento
 
-1. Altere `version` em `desktop/package.json` para um número estável maior, por exemplo `0.6.1`.
+1. Altere `version` em `desktop/package.json` para um número estável maior, por exemplo `0.6.3`. Se houver um novo APK, aumente as duas versões no Gradle Android, use o mesmo certificado e ajuste a versão na API e no filtro de arquivos do pacote Windows.
 2. Instale as dependências do projeto. Use o GitHub CLI autenticado com acesso de escrita ao repositório de instaladores; confira `gh auth status`.
 3. Execute `powershell -File scripts/publish-windows-release.ps1` na raiz. O script compila a IA, o painel e o instalador, executa os testes do desktop e confere versão, SHA-512, tamanho, blockmap e repositório gravado no pacote.
 4. O script cria um rascunho, envia o EXE, `.blockmap`, `latest.yml` e o APK e confere os tamanhos antes de publicar. Os programas instalados passam a receber a nova versão automaticamente.

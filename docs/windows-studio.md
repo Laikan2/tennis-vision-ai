@@ -1,12 +1,12 @@
-# Tennis Vision Studio · Windows 0.6.1
+# Tennis Vision Studio · Windows 0.6.2
 
-O instalador inclui o painel, Python, bibliotecas de visão, modelos, receptor MediaMTX e o aplicativo Android 0.5.2. No computador que recebe o instalador, não é necessário instalar Node ou Python para usar o programa.
+O instalador inclui o painel, Python, bibliotecas de visão, modelos, receptor MediaMTX e o aplicativo Android 0.5.3. No computador que recebe o instalador, não é necessário instalar Node ou Python para usar o programa.
 
-A atualização Android **0.5.2** também é distribuída separadamente. Instale `Tennis-Vision-Camera-Android-v0.5.2.apk` sobre a versão anterior para manter o pareamento. As atualizações automáticas do Windows não instalam o APK no celular.
+Instale `Tennis-Vision-Camera-Android-v0.5.3.apk` sobre a versão anterior para manter o pareamento e ativar as atualizações do celular. Depois, o app Android consulta e baixa novas versões pelo GitHub; a instalação é confirmada no próprio celular em **Rede → Atualizações do aplicativo**. Consulte [android-updates.md](android-updates.md).
 
 ## Começar
 
-1. Instale `Tennis-Vision-Studio-0.6.1-Windows-x64.exe` e abra **Tennis Vision Studio** pelo atalho.
+1. Instale `Tennis-Vision-Studio-0.6.2-Windows-x64.exe` e abra **Tennis Vision Studio** pelo atalho.
 2. Clique em **Conectar celular**. Baixe o aplicativo Android e instale no Galaxy.
 3. Clique em **Preparar rede do PC** uma vez, se necessário. O Windows solicita autorização; a regra permite o receptor apenas na rede privada local. PC e celular devem estar na mesma rede.
 4. No aplicativo Android, leia o QR, escolha a captura e toque em **Transmitir para o PC**.
@@ -16,7 +16,7 @@ Para o iPhone, mantenha o transmissor compatível com RTSP/SRT já configurado. 
 
 ## Atualizações pelo GitHub
 
-Se a instalação for anterior a 0.6.0, instale o novo 0.6.1 uma vez para ativar esse recurso. Depois, o programa consulta as versões estáveis publicadas no repositório de instaladores ao abrir e a cada quatro horas. Ele baixa a atualização automaticamente quando não há sessão ativa, verifica o SHA-512 e instala silenciosamente ao fechar o programa. Sem internet, você pode continuar usando a análise local.
+Se a instalação for anterior a 0.6.0, instale o novo 0.6.2 uma vez para ativar esse recurso. Depois, o programa consulta as versões estáveis publicadas no repositório de instaladores ao abrir e a cada quatro horas. Ele baixa a atualização automaticamente quando não há sessão ativa, verifica o SHA-512 e instala silenciosamente ao fechar o programa. Sem internet, você pode continuar usando a análise local.
 
 Em **Configurações → Programa para Windows → Atualizações pelo GitHub**, acompanhe o download ou clique em **Buscar atualização**. Quando o arquivo estiver pronto, **Reiniciar para atualizar** instala e reabre; encerre a sessão antes de usar esse botão. Fechar normalmente instala sem reabrir.
 

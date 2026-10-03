@@ -6,6 +6,7 @@
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
   <uses-permission android:name="android.permission.WAKE_LOCK" />
+  <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
   <uses-feature android:name="android.hardware.camera.any" android:required="true" />
   <uses-feature android:name="android.hardware.camera2.full" android:required="false" />
@@ -19,6 +20,13 @@
     android:roundIcon="@drawable/ic_launcher"
     android:supportsRtl="true"
     android:theme="@style/Theme.TennisVisionCamera">
+    <provider
+      android:name="androidx.core.content.FileProvider"
+      android:authorities="ai.tennisvision.camera.updates"
+      android:exported="false"
+      android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
+    </provider>
 
     <activity
       android:name=".PairingScannerActivity"
