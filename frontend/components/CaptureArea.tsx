@@ -204,6 +204,11 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
         }</span>
       </>}
       {error && <span role="alert">{error}</span>}
+      {!mode && environment !== "tracking" && <p className="surface-explanation">
+        A área define o que vale dentro ou fora; a bola continua sendo procurada na imagem inteira.
+        Calibre medidas reais para projetar posições em metros. Velocidade pelo tamanho da bola é uma estimativa.
+        Com duas câmeras, marque a mesma superfície física, na mesma ordem, para comparar os contatos.
+      </p>}
     </div>, controlsMount)}
   </>;
 }

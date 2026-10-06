@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { videoEndpoints, VideoProgress } from "../lib/video-playback.ts";
+import { videoEndpoints, VideoProgress, PlaybackMeter } from "../lib/video-playback.ts";
 
 test("Windows fallback reaches the bundled backend through its random-port relay", () => {
   const media = videoEndpoints("http://127.0.0.1:51346/", true, "/galaxy");
@@ -35,4 +35,14 @@ test("missing first frames time out and a new peer has an independent startup wi
   const retry = new VideoProgress(15000);
   assert.equal(retry.observe(0, 15500), "waiting");
   assert.equal(retry.observe(1, 16000), "ready");
+});
+
+test("playback measures delivered frames, handles freezes and resets after reconnect", () => {
+  const meter = new PlaybackMeter();
+  assert.equal(meter.sample(0,100,3),null);
+  assert.equal(meter.sample(250,115,3),null);
+  assert.deepEqual(meter.sample(1000,160,5), {fps:58,dropped:2});
+  assert.deepEqual(meter.sample(2000,160,5), {fps:0,dropped:0});
+  assert.equal(meter.sample(2100,0,0),null);
+  assert.deepEqual(meter.sample(3100,120,0), {fps:120,dropped:0});
 });

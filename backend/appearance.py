@@ -54,16 +54,22 @@ def votes(model, values):
 
 def load_model(path):
     with np.load(path,allow_pickle=False) as weights:
-        return {k:weights[k] for k in weights.files}
+        model = {k:weights[k] for k in weights.files}
+    shapes = dict(w0=(1073,48), b0=(48,), w1=(48,16), b1=(16,), w2=(16,1), b2=(1,))
+    if any(key not in model or model[key].shape != shape or
+           not np.issubdtype(model[key].dtype, np.floating) or
+           not np.isfinite(model[key]).all() for key, shape in shapes.items()):
+        raise ValueError('Modelo de aparência incompleto ou incompatível.')
+    return model
 
 
-def augment(patch, rng):
+def augment(patch, rng, brightness_range=(.65,1.15)):
     image=cv2.resize(patch,(40,40),interpolation=cv2.INTER_LINEAR)
     image=cv2.warpAffine(image,cv2.getRotationMatrix2D((20,20),float(rng.uniform(-180,180)),float(rng.uniform(.82,1.15))),(40,40),borderMode=cv2.BORDER_REFLECT)
     hsv=cv2.cvtColor(image,cv2.COLOR_BGR2HSV).astype(np.float32)
     hsv[:,:,0]=(hsv[:,:,0]+rng.uniform(-4,4))%180
     hsv[:,:,1]*=rng.uniform(.5,1.25)
-    hsv[:,:,2]=hsv[:,:,2]*rng.uniform(.65,1.15)+rng.uniform(-8,8)
+    hsv[:,:,2]=hsv[:,:,2]*rng.uniform(*brightness_range)+rng.uniform(-8,8)
     image=cv2.cvtColor(np.clip(hsv,0,255).astype(np.uint8),cv2.COLOR_HSV2BGR)
     length=int(rng.choice([1,3,5,7,9]))
     if length>1:
@@ -87,10 +93,22 @@ def metrics(labels, scores, threshold=.75):
 
 def should_promote(result,previous):
     return (result['precision']>=.9 and result['recall']>=.85 and
-            (previous is None or (result['f1']>=previous['f1'] and result['precision']>=previous['precision'])))
+            (previous is None or (result['f1']>=previous['f1'] and result['precision']>=previous['precision'] and
+                                 result['recall']>=previous['recall'])))
 
 
-def train_model(folder):
+def stress_metrics(model, patches, labels, threshold):
+    transforms = {
+        'darker': lambda image: np.clip(image.astype(float)*.7,0,255).astype(np.uint8),
+        'brighter': lambda image: np.clip(image.astype(float)*1.25,0,255).astype(np.uint8),
+        'small': lambda image: cv2.resize(image,(10,10),interpolation=cv2.INTER_AREA),
+        'horizontal_blur': lambda image: cv2.filter2D(image,-1,np.ones((1,5),np.float32)/5),
+    }
+    return {name:metrics(labels,votes(model,[features(transform(patch)) for patch in patches]),threshold)
+            for name,transform in transforms.items()}
+
+
+def train_model(folder, brightness_range=(.65,1.15)):
     folder=Path(folder)
     rows=json.loads((folder/'examples.json').read_text(encoding='utf-8'))
     reviewed=[r for r in rows if r.get('reviewed') and r.get('label') in (0,1)]
@@ -109,11 +127,11 @@ def train_model(folder):
         if patch is None: raise ValueError('Exemplo de treinamento ausente.')
         x.append(features(patch));y.append(row['label'])
         for _ in range(40 if row['label'] else 4):
-            x.append(features(augment(patch,rng)));y.append(row['label'])
+            x.append(features(augment(patch,rng,brightness_range)));y.append(row['label'])
         if row['label']:
             # Neutral, blurred highlights must not inherit the green-ball label.
             gray=cv2.cvtColor(cv2.cvtColor(patch,cv2.COLOR_BGR2GRAY),cv2.COLOR_GRAY2BGR)
-            for _ in range(4):x.append(features(augment(gray,rng)));y.append(0)
+            for _ in range(4):x.append(features(augment(gray,rng,brightness_range)));y.append(0)
     import torch
     torch.set_num_threads(2);torch.manual_seed(417)
     network=torch.nn.Sequential(torch.nn.Linear(len(x[0]),48),torch.nn.ReLU(),
@@ -128,7 +146,12 @@ def train_model(folder):
     model={}
     for i,layer in enumerate([network[0],network[2],network[4]]):
         model[f'w{i}']=layer.weight.detach().numpy().T.copy();model[f'b{i}']=layer.bias.detach().numpy().copy()
-    tx=[features(cv2.imread(str(folder/r['image']))) for r in testing]
+    tx=[]; test_patches=[]
+    for row in testing:
+        patch=cv2.imread(str(folder/row['image']))
+        if patch is None: raise ValueError('Exemplo de validação ausente. O modelo atual foi preservado.')
+        tx.append(features(patch))
+        test_patches.append(patch)
     labels=[r['label'] for r in testing]
     threshold=.85
     result=metrics(labels,votes(model,tx),threshold)
@@ -136,17 +159,26 @@ def train_model(folder):
     version=str(time.time_ns())
     filename=f'models/{version}.npz'
     np.savez_compressed(folder/filename,**model)
-    previous=None
+    stressed=stress_metrics(model,test_patches,labels,threshold)
+    previous=None; previous_stress=None
     active=folder/'active.json'
     if active.is_file():
         info=json.loads(active.read_text())
         old=load_model(folder/info['file'])
         previous=metrics(labels,votes(old,tx),info['threshold'])
-    accepted=should_promote(result,previous)
+        previous_stress=stress_metrics(old,test_patches,labels,info['threshold'])
+    improved=(previous is None or result['f1'] > previous['f1'] or
+              (previous_stress is not None and any(
+                  stressed[name]['f1'] > baseline['f1'] for name,baseline in previous_stress.items())))
+    accepted=improved and should_promote(result,previous) and (previous_stress is None or all(
+        stressed[name]['precision'] >= baseline['precision'] and
+        stressed[name]['recall'] >= baseline['recall'] for name,baseline in previous_stress.items()))
     report=dict(version=version,file=filename,threshold=threshold,accepted=accepted,createdAt=time.time(),
                 trainExamples=len(training),trainPositives=sum(r['label'] for r in training),
                 augmentedExamples=len(x),testExamples=len(testing),testPositives=sum(labels),
                 metrics=result,previousMetrics=previous,reviewedCount=len(reviewed),
+                stressMetrics=stressed,previousStressMetrics=previous_stress,
+                brightnessRange=list(brightness_range),
                 scope='Validação em recortes revisados de trechos separados das gravações do quarto; não mede precisão de velocidade ou de impactos, nem generalização para outras quadras.',
                 validationGroups=sorted({r['group'] for r in testing}))
     (versions/f'{version}.json').write_text(json.dumps(report,indent=2),encoding='utf-8')
@@ -176,10 +208,12 @@ class AppearanceModel:
             info=json.loads(path.read_text())
             if info['version']!=self.version:
                 model=load_model(self.folder/info['file'])
-                if model['w0'].shape[0]!=1073 or not all(np.isfinite(v).all() for v in model.values()):return
+                threshold=float(info['threshold'])
+                if not np.isfinite(threshold) or not 0 < threshold <= 1:
+                    return
                 self.model=model
-                self.version=info['version'];self.threshold=info['threshold']
-        except (OSError,ValueError,KeyError):
+                self.version=info['version'];self.threshold=threshold
+        except (OSError,ValueError,KeyError,TypeError):
             # Preserve a working model if an interrupted local file write is
             # encountered; frame processing must continue with the old version.
             return

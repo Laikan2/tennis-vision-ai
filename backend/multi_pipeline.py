@@ -1,4 +1,3 @@
-import statistics
 import threading
 import time
 
@@ -21,7 +20,7 @@ class PipelineManager:
     # between the phone relay and the IP camera.  Match by time *and* court
     # position so that one physical bounce is counted once despite that delay.
     fusion_window_seconds = 1.7
-    max_fusion_distance = .85
+    max_fusion_distance = .20
 
     def __init__(self, store):
         self.store = store
@@ -33,6 +32,8 @@ class PipelineManager:
         self.learning = None
         self._fusion_lock = threading.RLock()
         self._fused_events = []
+        self._summary_key = None
+        self._summary = None
 
     @property
     def primary(self):
@@ -140,6 +141,7 @@ class PipelineManager:
             'ballDiameterPx','positionUncertaintyPx','decisionMarginPx','decisionReason',
             'decisionMarginsPx','possiblePositions','contactRangePx','contactEvidence','contactLocated',
             'impactEstimatedBetweenFrames','positionApproximate','trackID',
+            'analysisMode',
         )
         return {key: event.get(key) for key in keys if key in event}
 
@@ -217,22 +219,34 @@ class PipelineManager:
                     continue
                 if camera_id in (previous.get('cameraIds') or [previous.get('cameraId')]):
                     continue
+                # Pixels from different views are not a shared coordinate system.
+                # A floor contact cannot corroborate a wall contact either.
+                if incoming.get('targetMode') != 'surface' or previous.get('targetMode') != 'surface':
+                    continue
+                if incoming.get('analysisMode') != previous.get('analysisMode'):
+                    continue
                 previous_observations=previous.get('observations') or [self._observation(previous)]
                 distances=[self._target_distance(incoming.get('targetPosition'),item.get('targetPosition'))
                            for item in previous_observations]
                 distances=[distance for distance in distances if distance is not None]
                 distance=min(distances) if distances else None
-                if distance is not None and distance > self.max_fusion_distance:
+                if distance is None or distance > self.max_fusion_distance:
                     continue
-                candidates.append((age+.45*(distance if distance is not None else .5),previous))
-            match=min(candidates,key=lambda item:item[0])[1] if candidates else None
+                candidates.append((age+3*distance,previous))
+            candidates.sort(key=lambda item:item[0])
+            # Two nearby bounces in the delay window cannot be associated reliably.
+            ambiguous = len(candidates) > 1 and candidates[1][0]-candidates[0][0] < .20
+            match = candidates[0][1] if candidates and not ambiguous else None
 
             if match is None:
                 incoming['cameraIds'] = [camera_id] if camera_id else []
                 incoming['observations'] = [self._observation(incoming)]
                 incoming['observationCount'] = 1
                 incoming['throwNumber'] = len(self._fused_events) + 1
-                incoming['decisionAgreement'] = 'single_camera'
+                incoming['decisionAgreement'] = 'association_uncertain' if ambiguous else 'single_camera'
+                incoming['possibleDuplicateOf'] = [item[1]['id'] for item in candidates] if ambiguous else []
+                if ambiguous:
+                    incoming['inOrOut'] = incoming['targetDecision'] = 'REVISAR'
                 incoming['varAlert'] = incoming.get('inOrOut') == 'OUT'
                 saved = self.store.put('event', incoming)
                 self._fused_events.append(saved)
@@ -264,8 +278,9 @@ class PipelineManager:
             if spatial_spread is not None and spatial_spread > .20:
                 decision,agreement='REVISAR','spatial_conflict'
             stroke_type,stroke_confidence=self._stroke_decision(observations)
-            speeds = [float(item['speedBefore']) for item in observations
-                      if item.get('speedBefore') is not None]
+            speed_observation = min(
+                (item for item in observations if item.get('speedBefore') is not None),
+                key=self._observation_quality, default=None)
             confidences = [float(item['confidence']) for item in observations
                            if item.get('confidence') is not None]
             match.update(
@@ -277,11 +292,13 @@ class PipelineManager:
                 targetDecision=decision,
                 decisionAgreement=agreement,
                 varAlert=decision == 'OUT',
-                speedBefore=statistics.median(speeds) if speeds else None,
+                speedBefore=(speed_observation or {}).get('speedBefore'),
+                speedMethod=(speed_observation or {}).get('speedMethod'),
+                speedSourceCameraId=(speed_observation or {}).get('cameraId'),
                 confidence=max(confidences) if confidences else None,
                 targetPosition=fused_position,
                 positionSourceCameraId=(best_observation or {}).get('cameraId'),
-                courtSector=court_sector(fused_position) if fused_position is not None else None,
+                courtSector=court_sector(fused_position) if fused_position is not None and incoming.get('analysisMode') != 'room' else None,
                 spatialSpread=spatial_spread,
                 strokeType=stroke_type,
                 strokeConfidence=stroke_confidence,
@@ -294,8 +311,19 @@ class PipelineManager:
             return saved
 
     def _session_events(self, session_id):
-        return [event for event in self.store.all('event')
-                if event.get('sessionId') == session_id]
+        return self.store.for_session('event', session_id)
+
+    def _session_summary(self):
+        key = (self.session['id'] if self.session else None, self.store.revision('event'))
+        with self._fusion_lock:
+            if key != self._summary_key:
+                events = self._session_events(key[0]) if key[0] else []
+                latest = max(events, key=lambda item: (
+                    float(item.get('timestamp', 0)), float(item.get('updatedAt', 0))
+                ), default=None)
+                self._summary = (StatisticsEngine.summarize(events), latest)
+                self._summary_key = key
+            return self._summary
 
     def snapshot(self):
         if not self.pipelines:
@@ -311,10 +339,7 @@ class PipelineManager:
             feeds.append(feed)
 
         primary = dict(next((feed for feed in feeds if feed['cameraId'] == self.camera_id), feeds[0]))
-        events = self._session_events(self.session['id']) if self.session else []
-        latest = max(events, key=lambda item: (
-            float(item.get('timestamp', 0)), float(item.get('updatedAt', 0))
-        ), default=None)
+        statistics, latest = self._session_summary()
         numeric = lambda key: [feed.get(key) for feed in feeds if feed.get(key) is not None]
         errors = list(dict.fromkeys(feed.get('error') for feed in feeds if feed.get('error')))
         primary.update(
@@ -333,7 +358,7 @@ class PipelineManager:
             detectedFrames=sum(feed.get('detectedFrames', 0) for feed in feeds),
             captureFpsTotal=sum(numeric('cameraFps')) if numeric('cameraFps') else None,
             processingFpsTotal=sum(numeric('processingFps')) if numeric('processingFps') else None,
-            statistics=StatisticsEngine.summarize(events),
+            statistics=statistics,
             lastEvent=latest,
             error=' · '.join(errors) if errors else None,
             fusionWindowMs=int(self.fusion_window_seconds * 1000),

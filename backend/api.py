@@ -48,7 +48,7 @@ async def lifespan(app):
 
 
 app=FastAPI(title='Tennis Vision AI',version='0.1.0',lifespan=lifespan)
-ANDROID_APP_VERSION='0.5.3'
+ANDROID_APP_VERSION='0.5.4'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
 desktop_origin=os.getenv('TV_DESKTOP_ORIGIN','')
@@ -367,7 +367,7 @@ def capture_region(data:CaptureRegionInput):
 
 @app.get('/api/events')
 def events(sessionId:str|None=None):
-    return [e for e in store.all('event') if sessionId is None or e['sessionId']==sessionId]
+    return store.for_session('event', sessionId) if sessionId is not None else store.all('event')
 
 
 @app.get('/api/frame')
@@ -692,7 +692,7 @@ def export(id:str,format:Literal['json','csv']='json'):
     session=store.get('session',id)
     if not session:
         raise HTTPException(404,'Sessão não encontrada.')
-    rows=[e for e in store.all('event') if e['sessionId']==id]
+    rows=store.for_session('event', id)
     if format=='json':
         return Response(json.dumps(dict(session=session,events=rows,statistics=StatisticsEngine.summarize(rows)),ensure_ascii=False),media_type='application/json',headers={'Content-Disposition':'attachment; filename="session.json"'})
     stream=io.StringIO(); writer=csv.writer(stream)

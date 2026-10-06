@@ -6,7 +6,8 @@ class StatisticsEngine:
     @staticmethod
     def summarize(events, samples=None):
         confirmed = [e for e in events if e.get('status')=='confirmed']
-        speeds = [e['physicalKmh'] for e in (samples or []) if e.get('physicalKmh') is not None]
+        speeds = [e['physicalKmh'] for e in (samples or []) if e.get('physicalKmh') is not None and
+                  np.isfinite(e['physicalKmh']) and 0 <= e['physicalKmh'] <= 250]
         estimates = [e['speedBefore'] for e in events if e.get('speedBefore') is not None and
                      np.isfinite(e['speedBefore']) and 0 <= e['speedBefore'] <= 250]
         # IN/OUT here is the decision relative to the user-marked target. It is
@@ -17,7 +18,8 @@ class StatisticsEngine:
         inconclusive=sum(e.get('inOrOut') not in ('IN','OUT') for e in events)
         cameras={camera_id for event in events for camera_id in
                  (event.get('cameraIds') or ([event.get('cameraId')] if event.get('cameraId') else []))}
-        confidences=[float(e['confidence']) for e in events if e.get('confidence') is not None]
+        confidences=[float(e['confidence']) for e in events if e.get('confidence') is not None and
+                     np.isfinite(e['confidence']) and 0 <= e['confidence'] <= 1]
         stroke_stats={}
         for name in ('forehand','backhand','unclassified'):
             rows=[event for event in events if
@@ -25,7 +27,7 @@ class StatisticsEngine:
                    else 'unclassified') == name]
             row_speeds=[float(event['speedBefore']) for event in rows
                         if event.get('speedBefore') is not None and
-                        np.isfinite(event['speedBefore'])]
+                        np.isfinite(event['speedBefore']) and 0 <= event['speedBefore'] <= 250]
             row_inside=sum(event.get('inOrOut') == 'IN' for event in rows)
             row_outside=sum(event.get('inOrOut') == 'OUT' for event in rows)
             stroke_stats[name]=dict(total=len(rows),inside=row_inside,outside=row_outside,
@@ -35,6 +37,8 @@ class StatisticsEngine:
                                     meanKmh=float(np.mean(row_speeds)) if row_speeds else None)
         sectors={}
         for event in events:
+            if event.get('analysisMode') == 'room':
+                continue
             sector=event.get('courtSector') or court_sector(event.get('targetPosition'))
             row=sectors.setdefault(sector,dict(total=0,forehand=0,backhand=0,
                                                unclassified=0,inside=0,outside=0))
@@ -43,8 +47,17 @@ class StatisticsEngine:
             row['total']+=1;row[stroke]+=1
             if event.get('inOrOut') == 'IN':row['inside']+=1
             if event.get('inOrOut') == 'OUT':row['outside']+=1
+        streak=longest=0
+        for event in sorted(events, key=lambda item: item.get('timestamp',0)):
+            streak=streak+1 if event.get('inOrOut') == 'IN' else 0
+            longest=max(streak,longest)
         return dict(bounces=len(confirmed), candidates=sum(e.get('status')=='candidate' for e in events),
                     throws=len(events), impacts=len(events),
+                    locatedImpacts=sum(e.get('contactLocated',True) is True for e in events),
+                    reviewedImpacts=len(confirmed), longestInsideStreak=longest,
+                    decidedImpacts=inside+outside,
+                    estimatedMedianKmh=float(np.median(estimates)) if estimates else None,
+                    estimatedP90Kmh=float(np.percentile(estimates,90)) if estimates else None,
                     estimatedMaxKmh=max(estimates) if estimates else None,
                     estimatedMeanKmh=float(np.mean(estimates)) if estimates else None,
                     inside=inside, outside=outside, inconclusive=inconclusive,

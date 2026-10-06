@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
-import { VideoProgress } from "../lib/video-playback";
+import { VideoProgress, PlaybackMeter } from "../lib/video-playback";
 
 type Reader = { close(): void };
 type ReaderConstructor = new (options: {
@@ -37,14 +37,17 @@ function loadReader(origin: string): Promise<ReaderConstructor> {
 }
 
 /** Observe decoded video so an unavailable/frozen peer can use the JPEG fallback. */
-export function WebRtcVideo({ url, onFailure, onReady, visible = true }: {
+export function WebRtcVideo({ url, onFailure, onReady, onMetrics, visible = true }: {
   url: string; onFailure(): void; onReady(): void; visible?: boolean;
+  onMetrics?(metrics: { fps: number; dropped: number }): void;
 }) {
   const element = useRef<HTMLVideoElement>(null);
   const failure = useRef(onFailure);
   failure.current = onFailure;
   const ready = useRef(onReady);
   ready.current = onReady;
+  const metrics = useRef(onMetrics);
+  metrics.current = onMetrics;
   useEffect(() => {
     const video = element.current;
     if (!video) return;
@@ -52,6 +55,7 @@ export function WebRtcVideo({ url, onFailure, onReady, visible = true }: {
     let failed = false;
     let reader: Reader | undefined;
     const progress = new VideoProgress(performance.now());
+    const meter = new PlaybackMeter();
     const fail = () => {
       if (!active || failed) return;
       failed = true;
@@ -72,6 +76,11 @@ export function WebRtcVideo({ url, onFailure, onReady, visible = true }: {
       if (failed) reader.close();
     }).catch(fail);
     const monitor = window.setInterval(() => {
+      const quality = video.getVideoPlaybackQuality?.();
+      if (quality && video.srcObject) {
+        const measured = meter.sample(performance.now(), quality.totalVideoFrames, quality.droppedVideoFrames);
+        if (measured) metrics.current?.(measured);
+      }
       const frame = video.srcObject && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
         ? video.getVideoPlaybackQuality?.().totalVideoFrames ?? video.currentTime : 0;
       const state = progress.observe(frame, performance.now());

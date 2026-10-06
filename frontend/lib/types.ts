@@ -117,6 +117,10 @@ export type EventObservation = Partial<Event> & {
 export type Stats = {
   estimatedMaxKmh?: number | null;
   estimatedMeanKmh?: number | null;
+  estimatedMedianKmh?: number | null;
+  estimatedP90Kmh?: number | null;
+  longestInsideStreak?: number;
+  decidedImpacts?: number;
   bounces: number;
   candidates: number;
   inside: number;
@@ -194,6 +198,12 @@ export type Status = {
   framesReceived: number;
   droppedFrames: number;
   inferenceMs?: number;
+  processingMs?: number;
+  jpegEncodingMs?: number | null;
+  captureGapP95Ms?: number | null;
+  analysisStale?: boolean;
+  analysisAgeMs?: number | null;
+  sourceTimingAvailable?: boolean;
   frameLatencyMs?: number;
   networkLatencyMs?: number | null;
   detectedFrames?: number;
@@ -254,7 +264,7 @@ export async function api<T>(path: string, body?: unknown): Promise<T> {
   return r.json();
 }
 export const number = (n: number | null | undefined, digits = 1) =>
-  n == null
+  n == null || !Number.isFinite(n)
     ? "—"
     : n.toLocaleString("pt-BR", { maximumFractionDigits: digits });
 export function color(speed: number | null | undefined) {

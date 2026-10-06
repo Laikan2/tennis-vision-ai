@@ -2,7 +2,7 @@
 
 ## Ativar no celular
 
-Instale **Tennis-Vision-Camera-Android-v0.5.3.apk** sobre a versão anterior, sem desinstalar. O APK usa o mesmo certificado e mantém o pareamento. Esta instalação inicial é necessária porque as versões até 0.5.2 não têm atualizador.
+Instale **Tennis-Vision-Camera-Android-v0.5.4.apk** sobre a versão anterior, sem desinstalar. O APK usa o mesmo certificado e mantém o pareamento. Esta instalação inicial é necessária porque as versões até 0.5.2 não têm atualizador.
 
 Depois, o app consulta o GitHub ao abrir e a cada seis horas enquanto está aberto. Quando a transmissão está parada e há conexão sem cobrança por dados, ele baixa a atualização automaticamente. Na rede móvel, o botão **Baixar atualização** permite autorizar o download manual.
 
@@ -20,7 +20,7 @@ Arquivos incompletos ou inválidos são apagados. O instalador recebe acesso tem
 
 ## Publicar futuras versões
 
-O Windows 0.6.2 inclui o APK 0.5.3 para a instalação inicial. Para atualizar o Android:
+O Windows 0.6.3 inclui o APK 0.5.4 para a instalação inicial. Para atualizar o Android:
 
 1. Aumente `versionName` e `versionCode` em `mobile/android/app/build.gradle.kts`.
 2. Compile e teste o APK usando o mesmo certificado da versão instalada.
@@ -38,3 +38,7 @@ Os 182 testes do backend e 20 testes do desktop também passaram. O Windows 0.6.
 A release pública [Windows 0.6.2 / Android 0.5.3](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.2) foi publicada em 3 de outubro de 2026. Um teste adicional usou o próprio `GitHubAppUpdateSource`, sem autenticação: encontrou a atualização para uma versão anterior, baixou e conferiu todos os bytes, e não ofereceu downgrade para 0.5.3. O manifesto público do Windows também corresponde ao arquivo local. Essa verificação não executou instalação no celular.
 
 Os testes do controlador simulam a fronteira do instalador e a URI Android: o `FileProvider` não interpreta caminhos Windows da mesma forma que caminhos de um celular. Há testes instrumentados separados para verificar a leitura e o isolamento da pasta no Android; seu APK de teste foi compilado. Como nenhum aparelho estava conectado, a instalação e esses testes instrumentados ainda precisam ser executados em um aparelho ou emulador.
+
+## Revisão atual
+
+A revisão Windows 0.6.3 / Android 0.5.4 mantém esse fluxo e a assinatura. Veja [correções, ensaios e limitações](revisao-2026-10-05.md).

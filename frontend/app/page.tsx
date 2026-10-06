@@ -44,6 +44,7 @@ import {
 } from "../lib/types";
 import { Court, LiveVideo, ReplayPlayer } from "../components/Visuals";
 import { LearningPanel } from "../components/LearningPanel";
+import { StreamDiagnostics } from "../components/StreamDiagnostics";
 import { useOutAudio } from "../components/useOutAudio";
 import { DesktopTitlebar, DesktopSettings, DesktopNetworkSetup } from "../components/DesktopShell";
 
@@ -141,6 +142,8 @@ export default function Page() {
     [activeReplay, setActiveReplay] = useState<Replay | null>(null),
     [health, setHealth] = useState(false);
   const [phoneInfo, setPhoneInfo] = useState<PhoneCameraInfo | null>(null);
+  const [preferencesReady, setPreferencesReady] = useState(false);
+  const refreshing = useRef(false);
   const [selectedCameraIds, setSelectedCameraIds] = useState<string[]>([]);
   const [accuracy, setAccuracy] = useState<{
     summary: {
@@ -155,18 +158,28 @@ export default function Page() {
   const outSound = useOutAudio(events, outAudio, status.session?.id,
     status.cameraCount ?? 1, status.fusionWindowMs ?? 550);
   useEffect(() => {
-    const saved = window.localStorage.getItem("tennis-out-audio");
-    if (saved != null) setOutAudio(saved !== "false");
-    const savedImpacts = window.localStorage.getItem("tennis-show-impacts");
-    if (savedImpacts != null) setShowImpacts(savedImpacts !== "false");
+    try {
+      const saved = window.localStorage.getItem("tennis-out-audio");
+      if (saved != null) setOutAudio(saved !== "false");
+      const savedImpacts = window.localStorage.getItem("tennis-show-impacts");
+      if (savedImpacts != null) setShowImpacts(savedImpacts !== "false");
+    } catch { /* Private browsing can make storage unavailable. */ }
+    setPreferencesReady(true);
   }, []);
   useEffect(() => {
-    window.localStorage.setItem("tennis-out-audio", String(outAudio));
-  }, [outAudio]);
+    if (preferencesReady) {
+      try { window.localStorage.setItem("tennis-out-audio", String(outAudio)); } catch {}
+    }
+  }, [outAudio, preferencesReady]);
   useEffect(() => {
-    window.localStorage.setItem("tennis-show-impacts", String(showImpacts));
-  }, [showImpacts]);
+    if (preferencesReady) {
+      try { window.localStorage.setItem("tennis-show-impacts", String(showImpacts)); } catch {}
+    }
+  }, [showImpacts, preferencesReady]);
   async function refresh() {
+    if (refreshing.current) return;
+    refreshing.current = true;
+    try {
     const [c, s, r, a] = await Promise.all([
       api<Camera[]>("/cameras"),
       api<Session[]>("/sessions"),
@@ -178,6 +191,7 @@ export default function Page() {
     setReplays(r);
     setAccuracy(a);
     setCameraId((id) => id || c[0]?.id || "");
+    } finally { refreshing.current = false; }
   }
   useEffect(() => {
     refresh().catch(() => {});
@@ -679,13 +693,13 @@ export default function Page() {
                   </div>
                   <div className="performance">
                     <span>
-                      CAPTURA{" "}
+                      CAPTURA{(status.cameraCount ?? 1) > 1 ? " · TOTAL " : " "}
                       <b>
                         {number(status.captureFpsTotal ?? status.cameraFps)} <i>fps</i>
                       </b>
                     </span>
                     <span>
-                      PROCESSAMENTO{" "}
+                      PROCESSAMENTO{(status.cameraCount ?? 1) > 1 ? " · TOTAL " : " "}
                       <b>
                         {number(status.processingFpsTotal ?? status.processingFps)} <i>fps</i>
                       </b>
@@ -703,6 +717,7 @@ export default function Page() {
                       </b>
                     </span>
                   </div>
+                  <StreamDiagnostics status={status} />
                 </section>
                 <details className="metrics-column" open>
                   <summary>Análise em tempo real <ChevronRight size={16} /></summary>
@@ -904,7 +919,7 @@ export default function Page() {
                         <div className="summary-numbers">
                           <div>
                             <strong>{stat?.throws ?? events.length}</strong>
-                            <span>Arremessos / impactos</span>
+                            <span>Contatos detectados</span>
                           </div>
                           <div>
                             <strong>{stat?.candidates ?? 0}</strong>
@@ -949,7 +964,10 @@ export default function Page() {
                   ) : (
                     <div className="statistics-grid">
                       {[
-                        ["Arremessos / impactos", stat?.throws ?? events.length],
+                        ["Contatos detectados", stat?.impacts ?? events.length],
+                        ["Maior sequência dentro", stat?.longestInsideStreak],
+                        ["Mediana estimada (km/h)", stat?.estimatedMedianKmh],
+                        ["P90 estimado (km/h)", stat?.estimatedP90Kmh],
                         ["Dentro da área", stat?.inside],
                         ["Fora da área", stat?.outside],
                         ["Decisão inconclusiva", stat?.inconclusive],
@@ -1717,7 +1735,7 @@ function ShotCoachSummary({
           <div className="eyebrow">TENNIS VISION / COACH VIEW</div>
           <h2>Seu treino em números</h2>
           <p>
-            VAR da área marcada · duas câmeras unem o mesmo lance sem duplicar a contagem.
+            Revisão da área marcada · observações compatíveis das câmeras são agrupadas. Casos ambíguos ficam para revisão.
           </p>
         </div>
         <span className="coach-live-tag">
@@ -1727,7 +1745,7 @@ function ShotCoachSummary({
       </div>
       <div className="coach-kpis">
         <div className="coach-kpi">
-          <span>ARREMESSOS / IMPACTOS</span>
+          <span>CONTATOS DETECTADOS</span>
           <strong>{ordered.length}</strong>
           <small>
             {confirmed} confirmados · {candidates} candidatos

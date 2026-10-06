@@ -12,6 +12,8 @@ class Store:
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.execute('PRAGMA journal_mode=WAL')
         self.db.execute('CREATE TABLE IF NOT EXISTS objects (kind TEXT, id TEXT, payload TEXT, PRIMARY KEY(kind,id))')
+        self.db.execute("CREATE INDEX IF NOT EXISTS objects_session ON objects(kind, json_extract(payload, '$.sessionId'))")
+        self._revisions = {}
         self.db.commit()
 
     def put(self, kind, obj):
@@ -20,6 +22,7 @@ class Store:
         obj.setdefault('createdAt', time.time())
         with self.lock, self.db:
             self.db.execute('INSERT OR REPLACE INTO objects VALUES (?,?,?)', (kind, obj['id'], json.dumps(obj, allow_nan=False)))
+            self._revisions[kind] = self._revisions.get(kind, 0) + 1
         return obj
 
     def get(self, kind, id):
@@ -31,3 +34,16 @@ class Store:
         with self.lock:
             rows = self.db.execute('SELECT payload FROM objects WHERE kind=? ORDER BY rowid DESC', (kind,)).fetchall()
         return [json.loads(r[0]) for r in rows]
+
+    def revision(self, kind):
+        with self.lock:
+            return self._revisions.get(kind, 0)
+
+    def for_session(self, kind, session_id):
+        """Read only this session, including edits to existing event IDs."""
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT payload FROM objects WHERE kind=? AND json_extract(payload, '$.sessionId')=? ORDER BY rowid DESC",
+                (kind, session_id),
+            ).fetchall()
+        return [json.loads(row[0]) for row in rows]

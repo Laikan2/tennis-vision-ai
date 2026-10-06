@@ -11,7 +11,7 @@ class BounceDetector:
     cooldown_seconds = .28
     minimum_impact_speed_kmh = 3.
     def __init__(self):
-        self.points = deque(maxlen=9)
+        self.points = deque(maxlen=48)
         self.last_event = -1e9
         self.track_id = None
         self.pending_contact = None
@@ -62,7 +62,7 @@ class BounceDetector:
                 # Keep the upward leg for the next descent, never the old
                 # contact. A cooldown based on arrival time counted the same
                 # recorded bounce two or three times as more frames arrived.
-                self.points=deque((p for p in self.points if p['timestamp']>event['timestamp']),maxlen=9)
+                self.points=deque((p for p in self.points if p['timestamp']>event['timestamp']),maxlen=48)
             if mode == 'room':
                 # Do not reuse the contact leg. New measured observations can
                 # form the next throw even if pose missed the hand offscreen.
@@ -153,7 +153,7 @@ class BounceDetector:
         if len(pts)<4 or not all(self._identity(p) for p in pts):return None
         if any(p.get('insidePerson') for p in pts) or not self._consistent_size(pts[:3]):return None
         if not self._away_from_edge(pts[1]):return None
-        t=np.array([p['timestamp'] for p in pts]);dt=np.diff(t)
+        t=observation_times(pts);dt=np.diff(t)
         if np.any(dt<=0) or np.max(dt)>.22:return None
         xy=np.array([[p.get('measuredX',p['centerX']),p.get('measuredY',p['centerY'])] for p in pts])
         v=np.diff(xy,axis=0)/dt[:,None];lengths=np.linalg.norm(v,axis=1)
@@ -267,7 +267,7 @@ class BounceDetector:
         detector localises the marker on the measured lowest point and still
         requires a coherent physical return near the selected floor.
         """
-        pts=list(self.points)
+        pts=self._ground_samples()
         if len(pts)<4:
             return None
         located=self._ground_intersection(pts)
@@ -388,6 +388,29 @@ class BounceDetector:
 
         # Upward-only motion can be a lifted/held ball. It proves no contact.
         return None
+
+    def _ground_samples(self):
+        """Retain real contact extrema while spanning enough time at 120/240 fps.
+
+        Nine consecutive frames at 240 fps cover only 33 ms. The old spatial
+        noise thresholds could therefore reject a clear bounce. Group dense
+        observations in 1/60 s bins and retain the lowest measured centre in
+        each bin. Tracking/rendering still use every processed frame; no new
+        position is invented and sparse input is left unchanged.
+        """
+        points=list(self.points)
+        if not points:
+            return []
+        times=observation_times(points)
+        if len(times)<2 or np.min(np.diff(times)) >= 1/60-1e-6:
+            return points[-9:]
+        groups={}
+        for point,t in zip(points,times):
+            bucket=int(np.floor((t-times[0])*60+1e-6))
+            previous=groups.get(bucket)
+            if previous is None or point.get('measuredY',point['centerY']) > previous.get('measuredY',previous['centerY']):
+                groups[bucket]=point
+        return list(groups.values())[-9:]
 
     def _ground_intersection(self, pts):
         """Locate contact between two measured descending and ascending frames.

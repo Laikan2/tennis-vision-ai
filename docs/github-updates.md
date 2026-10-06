@@ -6,7 +6,7 @@ A versão Windows 0.6.0 inclui o atualizador. A instalação inicial substitui o
 
 Publicar código no GitHub não muda o programa instalado: é preciso compilar e publicar uma versão com número maior. Apenas releases estáveis completos são oferecidos. Sem internet, o estúdio permanece funcional.
 
-O Android **0.5.3** também consulta e baixa atualizações pelo GitHub quando a transmissão está parada. Instale essa versão uma vez sobre a anterior para ativar o recurso. Para instalar uma atualização baixada, abra **Rede → Atualizações do aplicativo**; o Android pede sua confirmação. Consulte [android-updates.md](android-updates.md).
+O Android **0.5.4** também consulta e baixa atualizações pelo GitHub quando a transmissão está parada. Instale essa versão uma vez sobre a anterior para ativar o recurso. Para instalar uma atualização baixada, abra **Rede → Atualizações do aplicativo**; o Android pede sua confirmação. Consulte [android-updates.md](android-updates.md).
 
 ## Repositórios
 

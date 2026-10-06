@@ -71,12 +71,14 @@ def main():
         previous = t
         persons = frame.get('overlay', {}).get('persons') or []
         started = time.perf_counter()
-        detector.prior = tracker.hint(t)
+        source_time = frame.get('overlay', {}).get('sourceTime')
+        source_clock = frame.get('overlay', {}).get('sourceClock')
+        detector.prior = tracker.hint(t, source_time, source_clock)
         detections = detector.detect(image, t, persons=persons)
         for candidate in detections:
             candidate.update(sourceTime=frame.get('overlay',{}).get('sourceTime'),
                              sourceClock=frame.get('overlay',{}).get('sourceClock'))
-        track = tracker.update(detections, t)
+        track = tracker.update(detections, t, source_time, source_clock)
         resolution = [image.shape[1], image.shape[0]]
         if track:
             p._enrich_track(track, resolution)

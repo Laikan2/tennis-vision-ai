@@ -148,6 +148,28 @@ def test_camera_can_track_without_counting_impacts(client):
     assert api.store.get('camera',camera['id'])['analysisMode']=='tracking'
 
 
+def test_two_areas_remain_independent_after_edit_and_database_reopen(client):
+    from backend import api
+    from backend.database import Store
+    a=client.post('/api/cameras',json=dict(name='Chão A',host='192.168.0.10')).json()
+    b=client.post('/api/cameras',json=dict(name='Parede B',host='192.168.0.11')).json()
+    ground=[[.3,.3],[.7,.3],[.9,.9],[.1,.9]]
+    wall=[[.1,.1],[.8,.15],[.85,.8],[.15,.8]]
+    for camera,polygon,mode in [(a,ground,'court'),(b,wall,'room')]:
+        response=client.post('/api/capture-region',json=dict(cameraId=camera['id'],polygon=polygon,analysisMode=mode))
+        assert response.status_code == 200
+    client.post('/api/capture-region',json=dict(cameraId=a['id'],polygon=ground,analysisMode='court',targetZone='singles'))
+    db_path=api.store.db.execute('PRAGMA database_list').fetchone()[2]
+    reopened=Store(db_path)
+    try:
+        assert reopened.get('camera',a['id'])['capturePolygon']==ground
+        assert reopened.get('camera',a['id'])['targetZone']=='singles'
+        assert reopened.get('camera',b['id'])['capturePolygon']==wall
+        assert reopened.get('camera',b['id'])['analysisMode']=='room'
+    finally:
+        reopened.db.close()
+
+
 def test_validation_and_export_errors(client):
     assert client.post('/api/accuracy',json=dict(estimated=110,reference=100,source='Radar real')).status_code==200
     assert client.get('/api/accuracy').json()['summary']['mae']==10

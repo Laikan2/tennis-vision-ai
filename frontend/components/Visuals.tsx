@@ -425,6 +425,8 @@ export function LiveVideo({
     };
   }, [pageVisible, status.stale, directActive, fluidPreview, synchronized, cameraId, cameraQuery]);
   const displayed: Partial<Status> = directActive || fluidPreview ? status : overlay;
+  const [playback, setPlayback] = useState<{fps: number; dropped: number} | null>(null);
+  useEffect(() => { setPlayback(null); }, [cameraId, directSrc]);
   const w = displayed.resolution?.[0] || 1920,
     h = displayed.resolution?.[1] || 1080;
   const sourceTrack = displayed.track;
@@ -463,12 +465,16 @@ export function LiveVideo({
           : "#ff42d0";
   const persons = displayed.persons || [];
   const hasVideo = directActive || fluidPreview || Boolean(src);
-  const orderedEvents = [...events].sort((a,b)=>a.timestamp-b.timestamp);
+  const orderedEvents = useMemo(() => [...events].sort((a,b)=>a.timestamp-b.timestamp), [events]);
   const latestDecision = orderedEvents[orderedEvents.length - 1];
   const [reviewEvent,setReviewEvent] = useState<Event | null>(null);
   const lastReviewKey = useRef("");
   useEffect(() => {
-    if (!latestDecision || !["IN","OUT","REVISAR"].includes(latestDecision.inOrOut)) return;
+    if (!latestDecision || !["IN","OUT","REVISAR"].includes(latestDecision.inOrOut)) {
+      setReviewEvent(null);
+      lastReviewKey.current = "";
+      return;
+    }
     const key=`${latestDecision.id}:${latestDecision.inOrOut}:${latestDecision.updatedAt || ""}`;
     if (key === lastReviewKey.current) return;
     lastReviewKey.current=key;
@@ -498,6 +504,7 @@ export function LiveVideo({
             <img className="video-frame" src={src} alt="Frames reais da câmera" />
           ) : null}
           {directConnecting && <WebRtcVideo url={directSrc!} visible={directActive}
+            onMetrics={setPlayback}
             onReady={() => setDirectReady(true)} onFailure={() => { setDirectReady(false); setDirectFailed(true); }} />}
           <svg
             className="video-overlay"
@@ -542,11 +549,11 @@ export function LiveVideo({
                 const markerColor = e.inOrOut === "OUT" ? "#ff5964" : e.inOrOut === "REVISAR" ? "#ffbd59" : speed == null ? "#bfc6ff" : color(speed);
                 const impactNumber = e.throwNumber ?? orderedEvents.indexOf(e) + 1;
                 const impactLabel = e.inOrOut === "OUT"
-                  ? `#${impactNumber} FORA${speed == null ? "" : ` · ${number(speed)} km/h`}`
-                  : e.inOrOut === "REVISAR" ? `#${impactNumber} REVISAR${speed == null ? "" : ` · ${number(speed)} km/h`}`
+                  ? `#${impactNumber} FORA${speed == null ? "" : ` · ≈ ${number(speed)} km/h`}`
+                  : e.inOrOut === "REVISAR" ? `#${impactNumber} REVISAR${speed == null ? "" : ` · ≈ ${number(speed)} km/h`}`
                   : speed == null
                     ? `#${impactNumber} · velocidade indisponível`
-                    : `#${impactNumber} · ${number(speed)} km/h`;
+                    : `#${impactNumber} · ≈ ${number(speed)} km/h`;
                 const fontSize=Math.max(16,w/82);
                 const labelWidth=Math.max(150,Math.min(330,impactLabel.length*fontSize*.56+18));
                 const labelX=Math.max(8,Math.min(w-labelWidth-8,e.position![0]+18));
@@ -628,6 +635,8 @@ export function LiveVideo({
                   r={Math.max(9, Math.max(t.width,t.height) / 2 + 4)}
                   fill="none"
                   strokeWidth={Math.max(2,w/650)}
+                  strokeDasharray={t.predicted ? "6 5" : undefined}
+                  opacity={t.predicted ? .65 : 1}
                 />
                 {debug && (
                   <rect
@@ -649,6 +658,7 @@ export function LiveVideo({
                     strokeWidth=".5"
                     fontSize={Math.max(20, w / 55)}
                   >
+                    {t.predicted ? "PREVISÃO · " : ""}
                     {displayed.speed
                       ? `≈ ${number(displayed.speed.projectedKmh)} km/h`
                       : t.source === "model"
@@ -673,6 +683,7 @@ export function LiveVideo({
                     : t.autoAppearanceVerified ? "BOLA RECONHECIDA" : t.tennisColor ? "BOLA DE TÊNIS" : "BOLA POSSÍVEL"}
               </strong>
               <small>
+                {t.predicted ? "posição prevista · " : ""}
                 {speedValue != null
                   ? displayed.speed?.approximate
                     ? `aprox. pelo diâmetro de ${number(status.ballDiameterMm, 0)} mm`
@@ -688,15 +699,15 @@ export function LiveVideo({
               Mantenha o iPhone parado para rastrear a bola
             </div>
           )}
-          {!surfaceEditing && reviewEvent && (
+          {!surfaceEditing && events.length > 0 && reviewEvent && (
             <div className={`official-review decision-${reviewEvent.inOrOut.toLowerCase()}`}
               role={reviewEvent.inOrOut === "OUT" ? "alert" : "status"} aria-live="assertive">
-              <span className="official-review-kicker">OFFICIAL REVIEW</span>
+              <span className="official-review-kicker">{reviewEvent.status === "confirmed" ? "REVISÃO CONFIRMADA" : "ESTIMATIVA · REVISAR NO REPLAY"}</span>
               <strong>{reviewEvent.inOrOut === "REVISAR" ? "REVIEW" : reviewEvent.inOrOut}</strong>
               <div>
-                <b>IMPACTO {reviewEvent.throwNumber ? `#${reviewEvent.throwNumber}` : "DETECTADO"}</b>
-                <span>{reviewEvent.speedBefore != null ? `${number(reviewEvent.speedBefore)} km/h` : "velocidade indisponível"}</span>
-                <span>{strokeName(reviewEvent)}</span>
+                <b>{reviewEvent.status === "candidate" ? "POSSÍVEL CONTATO" : "IMPACTO"} {reviewEvent.throwNumber ? `#${reviewEvent.throwNumber}` : ""}</b>
+                <span>{eventSpeed(reviewEvent) != null ? `≈ ${number(eventSpeed(reviewEvent))} km/h` : "velocidade indisponível"}</span>
+                {reviewEvent.strokeType && <span>{strokeName(reviewEvent)}</span>}
                 {reviewEvent.courtSector && <span>{sectorNames[reviewEvent.courtSector] || reviewEvent.courtSector}</span>}
               </div>
             </div>
@@ -739,7 +750,10 @@ export function LiveVideo({
             ? `TRACK ${t.trackID} · ${t.predicted ? "PREVISTO" : t.source === "model" || t.appearanceVerified || t.autoAppearanceVerified ? "DETECTADO" : "INCERTO"}`
             : "AGUARDANDO BOLA"}
         </span>
-        <span>{persons.length ? `${persons.length} PESSOA${persons.length > 1 ? "S" : ""} · ` : ""}{number(fluidPreview ? status.previewFps : status.cameraFps)} FPS</span>
+        <span title={directActive && playback ? `${playback.dropped} quadros descartados na última amostra` : undefined}>
+          {persons.length ? `${persons.length} PESSOA${persons.length > 1 ? "S" : ""} · ` : ""}
+          {number(directActive ? playback?.fps : fluidPreview ? status.previewFps : status.processingFps)} FPS · {directActive ? "REPRODUÇÃO" : fluidPreview ? "PRÉVIA" : "IA"}
+        </span>
       </div>
       <CaptureArea status={status} cameraId={cameraId} width={w} height={h} controlsMount={controlsMount} onEditing={value=>{editingSurface.current=value;setSurfaceEditing(value);}} />
       {hasVideo && !surfaceEditing && <button className="clear-video-marks" onClick={() => setClearedAt(Date.now()/1000)}>Limpar marcas</button>}

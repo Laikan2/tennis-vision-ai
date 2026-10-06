@@ -13,8 +13,8 @@
   <ai.tennisvision.camera.CompositionGuideView android:id="@+id/compositionGuide" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone" android:importantForAccessibility="no"/>
   <ai.tennisvision.camera.FocusIndicatorView android:id="@+id/focusIndicator" android:layout_width="match_parent" android:layout_height="match_parent" android:importantForAccessibility="no"/>
   <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="top|start" android:layout_margin="12dp" android:background="@drawable/overlay_background" android:orientation="vertical" android:padding="10dp">
-   <TextView android:id="@+id/statusText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxWidth="310dp" android:maxLines="2" android:text="@string/camera_disconnected" android:textColor="@color/tv_accent" android:textSize="10sp" android:textStyle="bold" android:accessibilityLiveRegion="polite"/>
-   <TextView android:id="@+id/profileBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+   <TextView android:id="@+id/statusText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:maxWidth="310dp" android:maxLines="2" android:text="@string/camera_disconnected" android:textColor="@color/tv_accent" android:textSize="11sp" android:textStyle="bold" android:accessibilityLiveRegion="polite"/>
+   <TextView android:id="@+id/profileBadge" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:textColor="@color/tv_muted" android:textSize="11sp"/>
   </LinearLayout>
   <LinearLayout android:id="@+id/previewTelemetry" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|start" android:layout_margin="12dp" android:orientation="vertical" android:background="@drawable/overlay_background" android:padding="10dp" android:visibility="gone">
    <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content" android:orientation="horizontal">
@@ -22,7 +22,7 @@
     <LinearLayout style="@style/TelemetryColumn"><TextView style="@style/TelemetryLabel" android:text="@string/encoder_rate"/><TextView android:id="@+id/encoderValue" style="@style/TelemetryValue" android:text="@string/empty_fps"/></LinearLayout>
     <LinearLayout style="@style/TelemetryColumn"><TextView style="@style/TelemetryLabel" android:text="@string/sending_rate"/><TextView android:id="@+id/sendValue" style="@style/TelemetryValue" android:text="@string/empty_fps"/></LinearLayout>
    </LinearLayout>
-   <TextView android:id="@+id/metricsText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="@string/metrics_empty" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+   <TextView android:id="@+id/metricsText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="@string/metrics_empty" android:textColor="@color/tv_muted" android:textSize="11sp"/>
   </LinearLayout>
   <LinearLayout android:id="@+id/previewActions" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_gravity="bottom|end" android:layout_margin="12dp" android:orientation="horizontal">
    <Button android:id="@+id/quickConnect" style="@style/CameraPrimary" android:layout_width="wrap_content" android:layout_height="48dp" android:visibility="gone" android:text="@string/connect_short"/>
@@ -33,8 +33,8 @@
   app:layout_constraintBottom_toBottomOf="parent" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent">
   <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
    <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_launcher" android:importantForAccessibility="no"/>
-   <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="@string/brand_name" android:textColor="@color/tv_text" android:textSize="10sp" android:letterSpacing=".1" android:textStyle="bold"/>
-   <TextView android:id="@+id/versionText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="88dp" android:maxWidth="150dp" android:maxLines="2" android:gravity="end|center_vertical" android:focusable="true" android:background="?attr/selectableItemBackground" android:textColor="@color/tv_muted" android:textSize="10sp"/>
+   <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="8dp" android:text="@string/brand_name" android:textColor="@color/tv_text" android:textSize="11sp" android:letterSpacing=".1" android:textStyle="bold"/>
+   <TextView android:id="@+id/versionText" android:layout_width="wrap_content" android:layout_height="wrap_content" android:minHeight="48dp" android:minWidth="88dp" android:maxWidth="150dp" android:maxLines="2" android:gravity="end|center_vertical" android:focusable="true" android:background="?attr/selectableItemBackground" android:textColor="@color/tv_muted" android:textSize="11sp"/>
   </LinearLayout>
   <TextView android:id="@+id/panelTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="10dp" android:text="@string/analysis_camera" android:textColor="@color/tv_text" android:textSize="25sp" android:fontFamily="sans-serif-medium"/>
   <TextView android:id="@+id/panelSummary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="@string/app_summary" android:textColor="@color/tv_muted" android:textSize="11sp"/>
@@ -88,7 +88,7 @@
       <ProgressBar android:id="@+id/updateProgress" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="8dp" android:layout_marginTop="10dp" android:progressTint="@color/tv_accent" android:indeterminateTint="@color/tv_accent" android:max="100" android:visibility="gone"/>
       <Button android:id="@+id/installUpdate" style="@style/CameraPrimary" android:layout_marginTop="10dp" android:text="@string/update_install" android:visibility="gone"/>
       <Button android:id="@+id/checkUpdates" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="@string/update_check"/>
-      <TextView style="@style/CameraBody" android:layout_marginTop="8dp" android:textSize="10sp" android:text="@string/update_install_help"/>
+      <TextView style="@style/CameraBody" android:layout_marginTop="8dp" android:textSize="11sp" android:text="@string/update_install_help"/>
      </LinearLayout>
      <TextView style="@style/CameraEyebrow" android:text="@string/network_step"/>
      <TextView style="@style/CameraLabel" android:text="@string/transmission_mode" android:labelFor="@id/transportSpinner"/>
@@ -101,6 +101,6 @@
    </LinearLayout>
   </ScrollView>
   <Button android:id="@+id/connectButton" style="@style/CameraPrimary" android:layout_marginTop="10dp" android:text="@string/connect"/>
-  <TextView android:id="@+id/detailText" style="@style/CameraBody" android:layout_marginTop="8dp" android:maxLines="3" android:textSize="10sp" android:text="@string/local_stream_summary"/>
+  <TextView android:id="@+id/detailText" style="@style/CameraBody" android:layout_marginTop="8dp" android:maxLines="3" android:textSize="11sp" android:text="@string/local_stream_summary"/>
  </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -38,8 +38,14 @@ class UpdateTestActivity : AppCompatActivity() {
 @Config(sdk = [33])
 @LooperMode(LooperMode.Mode.PAUSED)
 class CameraUpdatesTest {
+  companion object {
+    private fun nextVersion(step: Int = 1): String {
+      val installed = requireNotNull(StableVersion.parse(BuildConfig.VERSION_NAME))
+      return installed.copy(patch = installed.patch + step).toString()
+    }
+  }
   private class FakeSource : AppUpdateSource {
-    var available: AppRelease? = AppReleaseTest.release()
+    var available: AppRelease? = AppReleaseTest.release(nextVersion())
     @Volatile var checks = 0
     @Volatile var downloads = 0
     var error: IOException? = null
@@ -217,7 +223,7 @@ class CameraUpdatesTest {
       assertEquals("content", request.intent.data?.scheme)
       assertEquals(f.activity.packageName + ".updates", request.intent.data?.authority)
       assertTrue(request.intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
-      assertTrue(request.intent.data!!.path!!.endsWith("camera-v0.5.4.apk"))
+      assertTrue(request.intent.data!!.path!!.endsWith("camera-v" + nextVersion() + ".apk"))
       val provider = requireNotNull(f.activity.packageManager.resolveContentProvider(request.intent.data!!.authority!!, 0))
       assertFalse(provider.exported)
       assertTrue(provider.grantUriPermissions)
@@ -289,7 +295,7 @@ class CameraUpdatesTest {
       shadowOf(f.activity.packageManager).setCanRequestPackageInstalls(true)
       f.updates.resume(true)
       await { f.updates.state.phase == UpdatePhase.READY }
-      File(f.activity.filesDir, "updates/camera-v0.5.4.apk").appendBytes(byteArrayOf(0))
+      File(f.activity.filesDir, "updates/camera-v" + nextVersion() + ".apk").appendBytes(byteArrayOf(0))
       f.updates.install()
       await { f.updates.state.phase == UpdatePhase.ERROR }
       assertNull(shadowOf(f.activity).nextStartedActivityForResult)
@@ -304,11 +310,11 @@ class CameraUpdatesTest {
       f.updates.check()
       await { f.updates.state.phase == UpdatePhase.READY }
       assertEquals(1, f.source.downloads)
-      f.source.available = AppReleaseTest.release("0.5.5")
+      f.source.available = AppReleaseTest.release(nextVersion(2))
       f.updates.check()
-      await { f.updates.state.phase == UpdatePhase.READY && f.updates.state.release?.version == StableVersion(0, 5, 5) }
+      await { f.updates.state.phase == UpdatePhase.READY && f.updates.state.release?.version == StableVersion.parse(nextVersion(2)) }
       assertEquals(2, f.source.downloads)
-      assertFalse(File(f.activity.filesDir, "updates/camera-v0.5.4.apk").exists())
+      assertFalse(File(f.activity.filesDir, "updates/camera-v" + nextVersion() + ".apk").exists())
     } finally { f.close() }
   }
 

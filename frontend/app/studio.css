@@ -1,4 +1,26 @@
 /* Studio: one visual system for the Windows app and the browser dashboard. */
+/* Connection diagnostics stay beside the video, with a separate card per view. */
+.stream-diagnostics { border-top:1px solid var(--line); }
+.stream-diagnostics > summary { display:flex; justify-content:space-between; align-items:center; gap:16px; padding:15px 18px; cursor:pointer; list-style:none; font-size:12px; }
+.stream-diagnostics > summary::-webkit-details-marker { display:none; }
+.stream-diagnostics summary span { display:flex; align-items:center; gap:9px; }
+.stream-diagnostics summary span:last-child { color:var(--muted); font-size:11px; }
+.stream-diagnostics-body { padding:0 16px 16px; }
+.stream-diagnostics-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr)); gap:12px; }
+.stream-health-card { background:#0d151c; border:1px solid var(--line); border-radius:10px; padding:16px; min-width:0; }
+.stream-health-card header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; font-size:12px; }
+.stream-health-card header span { border-radius:5px; padding:3px 7px; font-size:10px; background:#1a2832; }
+.health-online { color:#c8fa70; }.health-warning { color:#ffca82; }.health-offline { color:#9badba; }
+.stream-health-card dl { display:grid; grid-template-columns:1fr 1fr; gap:18px 12px; margin:20px 0 14px; }
+.stream-health-card dt { font-size:11px; color:var(--muted); line-height:1.4; }
+.stream-health-card dd { margin:4px 0 0; font-size:22px; font-variant-numeric:tabular-nums; color:var(--text); }
+.stream-health-card small { font-size:11px; color:var(--muted); }
+.stream-health-card p,.diagnostics-note,.surface-explanation { font-size:12px; line-height:1.6; color:var(--muted); margin:10px 0 0; }
+.surface-tools .surface-explanation { width:100%; flex-basis:100%; border-top:1px solid var(--line); padding-top:10px; }
+.surface-tools button { min-height:40px; }
+.surface-tools .court-zone-select { flex:1 1 160px; min-width:140px; }
+button:focus-visible,summary:focus-visible,select:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+@media(max-width:640px) { .stream-diagnostics > summary { align-items:flex-start; flex-direction:column; gap:6px; } }
 :root {
   --bg:#0c1116; --panel:#121a21; --line:#27333d; --muted:#98a9b6;
   --text:#e9f1f5; --accent:#c8fa70; --radius:14px;
@@ -269,3 +291,16 @@ input:not([type=checkbox]),select,textarea { background:#0e171e; border-color:#3
   .settings-grid > section { margin-bottom:16px; }
 }
 @media(prefers-reduced-motion:reduce) { button { transition:none; } }
+
+/* Keep decision caveats and camera controls readable in narrow feeds. */
+.official-review-kicker { font-size:10px; line-height:1.45; letter-spacing:.5px; }
+.camera-wall.is-dual .official-review > div span { font-size:10px; }
+.camera-feed .ball-scale-control > span,.camera-feed .impact-mode-control > span { font-size:11px; }
+@media(max-width:760px) {
+  .surface-tools button,.surface-tools select { font-size:12px; }
+  .surface-hint,.camera-feed-heading > small { font-size:11px; }
+  .performance > span,.coach-kpi > span { font-size:10px; }
+  .coach-summary-heading p,.video-empty p { font-size:12px; }
+  .video-empty .technical { font-size:10px; }
+  .video-controls label { font-size:12px; }
+}

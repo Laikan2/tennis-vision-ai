@@ -32,3 +32,20 @@ export class VideoProgress {
     return now - this.lastProgress > (this.hasFrame ? 3500 : 10000) ? "stalled" : "waiting";
   }
 }
+
+/** Sample playback counters, never equate the requested camera rate with display FPS. */
+export class PlaybackMeter {
+  private previous?: { now: number; frames: number; dropped: number };
+  sample(now: number, frames: number, dropped: number) {
+    const before = this.previous;
+    if (!before || frames < before.frames || dropped < before.dropped) {
+      this.previous = { now, frames, dropped };
+      return null;
+    }
+    const elapsed = now - before.now;
+    if (elapsed < 1000) return null;
+    this.previous = { now, frames, dropped };
+    const losses = dropped - before.dropped;
+    return { fps: Math.max(0, frames - before.frames - losses) * 1000 / elapsed, dropped: losses };
+  }
+}

@@ -96,6 +96,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   private var warnedStall = false
   private val firstFrameQueued = AtomicBoolean(false)
   private var closingCamera = false
+  private var automaticRecoveryUsed = false
   private val closeWorker = Executors.newSingleThreadExecutor()
   private var wifiLock: WifiManager.WifiLock? = null
   private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -482,6 +483,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
 
   private fun requestStart() {
     if (destroyed || requestedStream || closingCamera) return
+    automaticRecoveryUsed = false
     startAfterPermission = true
     when {
       ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED -> {
@@ -612,7 +614,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       .onFailure { stopTransmission("Não conectou: ${it.message}", true) }
   }
 
-  private fun stopTransmission(message: String, error: Boolean = false, resumePreview: Boolean = true) {
+  private fun stopTransmission(message: String, error: Boolean = false, resumePreview: Boolean = true,
+                               afterStopped: (() -> Unit)? = null) {
     requestedStream = false
     startAfterPermission = false
     connected = false
@@ -640,12 +643,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       val failure = runCatching { camera.stopStream() }.exceptionOrNull()
       onMain {
         closingCamera = false
-        closePreview()
-        updateControls()
+        closePreview(reopen = resumePreview && failure == null, afterClose = {
+          updateControls()
+          if (failure == null) afterStopped?.invoke()
+        })
         if (failure != null) setStatus(failure.message ?: "Falha ao encerrar a câmera.", true)
         // A network/authentication failure must not leave the local camera
         // frozen. Capture/codec failures explicitly suppress reopening.
-        if (resumePreview && failure == null && resumed && !scanning && !destroyed) ensurePreview()
       }
     }
   }
@@ -660,7 +664,13 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     captureFps = 0.0
     renderMetrics()
     profilePrepared = false
-    if (!::camera.isInitialized || !camera.isOnPreview) { if (!closingCamera) afterClose?.invoke(); return }
+    if (!::camera.isInitialized || !camera.isOnPreview) {
+      if (!closingCamera) {
+        afterClose?.invoke()
+        if (reopen) ensurePreview()
+      }
+      return
+    }
     if (closingCamera) return
     closingCamera = true
     updateControls()
@@ -684,7 +694,27 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   }
 
   private fun failCamera(message: String) {
-    stopTransmission(message, true, resumePreview = false)
+    val config = pendingConfig
+    val recovery = if (requestedStream && !automaticRecoveryUsed && !closingCamera)
+      ProfileCatalog.stableRecovery(profiles, currentProfile()) else null
+    if (config == null || recovery == null) {
+      stopTransmission(message, true, resumePreview = false)
+      return
+    }
+    automaticRecoveryUsed = true
+    val stable = profiles[recovery]
+    stopTransmission("$message Retomando em ${stable.height}p / ${stable.fps} fps.", true, resumePreview = false) {
+      if (resumed && !scanning && !destroyed && surfaceReady) {
+        requestedStream = true
+        qualitySpinner.setSelection(recovery)
+        pendingConfig = config.copy(width = stable.width, height = stable.height,
+          fps = stable.fps, bitrate = stable.bitrate)
+        savePairing(pendingConfig!!)
+        saveCapturePreferences()
+        updateControls()
+        ensurePreview()
+      }
+    }
   }
 
   private fun applyCaptureControls() {
@@ -905,7 +935,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       "${camera.recoveryDiscarded} frames ignorados na retomada. O atraso total depende também do receptor, Wi-Fi e IA."
     val elapsed = if (connected) ((SystemClock.elapsedRealtime() - streamStartedMs) / 1000).coerceAtLeast(0) else 0
     findViewById<TextView>(R.id.profileBadge).text = "${currentProfile().height}p / ${currentProfile().fps} fps solicitados" +
-      if (connected) String.format(Locale.getDefault(), " · %02d:%02d", elapsed / 60, elapsed % 60) else ""
+      (if (connected) String.format(Locale.getDefault(), " · %02d:%02d", elapsed / 60, elapsed % 60) else "") +
+      if (automaticRecoveryUsed) "\nPerfil estável ativado após falha na captura" else ""
     findViewById<TextView>(R.id.deviceText).setTextColor(ContextCompat.getColor(this,
       if (thermal >= PowerManager.THERMAL_STATUS_MODERATE) R.color.tv_warning else R.color.tv_muted))
     findViewById<View>(R.id.permissionButton).visibility = if (ContextCompat.checkSelfPermission(this,

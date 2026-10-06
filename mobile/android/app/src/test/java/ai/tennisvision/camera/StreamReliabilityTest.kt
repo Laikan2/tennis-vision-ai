@@ -4,6 +4,14 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StreamReliabilityTest {
+  @Test fun highRateRecoveryUsesTheSameCameraAndNoInventedProfile() {
+    val high = StreamProfile("240 fps",1280,720,240,24_000_000,highSpeed=true)
+    val modes = StreamProfile.stableProfiles + high
+    assertEquals(1, ProfileCatalog.stableRecovery(modes, high))
+    assertNull(ProfileCatalog.stableRecovery(modes, modes.first()))
+    assertNull(ProfileCatalog.stableRecovery(listOf(high), high))
+    assertNull(ProfileCatalog.stableRecovery(modes, high.copy(cameraId="other")))
+  }
   @Test fun staleCallbacksCannotChangeANewConnection() {
     val epoch = CallbackEpoch()
     val old = epoch.advance()

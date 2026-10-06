@@ -2,6 +2,10 @@
 
 MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.js/React/TypeScript, Tailwind e Framer Motion. **Não há dados demonstrativos no dashboard.**
 
+## Aplicativos prontos
+
+Windows **0.6.3** e Android **0.5.4**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.3). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md) e a [revisão com resultados e limites reais](docs/revisao-2026-10-05.md).
+
 ## Executar no Windows
 
 Requisitos: Python 3.12, Node.js 20.9+ e pnpm. A câmera deve estar acessível na rede do computador. O setup instala o suporte YOLO e baixa `yolo11n.pt` (~5 MB) para identificar pessoas e a classe genérica `sports ball`.
@@ -16,7 +20,7 @@ Abra [o dashboard local](http://127.0.0.1:3000). A API fica em [FastAPI /docs](h
 
 ### Aplicativo Galaxy S25 Ultra/Android sem Larix
 
-O aplicativo nativo já está compilado em `mobile/releases/Tennis-Vision-Camera-Android-v0.4.1.apk` e pode ser baixado também pelo botão **Baixar aplicativo** no painel. Envie o APK ao Galaxy por USB ou Quick Share e instale-o. O código-fonte está em `mobile/android`.
+O aplicativo nativo já está compilado em `mobile/releases/Tennis-Vision-Camera-Android-v0.5.4.apk` e pode ser baixado também pelo botão **Baixar aplicativo** no painel. Envie o APK ao Galaxy por USB ou Quick Share e instale-o sobre a versão existente. O código-fonte está em `mobile/android`.
 
 Ele captura a câmera traseira, usa o codificador H.264 do celular e publica por SRT direto no MediaMTX do computador. Execute `LIBERAR-CAMERA-CELULAR.bat` uma vez, mantenha os aparelhos na mesma rede e abra **Conectar câmera → Câmera Tennis Vision → Preparar**. Leia o QR dentro do aplicativo e toque em **Transmitir para o PC**. No painel, clique em **Adicionar ao painel** e inicie a sessão. O app nativo não exige HTTPS para acessar a câmera.
 

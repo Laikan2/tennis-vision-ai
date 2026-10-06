@@ -1,6 +1,7 @@
 from collections import deque
 import numpy as np
 from .ball_evidence import has_tennis_core, person_contact
+from .observation_time import observation_delta
 
 
 class BallTracker:
@@ -16,6 +17,8 @@ class BallTracker:
         self.history = deque(maxlen=180)
         self.observations = deque(maxlen=3)
         self.confirmed = False
+        self.clock = None
+        self.last_arrival = None
 
     def _drop(self):
         self.state = None
@@ -26,9 +29,18 @@ class BallTracker:
         self.observations.clear()
         self.confirmed = False
 
-    def hint(self, t):
+    @staticmethod
+    def _time(t, source_time, source_clock):
+        if source_time is not None and source_clock is not None and np.isfinite(source_time):
+            return float(source_time), ('source', source_clock)
+        return t, ('arrival', None)
+
+    def hint(self, t, source_time=None, source_clock=None):
         """Non-mutating source-resolution prediction for a focused detector pass."""
         if self.state is None or self.last_t is None or self.last_seen is None:
+            return None
+        t, clock = self._time(t, source_time, source_clock)
+        if clock != self.clock or t < self.last_t:
             return None
         age=max(0.,t-self.last_seen)
         if age > self.max_gap:
@@ -105,9 +117,19 @@ class BallTracker:
                     detection.get('ballScore',0) >= .58 and
                     (detection.get('moving',False) or held_by_player))
 
-    def update(self, detections, t):
-        if self.last_t is not None and t <= self.last_t:
+    def update(self, detections, t, source_time=None, source_clock=None):
+        arrival_t = t
+        if self.last_arrival is not None and arrival_t <= self.last_arrival:
             return None
+        t, clock = self._time(t, source_time, source_clock)
+        if clock != self.clock or (self.last_t is not None and t < self.last_t):
+            # Decoder reconnects and PTS resets start a new motion history.
+            self._drop()
+            self.last_t = None
+            self.clock = clock
+        if self.last_t is not None and t == self.last_t:
+            return None
+        self.last_arrival = arrival_t
         if self.last_seen is not None and t-self.last_seen > self.max_gap:
             self._drop()
         dt = t-self.last_t if self.last_t is not None else 0
@@ -330,7 +352,7 @@ class BallTracker:
                 # Two independently observed, learned ball crops acquire faster
                 # than the three-frame colour-only path. Never confirm predictions.
                 first,last=list(self.observations)[-2:]
-                elapsed=last['timestamp']-first['timestamp']
+                elapsed=observation_delta(first,last)
                 distance=np.hypot(last['centerX']-first['centerX'],last['centerY']-first['centerY'])
                 max_size=max(first['width'],first['height'],last['width'],last['height'])
                 if 0<elapsed<=.15 and distance<=min(700,max(160,max_size*2.5,elapsed*5000)):
@@ -348,7 +370,11 @@ class BallTracker:
                       measuredX=self.last_detection['centerX'], measuredY=self.last_detection['centerY'],
                       velocityX=float(self.state[2]), velocityY=float(self.state[3]),
                       trackID=self.track_id, predicted=not bool(chosen),
-                      predictionAge=prediction_age,timestamp=t)
+                      predictionAge=prediction_age,timestamp=arrival_t,
+                      sourceTime=source_time,sourceClock=source_clock,
+                      timingBasis=clock[0])
+        result.update(x=result['centerX']-result['width']/2,
+                      y=result['centerY']-result['height']/2)
         if chosen or prediction_age <= .24:
             self.history.append(result)
         if result['source'] != 'model' and not self.confirmed:

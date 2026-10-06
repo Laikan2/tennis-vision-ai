@@ -82,6 +82,7 @@ class Pipeline:
         self.calibration=CalibrationEngine(profile)
         self.stop_event.clear()
         self.events=[]; self.processed=0; self.detected_frames=0; self.error=None
+        self.statistics=StatisticsEngine.summarize([])
         self.state={}; self.frame_state={}; self.jpeg=None; self.raw_jpeg=None
         self.replay=ReplayManager(self.store)
         self.publisher=LatestFramePublisher(self._publish_frame)
@@ -111,8 +112,11 @@ class Pipeline:
     def snapshot(self):
         with self.lock:
             state=dict(self.state)
+            state['jpegEncodingMs']=self.frame_state.get('jpegEncodingMs')
         stale=not self.capture or self.capture.last_received is None or time.time()-self.capture.last_received>2 or not self.session
-        if stale:
+        analysis_age = max(0., time.time()-state['timestamp']) if state.get('timestamp') else None
+        analysis_stale = analysis_age is None or analysis_age > .5
+        if stale or analysis_stale:
             state.update(track=None,persons=[],trajectory=[],speed=None,courtPosition=None)
         state.update(running=self.session is not None,session=self.session,error=self.error,
                      cameraStatus=self.capture.status if self.capture and self.session else 'offline',
@@ -136,6 +140,7 @@ class Pipeline:
                      analysisMode=getattr(self,'environment',None) or (self.calibration.profile or {}).get('mode','room'),
                      poseStatus=self.pose.status if hasattr(self,'pose') else 'aguardando sessão',
                      calibration=self.calibration.profile,stale=stale,
+                     analysisStale=analysis_stale,analysisAgeMs=analysis_age*1000 if analysis_age is not None else None,
                       captureRegion=getattr(self,'region',None),capturePolygon=getattr(self,'polygon',None),
                       targetZone=getattr(self,'target_zone','full'),
                       courtOrientation=getattr(self,'court_orientation','normal'),
@@ -186,7 +191,7 @@ class Pipeline:
                 with self.lock:
                     region_key=(tuple(self.region) if self.region else None,
                                 tuple(map(tuple,self.polygon)) if self.polygon else None,
-                                self.target_zone,self.region_changed_at,self.ball_diameter_m)
+                                self.target_zone,self.region_changed_at,self.ball_diameter_m,self.environment)
                     if region_key != self.applied_region:
                         self.detector.region=self.region
                         self.detector.polygon=self.polygon
@@ -197,11 +202,11 @@ class Pipeline:
                         self.speed=SpeedEstimator(self.ball_diameter_m)
                         self.applied_region=region_key
                 persons=self.pose.update(frame.image,frame.timestamp)
-                self.detector.prior=self.tracker.hint(frame.timestamp)
+                self.detector.prior=self.tracker.hint(frame.timestamp,frame.source_time,frame.source_clock)
                 detections=self.detector.detect(frame.image,frame.timestamp,persons=persons)
                 for candidate in detections:
                     candidate.update(sourceTime=frame.source_time,sourceClock=frame.source_clock)
-                track=self.tracker.update(detections,frame.timestamp)
+                track=self.tracker.update(detections,frame.timestamp,frame.source_time,frame.source_clock)
                 persons = persons or list(getattr(self.detector, 'persons', []))
                 resolution=[frame.image.shape[1],frame.image.shape[0]]
                 position=self.calibration.map(track['centerX'],track['centerY'],resolution) if track else None
@@ -236,6 +241,7 @@ class Pipeline:
                         contact_located=event.get('contactLocated',True),
                         possible_positions=event.get('possiblePositions')))
                     event['targetMode']='surface' if self.region or self.polygon else 'image'
+                    event['analysisMode']=mode
                     event['targetZone']=self.target_zone
                     event['courtOrientation']=self.court_orientation
                     event['courtSector']=court_sector(target_position) if mode == 'court' else None
@@ -259,6 +265,7 @@ class Pipeline:
                     event=(self.event_sink(event) if self.event_sink else
                            self.store.put('event',event))
                     self.events.append(event)
+                    self.statistics=StatisticsEngine.summarize(self.events)
                     log.info('Impact candidate: %s (%s)',event['inOrOut'],event.get('contactEvidence'))
                     try:
                         self.replay.trigger(frame.timestamp,self.session['id'],'bounce_candidate')
@@ -283,7 +290,7 @@ class Pipeline:
                            frameLatencyMs=(time.monotonic()-frame.monotonic)*1000,
                            processingFps=(len(processing_times)-1)/duration if duration>0 else None,
                             autoLearning=self.adaptive.status(),
-                            statistics=StatisticsEngine.summarize(self.events),lastEvent=self.events[-1] if self.events else None)
+                            statistics=self.statistics,lastEvent=self.events[-1] if self.events else None)
                 with self.lock:
                     self.state=state
                 self.publisher.submit(frame,state,self.session['id'])
