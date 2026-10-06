@@ -4,7 +4,7 @@
 
 Retirar a dependência do Larix e manter a análise no computador, onde há mais CPU/GPU, armazenamento e espaço para o painel completo. O celular funciona como câmera especializada; o PC recebe, analisa e apresenta os resultados.
 
-A versão Android **0.5.4** inclui consulta e download de atualizações pelo GitHub. Instale essa versão uma vez para ativar o recurso e use **Rede → Atualizações do aplicativo** para confirmar a instalação das próximas. Veja [android-updates.md](android-updates.md).
+A versão Android **0.5.5** inclui consulta e download de atualizações pelo GitHub. Instale essa versão uma vez para ativar o recurso e use **Rede → Atualizações do aplicativo** para confirmar a instalação das próximas. Veja [android-updates.md](android-updates.md).
 
 ```mermaid
 flowchart LR
@@ -52,6 +52,10 @@ srt://192.168.15.2:8890?streamid=publish:galaxy&latency=40&pkt_size=1316
 ```
 
 O perfil inicial do QR é 1080p60. Para 120/240 fps, o usuário escolhe **Qualidade** no app após parear. O cadastro de câmera aceita até 240 fps, mas o receptor usa a taxa real da fonte; esse campo não limita o MediaMTX.
+
+No Windows 0.6.4, **Conectar celular** verifica se o receptor já recebeu vídeo. **Conectar e iniciar vídeo** reutiliza a câmera salva e inicia a sessão; repetir a ação não duplica a sessão nem troca as áreas. **Cadastrar para usar depois** somente salva o perfil.
+
+O Android 0.5.5 mantém o FPS escolhido quando há falha. O modo de alta velocidade é reiniciado uma vez; se continuar falhando, a transmissão para com uma mensagem. O app não muda nem grava 60 fps automaticamente. O tempo de inicialização e os frames efetivos do H.264 são considerados antes de declarar a captura travada. Veja [a correção e seus testes](high-speed-2026-10-06.md).
 
 ## Captura de alta velocidade na versão 0.3.0
 

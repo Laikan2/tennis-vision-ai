@@ -18,6 +18,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.os.Looper
 import android.util.Range
+import android.util.Log
 import android.util.Size
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -104,6 +105,7 @@ class CameraSession(context: Context, private val onError: (String) -> Unit) {
     val token = generation
     val sessionToken = ++sessionGeneration
     runCatching { session?.stopRepeating() }
+    runCatching { session?.abortCaptures() }
     runCatching { session?.close() }
     session = null
     builder = null
@@ -111,33 +113,36 @@ class CameraSession(context: Context, private val onError: (String) -> Unit) {
     val targets = outputs.toList()
     val recording = targets.size == 2
     val highSpeed = CaptureSessionPolicy.usesHighSpeed(config, recording)
+    // Set the FPS range before configuring the sensor. Setting a session key
+    // only after onConfigured can trigger a second expensive HAL transition.
+    val request = runCatching {
+      val request = camera.createCaptureRequest(if (recording) CameraDevice.TEMPLATE_RECORD else CameraDevice.TEMPLATE_PREVIEW)
+      targets.forEach(request::addTarget)
+      request.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
+      request.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+      request.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
+      val chars = characteristics(config.cameraId)
+      val focus = chars.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) ?: intArrayOf()
+      if (CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO in focus)
+        request.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
+      val map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
+      val available = if (highSpeed) map.getHighSpeedVideoFpsRangesFor(Size(config.width, config.height)).toList()
+        else chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.toList().orEmpty()
+      val duration = if (config.highSpeed && !recording)
+        map.getOutputMinFrameDuration(SurfaceHolder::class.java, Size(config.width, config.height)) else 0L
+      val limit = if (duration > 0) minOf(60, (1_000_000_000.0 / duration * 1.02).toInt()) else 60
+      val (lower, upper) = CaptureSessionPolicy.range(config, recording, available.map { it.lower to it.upper }, limit)
+      request.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(lower, upper))
+      if (!config.highSpeed) customRequest?.invoke(request)
+      if (!highSpeed) commonRequest?.invoke(request)
+      Log.i("TennisCamera", "Configuring camera ${config.cameraId}: ${config.width}x${config.height}, $lower-$upper fps, highSpeed=$highSpeed, outputs=${targets.size}")
+      request
+    }.getOrElse { reportError("Não preparou ${config.label}: ${it.message}"); return }
     val callbacks = object : CameraCaptureSession.StateCallback() {
       override fun onConfigured(newSession: CameraCaptureSession) {
         if (!active || token != generation || sessionToken != sessionGeneration) { newSession.close(); return }
         session = newSession
         runCatching {
-          val request = camera.createCaptureRequest(if (recording) CameraDevice.TEMPLATE_RECORD else CameraDevice.TEMPLATE_PREVIEW)
-          targets.forEach(request::addTarget)
-          request.set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
-          request.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
-          request.set(CaptureRequest.CONTROL_AWB_MODE, CaptureRequest.CONTROL_AWB_MODE_AUTO)
-          val chars = characteristics(config.cameraId)
-          val focus = chars.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) ?: intArrayOf()
-          if (CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO in focus)
-            request.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
-          val available = if (highSpeed) {
-            chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-              .getHighSpeedVideoFpsRangesFor(Size(config.width, config.height)).toList()
-          } else chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.toList().orEmpty()
-          val previewDuration = if (config.highSpeed && !recording) {
-            chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)!!
-              .getOutputMinFrameDuration(SurfaceHolder::class.java, Size(config.width, config.height))
-          } else 0L
-          val previewLimit = if (previewDuration > 0) minOf(60, (1_000_000_000.0 / previewDuration * 1.02).toInt()) else 60
-          val (lower, upper) = CaptureSessionPolicy.range(config, recording, available.map { it.lower to it.upper }, previewLimit)
-          request.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(lower, upper))
-          if (!config.highSpeed) customRequest?.invoke(request)
-          if (!highSpeed) commonRequest?.invoke(request)
           builder = request
           repeatRequest()
           onReady()
@@ -151,10 +156,12 @@ class CameraSession(context: Context, private val onError: (String) -> Unit) {
     }
     runCatching {
       if (Build.VERSION.SDK_INT >= 28) {
-        camera.createCaptureSession(SessionConfiguration(
+        val settings = SessionConfiguration(
           if (highSpeed) SessionConfiguration.SESSION_HIGH_SPEED else SessionConfiguration.SESSION_REGULAR,
           targets.map(::OutputConfiguration), Executor { handler.post(it) }, callbacks,
-        ))
+        )
+        settings.setSessionParameters(request.build())
+        camera.createCaptureSession(settings)
       } else if (highSpeed) camera.createConstrainedHighSpeedCaptureSession(targets, callbacks, handler)
       else camera.createCaptureSession(targets, callbacks, handler)
     }.onFailure { reportError("Não configurou ${config.label}: ${it.message}") }
@@ -266,7 +273,9 @@ class CameraSession(context: Context, private val onError: (String) -> Unit) {
     meter.reset()
   }
 
-  private fun reportError(message: String) { if (active) onError(message) }
+  private fun reportError(message: String) {
+    if (active) { Log.e("TennisCamera", message); onError(message) }
+  }
   private fun finishRelease() {
     if (pendingDevices == 0) {
       closeWaiters.forEach { it.countDown() }

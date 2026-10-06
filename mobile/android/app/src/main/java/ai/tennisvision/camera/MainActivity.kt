@@ -96,7 +96,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   private var warnedStall = false
   private val firstFrameQueued = AtomicBoolean(false)
   private var closingCamera = false
-  private var automaticRecoveryUsed = false
+  private var captureRestartUsed = false
   private val closeWorker = Executors.newSingleThreadExecutor()
   private var wifiLock: WifiManager.WifiLock? = null
   private val networkCallback = object : ConnectivityManager.NetworkCallback() {
@@ -483,7 +483,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
 
   private fun requestStart() {
     if (destroyed || requestedStream || closingCamera) return
-    automaticRecoveryUsed = false
+    captureRestartUsed = false
     startAfterPermission = true
     when {
       ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED -> {
@@ -603,6 +603,9 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     lastRecoveryAt = 0
     connected = false
     warnedStall = false
+    lastCaptureMs = 0L
+    captureFps = 0.0
+    renderMetrics()
     camera.getStreamClient().setReTries(10)
     detailText.text = "PC: ${config.host}:${config.port} · câmera: ${config.path}"
     runCatching {
@@ -695,22 +698,17 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
 
   private fun failCamera(message: String) {
     val config = pendingConfig
-    val recovery = if (requestedStream && !automaticRecoveryUsed && !closingCamera)
-      ProfileCatalog.stableRecovery(profiles, currentProfile()) else null
-    if (config == null || recovery == null) {
-      stopTransmission(message, true, resumePreview = false)
+    val profile = configuredProfile ?: currentProfile()
+    if (config == null || !requestedStream || captureRestartUsed || closingCamera || !profile.highSpeed) {
+      stopTransmission(if (profile.highSpeed) "$message O perfil ${profile.fps} fps foi mantido. Tente 60 fps em Captura se a falha continuar."
+        else message, true, resumePreview = false)
       return
     }
-    automaticRecoveryUsed = true
-    val stable = profiles[recovery]
-    stopTransmission("$message Retomando em ${stable.height}p / ${stable.fps} fps.", true, resumePreview = false) {
+    captureRestartUsed = true
+    stopTransmission("$message Reiniciando ${profile.height}p / ${profile.fps} fps uma vez.", true, resumePreview = false) {
       if (resumed && !scanning && !destroyed && surfaceReady) {
         requestedStream = true
-        qualitySpinner.setSelection(recovery)
-        pendingConfig = config.copy(width = stable.width, height = stable.height,
-          fps = stable.fps, bitrate = stable.bitrate)
-        savePairing(pendingConfig!!)
-        saveCapturePreferences()
+        pendingConfig = config
         updateControls()
         ensurePreview()
       }
@@ -914,7 +912,8 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       else -> "Sem rede ativa"
     }
     val thermal = if (Build.VERSION.SDK_INT >= 29) getSystemService(PowerManager::class.java).currentThermalStatus else 0
-    val stalled = StreamHealth.stalled(lastCaptureMs, SystemClock.elapsedRealtime(), cameraReady && resumed && !scanning && !closingCamera)
+    val stalled = StreamHealth.captureStalled(lastCaptureMs, camera.encodingStartedMs, camera.lastEncodedMs,
+      SystemClock.elapsedRealtime(), cameraReady && resumed && !scanning && !closingCamera, camera.isStreaming)
     if (stalled && !warnedStall) {
       warnedStall = true
       failCamera("A captura parou de produzir quadros. Tente transmitir novamente ou escolha menos FPS.")
@@ -936,7 +935,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     val elapsed = if (connected) ((SystemClock.elapsedRealtime() - streamStartedMs) / 1000).coerceAtLeast(0) else 0
     findViewById<TextView>(R.id.profileBadge).text = "${currentProfile().height}p / ${currentProfile().fps} fps solicitados" +
       (if (connected) String.format(Locale.getDefault(), " · %02d:%02d", elapsed / 60, elapsed % 60) else "") +
-      if (automaticRecoveryUsed) "\nPerfil estável ativado após falha na captura" else ""
+      if (captureRestartUsed) "\nCaptura reiniciada · FPS escolhido mantido" else ""
     findViewById<TextView>(R.id.deviceText).setTextColor(ContextCompat.getColor(this,
       if (thermal >= PowerManager.THERMAL_STATUS_MODERATE) R.color.tv_warning else R.color.tv_muted))
     findViewById<View>(R.id.permissionButton).visibility = if (ContextCompat.checkSelfPermission(this,
@@ -978,6 +977,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       lastDropped = camera.getStreamClient().getDroppedVideoFrames()
       applyCaptureControls()
       setStatus("AO VIVO · ENVIANDO PARA O PC")
+      detailText.text = "PC: ${pendingConfig?.host}:${pendingConfig?.port} · ${pendingConfig?.path}\nNo Windows, abra Conectar celular e toque em Conectar e iniciar vídeo."
     }
   }
   override fun onConnectionFailed(reason: String) = onMain {

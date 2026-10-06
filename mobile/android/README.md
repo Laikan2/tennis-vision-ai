@@ -8,7 +8,7 @@ Aplicativo nativo que transforma o Galaxy S25 Ultra em uma câmera do Tennis Vis
 2. O aplicativo lê esse QR e salva o pareamento.
 3. Ao tocar em **Transmitir para o PC**, o app publica em `srt://IP-DO-PC:8890`.
 4. O MediaMTX do projeto recebe o vídeo e o disponibiliza internamente como `rtsp://127.0.0.1:8554/galaxy`.
-5. O backend Python/OpenCV analisa os frames e o painel mostra vídeo, bola, trajetória, impacto, velocidade e estatísticas.
+5. No Windows, aguarde **Vídeo recebido** e toque em **Conectar e iniciar vídeo**. O backend Python/OpenCV analisa os frames e o painel mostra vídeo, bola, trajetória, impacto, velocidade e estatísticas.
 
 Nenhum vídeo precisa sair da rede local.
 
@@ -22,6 +22,7 @@ Nenhum vídeo precisa sair da rede local.
 - **Rede:** Mínimo atraso, Equilibrado ou Mais tolerante. Comece no primeiro; se houver perdas, reduza a resolução ou aumente a tolerância. Mostra buffer solicitado, fila em frames, retomadas, conexão, bateria e temperatura. Copiar diagnóstico inclui essas medições reais.
 - **Captura / H.264 / envio:** medem separadamente os frames observados na câmera, na saída do codificador e no transmissor. Não são uma medida da latência total até o painel. Mbps e descartes ajudam a identificar perdas na rede.
 - **Reconexão:** tenta retomar após interrupção de rede; o botão **Parar transmissão** cancela as tentativas.
+- **Falha em 120/240 fps:** a versão 0.5.5 reinicia uma vez o mesmo modo e mantém o perfil salvo. Ela não reduz automaticamente para 60 fps. A prévia da tela pode rodar a 30/60 enquanto a captura e o H.264 usam a taxa escolhida.
 
 A fila de envio é curta e o bitrate se ajusta à rede para reduzir acúmulo de vídeo. Isso não elimina o tempo de captura, transporte e análise. Mantenha o app aberto; a transmissão para quando ele vai para o fundo e deve ser iniciada novamente ao voltar.
 
@@ -30,7 +31,7 @@ A fila de envio é curta e o bitrate se ajusta à rede para reduzir acúmulo de 
 O APK compilado e assinado para teste está em:
 
 ```text
-mobile/releases/Tennis-Vision-Camera-Android-v0.4.1.apk
+mobile/releases/Tennis-Vision-Camera-Android-v0.5.5.apk
 ```
 
 Envie esse arquivo ao Galaxy, abra-o e autorize a instalação desta fonte quando o Android solicitar. Esta versão usa uma assinatura de desenvolvimento; ela serve para instalar e testar diretamente no seu aparelho. Uma publicação futura na loja precisa de uma chave de lançamento própria.

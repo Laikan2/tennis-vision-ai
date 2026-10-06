@@ -4,13 +4,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StreamReliabilityTest {
-  @Test fun highRateRecoveryUsesTheSameCameraAndNoInventedProfile() {
-    val high = StreamProfile("240 fps",1280,720,240,24_000_000,highSpeed=true)
-    val modes = StreamProfile.stableProfiles + high
-    assertEquals(1, ProfileCatalog.stableRecovery(modes, high))
-    assertNull(ProfileCatalog.stableRecovery(modes, modes.first()))
-    assertNull(ProfileCatalog.stableRecovery(listOf(high), high))
-    assertNull(ProfileCatalog.stableRecovery(modes, high.copy(cameraId="other")))
+  @Test fun changingSensorModesDoesNotTimeOutTheOldPreviewCallback() {
+    // Preview's last callback was at 1 s; switching starts at 10 s. The old
+    // watchdog immediately called this a stall and forced the 60 fps fallback.
+    assertFalse(StreamHealth.captureStalled(1_000, 10_000, 0, 10_100, true, true))
+    assertFalse(StreamHealth.captureStalled(1_000, 10_000, 0, 18_000, true, true))
+    assertTrue(StreamHealth.captureStalled(1_000, 10_000, 0, 18_001, true, true))
+  }
+  @Test fun liveEncoderOutputPreventsFalseCaptureStallsWithBatchedCallbacks() {
+    assertFalse(StreamHealth.captureStalled(1_000, 10_000, 19_500, 20_000, true, true))
+    assertTrue(StreamHealth.captureStalled(1_000, 10_000, 19_500, 22_501, true, true))
+    assertFalse(StreamHealth.captureStalled(1_000, 10_000, 0, 50_000, false, true))
+    assertTrue(StreamHealth.captureStalled(1_000, 0, 0, 5_000, true, false))
+  }
+  @Test fun cameraCallbacksCannotHideADeadEncoderAfterTheStartupWindow() {
+    assertFalse(StreamHealth.captureStalled(20_000, 10_000, 0, 20_000, true, true))
+    assertTrue(StreamHealth.encoderStalled(10_000, 0, 20_000, true))
   }
   @Test fun staleCallbacksCannotChangeANewConnection() {
     val epoch = CallbackEpoch()

@@ -49,6 +49,12 @@ import { useOutAudio } from "../components/useOutAudio";
 import { DesktopTitlebar, DesktopSettings, DesktopNetworkSetup } from "../components/DesktopShell";
 
 type View = "live" | "sessions" | "replays" | "accuracy" | "settings" | "learning";
+type PhoneReceiverStatus = {
+  receiverAvailable: boolean;
+  streamReady: boolean;
+  announcedFps: number | null;
+  message: string;
+};
 type PhoneCameraInfo = {
   available: boolean;
   localIp: string | null;
@@ -142,6 +148,26 @@ export default function Page() {
     [activeReplay, setActiveReplay] = useState<Replay | null>(null),
     [health, setHealth] = useState(false);
   const [phoneInfo, setPhoneInfo] = useState<PhoneCameraInfo | null>(null);
+  const [phoneReceiver, setPhoneReceiver] = useState<PhoneReceiverStatus | null>(null);
+  useEffect(() => {
+    if (modal !== "phone") return;
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout>;
+    setPhoneReceiver(null);
+    const check = async () => {
+      try {
+        const result = await api<PhoneReceiverStatus>("/mobile-camera/status");
+        if (alive) setPhoneReceiver(result);
+      } catch {
+        if (alive) setPhoneReceiver({ receiverAvailable: false, streamReady: false, announcedFps: null,
+          message: "Não foi possível conferir o receptor. Verifique se o motor do Windows está online." });
+      } finally {
+        if (alive) timer = setTimeout(check, 2000);
+      }
+    };
+    void check();
+    return () => { alive = false; clearTimeout(timer); };
+  }, [modal]);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const refreshing = useRef(false);
   const [selectedCameraIds, setSelectedCameraIds] = useState<string[]>([]);
@@ -306,6 +332,15 @@ export default function Page() {
       setCameraId(saved.id);
       setModal(null);
     }, "Câmera do celular adicionada. Abra a transmissão e inicie a sessão.");
+  }
+  async function connectPhoneCamera() {
+    await act(async () => {
+      const result = await api<{ camera: Camera; session: Session }>("/mobile-camera/connect", {});
+      setCameraId(result.camera.id);
+      setSelectedCameraIds(result.session.cameraIds ?? [result.camera.id]);
+      setModal(null);
+      setView("live");
+    }, "Celular conectado ao painel. Vídeo e análise iniciados.");
   }
   const stat = status.statistics;
   const liveSpeed =
@@ -1478,8 +1513,18 @@ export default function Page() {
                   <li><b>Uma vez:</b> instale o Tennis Vision Camera no Galaxy. Mantenha o PC e o celular na mesma rede. <DesktopNetworkSetup browserInstructions /></li>
                   <li>Abra o app, toque em <b>Ler QR do computador</b> e leia o código acima.</li>
                   <li>Em <b>Captura</b>, escolha a qualidade. Em <b>Rede</b>, comece com <b>Mínimo atraso</b>. Toque em <b>Transmitir para o PC</b>.</li>
-                  <li>Neste painel, clique em <b>Adicionar ao painel</b> e inicie a sessão.</li>
+                  <li>Quando o estado abaixo mostrar <b>Vídeo recebido</b>, clique em <b>Conectar e iniciar vídeo</b>. O painel abre a imagem e inicia a sessão.</li>
                 </ol>
+
+                <div className={phoneReceiver?.streamReady ? "phone-receiver-state is-ready" : "phone-receiver-state"} role="status" aria-live="polite">
+                  <span className="status-dot" />
+                  <div><b>{phoneReceiver?.streamReady ? "Vídeo recebido" : phoneReceiver?.receiverAvailable ? "Aguardando transmissão do celular" : phoneReceiver ? "Receptor indisponível" : "Conferindo conexão"}</b>
+                    <p>{phoneReceiver?.message ?? "Verificando o receptor no PC…"}</p>
+                    <button type="button" className="primary" disabled={busy || !phoneReceiver?.streamReady} onClick={connectPhoneCamera}>
+                      <Check size={16} /> Conectar e iniciar vídeo
+                    </button>
+                  </div>
+                </div>
 
                 <label className="phone-url">
                   Pareamento do aplicativo
@@ -1529,8 +1574,8 @@ export default function Page() {
 
                 <div className="phone-actions">
                   <button type="button" className="secondary" onClick={() => setModal("camera")}>Voltar</button>
-                  <button type="button" className="primary" disabled={busy || !phoneInfo.available} onClick={savePhoneCamera}>
-                    <Check size={16} /> Adicionar ao painel
+                  <button type="button" className="secondary" disabled={busy || !phoneInfo.available} onClick={savePhoneCamera}>
+                    Cadastrar para usar depois
                   </button>
                 </div>
               </section>
@@ -1936,17 +1981,19 @@ function Dialog({
     // container itself made the form look active while keystrokes went
     // nowhere until the user clicked a field a second time.
     const firstControl =
-      el?.querySelector<HTMLElement>('input,textarea') ||
       el?.querySelector<HTMLElement>(
-        'select,button:not([aria-label="Fechar diálogo"])',
+        'input:not([readonly]):not(:disabled),textarea:not([readonly]):not(:disabled)',
+      ) ||
+      el?.querySelector<HTMLElement>(
+        'select:not(:disabled),button:not(:disabled):not([aria-label="Fechar diálogo"])',
       );
-    (firstControl || el)?.focus();
+    (firstControl || el)?.focus({ preventScroll: true });
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") close();
       if (e.key === "Tab") {
         const nodes = Array.from(
           el?.querySelectorAll<HTMLElement>(
-            'button:not(:disabled),input,select,a[href],[tabindex="0"]',
+            'button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],[tabindex="0"]',
           ) || [],
         );
         const first = nodes[0],

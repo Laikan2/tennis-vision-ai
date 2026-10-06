@@ -7,6 +7,8 @@ import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Spinner
+import android.widget.ArrayAdapter
 import androidx.constraintlayout.widget.ConstraintLayout
 import org.junit.Assert.*
 import org.junit.Test
@@ -31,6 +33,34 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class CameraLayoutTest {
+  @Test fun aFailedHighRateNeverChangesTheSelectedOrSavedFpsTo60() {
+    for (fps in listOf(120, 240)) {
+      val controller = Robolectric.buildActivity(MainActivity::class.java).create().start().resume().visible()
+      val activity = controller.get()
+      val fast = StreamProfile("720p · $fps fps", 1280, 720, fps, 24_000_000, highSpeed = true)
+      val profiles = StreamProfile.stableProfiles + fast
+      fun field(name: String, value: Any) = MainActivity::class.java.getDeclaredField(name).apply {
+        isAccessible = true; set(activity, value)
+      }
+      field("profiles", profiles)
+      val spinner = activity.findViewById<Spinner>(R.id.qualitySpinner)
+      spinner.adapter = ArrayAdapter(activity, R.layout.spinner_item, profiles.map { it.label })
+      spinner.setSelection(profiles.lastIndex)
+      shadowOf(Looper.getMainLooper()).idle()
+      field("configuredProfile", fast)
+      field("pendingConfig", PairingConfig("192.168.15.2", fps = fps, width = 1280, height = 720))
+      field("requestedStream", true)
+      field("captureRestartUsed", true)
+      MainActivity::class.java.getDeclaredMethod("failCamera", String::class.java).apply {
+        isAccessible = true; invoke(activity, "Falha de captura")
+      }
+      assertEquals(profiles.lastIndex, spinner.selectedItemPosition)
+      assertEquals(fps, activity.getSharedPreferences("capture", 0).getInt("fps", 0))
+      assertTrue(activity.findViewById<TextView>(R.id.statusText).text.contains("$fps fps foi mantido"))
+      assertEquals(activity.getString(R.string.connect), activity.findViewById<Button>(R.id.connectButton).text)
+      controller.pause().stop().destroy()
+    }
+  }
   private fun draw(activity: MainActivity, name: String, width: Int = 1920, height: Int = 864) {
     val root = activity.findViewById<ConstraintLayout>(R.id.cameraRoot)
     root.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),

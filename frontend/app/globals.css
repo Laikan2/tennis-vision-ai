@@ -1334,7 +1334,14 @@ input::placeholder {
 }
 .phone-browser-fallback p { color: #8fa09e; font-size: 11px; line-height: 1.55; }
 .phone-camera-qr--small { width: 128px; height: 128px; }
-.phone-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.phone-receiver-state { display: flex; align-items: flex-start; gap: 12px; padding: 15px; margin: 16px 0; border: 1px solid #344342; border-radius: 12px; background: #10191c; }
+.phone-receiver-state > span { width: 8px; height: 8px; flex: 0 0 8px; margin-top: 5px; border-radius: 50%; background: #f1bf73; }
+.phone-receiver-state b { color: #e3ebe7; font-size: 13px; }
+.phone-receiver-state p { margin: 5px 0 0; color: #a7b8b6; font-size: 12px; line-height: 1.6; }
+.phone-receiver-state .primary { margin: 12px 0 0; }
+.phone-receiver-state.is-ready { border-color: #587243; }
+.phone-receiver-state.is-ready > span { background: #c8fa70; }
+.phone-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .phone-actions .primary { margin: 0; }
 .error {
   color: #ffa39a !important;

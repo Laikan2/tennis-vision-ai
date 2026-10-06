@@ -24,6 +24,7 @@ import com.pedro.library.util.streamclient.SrtStreamClient
 import com.pedro.library.util.streamclient.StreamClientListener
 import com.pedro.srt.srt.SrtClient
 import java.nio.ByteBuffer
+import java.util.concurrent.atomic.AtomicBoolean
 
 /** Direct camera -> hardware AVC input surface -> SRT, preserving camera presentation times. */
 class NativeCameraStream(context: Context, private val preview: SurfaceView, private val checker: ConnectChecker) {
@@ -36,6 +37,9 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
   private var encodedFpsListener: ((Double) -> Unit)? = null
   private var profile: StreamProfile? = null
   private var opened = false
+  @Volatile private var sessionConfigured = false
+  @Volatile private var pendingUrl: String? = null
+  private val connectionQueued = AtomicBoolean(false)
   @Volatile private var released = false
   private val recovery = KeyframeRecovery()
   val recoveryDiscarded: Long get() = synchronized(recovery) { recovery.discarded }
@@ -56,6 +60,7 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     override fun getVideoData(videoBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
       if (isStreaming && info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
         lastEncodedMs = SystemClock.elapsedRealtime()
+        connectWhenVideoReady()
         encoderMeter.frame(SystemClock.elapsedRealtimeNanos())?.let { encodedFpsListener?.invoke(it) }
         synchronized(recovery) {
           if (isStreaming && recovery.accepts(info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
@@ -145,6 +150,9 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     check(encoder.prepareVideoEncoder(config.width, config.height, config.fps, maxBitrate, 0, 1,
       FormatVideoEncoder.SURFACE, avc.profile, avc.level)) { "O codificador não aceitou ${config.label}. Escolha outro perfil." }
     isStreaming = true
+    sessionConfigured = false
+    pendingUrl = url
+    connectionQueued.set(false)
     encodingStartedMs = SystemClock.elapsedRealtime()
     lastEncodedMs = 0L
     synchronized(recovery) { recovery.reset() }
@@ -153,15 +161,29 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     val token = callbackEpoch.current()
     camera.record(preview.holder.surface, encoder.inputSurface) {
       callbackHandler.post {
-        // Do not announce a live connection while the high-speed session is still
-        // configuring, or reconnect a client that the user has already stopped.
-        if (!released && isStreaming && callbackEpoch.isCurrent(token)) srt.connect(url)
+        if (!released && isStreaming && callbackEpoch.isCurrent(token)) {
+          sessionConfigured = true
+          connectWhenVideoReady()
+        }
       }
+    }
+  }
+
+  private fun connectWhenVideoReady() {
+    if (!isStreaming || !sessionConfigured || lastEncodedMs <= 0 ||
+      !connectionQueued.compareAndSet(false, true)) return
+    val token = callbackEpoch.current()
+    val url = pendingUrl ?: return
+    // A configured sensor without encoder output is not a working stream.
+    callbackHandler.post {
+      if (!released && isStreaming && callbackEpoch.isCurrent(token)) srt.connect(url)
     }
   }
 
   fun stopStream() {
     isStreaming = false
+    sessionConfigured = false
+    pendingUrl = null
     encodingStartedMs = 0L
     lastEncodedMs = 0L
     callbackEpoch.advance()

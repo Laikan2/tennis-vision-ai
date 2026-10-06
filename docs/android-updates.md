@@ -2,7 +2,7 @@
 
 ## Ativar no celular
 
-Instale **Tennis-Vision-Camera-Android-v0.5.4.apk** sobre a versão anterior, sem desinstalar. O APK usa o mesmo certificado e mantém o pareamento. Esta instalação inicial é necessária porque as versões até 0.5.2 não têm atualizador.
+Instale **Tennis-Vision-Camera-Android-v0.5.5.apk** sobre a versão anterior, sem desinstalar. O APK usa o mesmo certificado e mantém o pareamento. Esta instalação inicial é necessária porque as versões até 0.5.2 não têm atualizador.
 
 Depois, o app consulta o GitHub ao abrir e a cada seis horas enquanto está aberto. Quando a transmissão está parada e há conexão sem cobrança por dados, ele baixa a atualização automaticamente. Na rede móvel, o botão **Baixar atualização** permite autorizar o download manual.
 
@@ -20,7 +20,7 @@ Arquivos incompletos ou inválidos são apagados. O instalador recebe acesso tem
 
 ## Publicar futuras versões
 
-O Windows 0.6.3 inclui o APK 0.5.4 para a instalação inicial. Para atualizar o Android:
+O Windows 0.6.4 inclui o APK 0.5.5 para a instalação inicial. Para atualizar o Android:
 
 1. Aumente `versionName` e `versionCode` em `mobile/android/app/build.gradle.kts`.
 2. Compile e teste o APK usando o mesmo certificado da versão instalada.

@@ -24,14 +24,6 @@ data class StreamProfile(
 data class HighSpeedMode(val width: Int, val height: Int, val lower: Int, val upper: Int)
 
 object ProfileCatalog {
-  /** One bounded recovery from a failing high-rate mode, using inspected modes only. */
-  fun stableRecovery(profiles: List<StreamProfile>, failed: StreamProfile): Int? =
-    profiles.withIndex().filter {
-      failed.fps > 60 && it.value.cameraId == failed.cameraId &&
-        !it.value.highSpeed && it.value.fps <= 60
-    }.maxWithOrNull(compareBy<IndexedValue<StreamProfile>> { it.value.fps }
-      .thenBy { -it.value.width * it.value.height })?.index
-
   fun closest(profiles: List<StreamProfile>, width: Int, height: Int, fps: Int): Int {
     require(profiles.isNotEmpty())
     val exact = profiles.indexOfFirst { it.width == width && it.height == height && it.fps == fps }

@@ -26,6 +26,7 @@ from .calibration import CalibrationEngine
 from .analytics import StatisticsEngine
 from .target import validate_polygon
 from .learning import LearningManager
+from .mobile_receiver import receiver_status
 
 logging.basicConfig(level=logging.INFO,handlers=[logging.FileHandler(DATA/'logs'/'backend.log',encoding='utf-8')],
                     format='%(asctime)s %(levelname)s %(name)s %(message)s')
@@ -48,7 +49,7 @@ async def lifespan(app):
 
 
 app=FastAPI(title='Tennis Vision AI',version='0.1.0',lifespan=lifespan)
-ANDROID_APP_VERSION='0.5.4'
+ANDROID_APP_VERSION='0.5.5'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
 desktop_origin=os.getenv('TV_DESKTOP_ORIGIN','')
@@ -208,10 +209,41 @@ def mobile_camera():
                         downloadUrl='/api/mobile-camera/android.apk',
                         sizeBytes=ANDROID_APK.stat().st_size if ANDROID_APK.is_file() else None),
         receiverUrl=f'rtsp://127.0.0.1:8554/{path}',
-        cameraPreset=dict(name='Galaxy S25 Ultra · Tennis Vision',host='127.0.0.1',port=8554,
-                          path=f'/{path}',requestedFps=60,codec='H.264',
-                          ballDiameterMm=67,dominantHand='right',courtOrientation='normal'),
+        cameraPreset=_phone_camera_preset(),
     )
+
+
+def _phone_camera_preset():
+    return dict(name='Galaxy S25 Ultra · Tennis Vision',host='127.0.0.1',port=8554,
+                path='/galaxy',requestedFps=60,codec='H.264',ballDiameterMm=67,
+                dominantHand='right',courtOrientation='normal')
+
+
+@app.get('/api/mobile-camera/status')
+def phone_receiver_status():
+    return receiver_status()
+
+
+@app.post('/api/mobile-camera/connect')
+def connect_phone():
+    # Connecting the publisher to SRT is only the first half of the connection.
+    # Reuse the saved camera and start analysis explicitly in one UI action.
+    with control_lock:
+        preset=_phone_camera_preset()
+        camera=next((c for c in store.all('camera') if
+                     (c.get('host'),c.get('port'),c.get('path'))==
+                     (preset['host'],preset['port'],preset['path'])),None)
+        if pipeline.session:
+            ids=pipeline.session.get('cameraIds') or [pipeline.session.get('cameraId')]
+            if camera and camera['id'] in ids:
+                return dict(camera=public_camera(camera),session=pipeline.session,alreadyRunning=True)
+            raise HTTPException(409,'Há outra sessão ativa. Encerre-a ou adicione o celular ao iniciar a próxima sessão.')
+        if not receiver_status()['streamReady']:
+            raise HTTPException(409,'O PC ainda não recebeu vídeo. Toque em Transmitir para o PC no celular e confira o pareamento.')
+        if camera is None:
+            camera=add_camera(CameraInput(**preset))
+        session=_start(SessionInput(name='Treino · Galaxy',cameraId=camera['id']))
+        return dict(camera=public_camera(camera),session=session,alreadyRunning=False)
 
 
 @app.get('/api/mobile-camera/android.apk')
