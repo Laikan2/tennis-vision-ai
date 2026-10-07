@@ -1,3 +1,4 @@
 # Build tools only. End users receive the bundled Windows engine.
 pyinstaller==6.22.3
 pillow>=11,<13
+onnxruntime-directml==1.24.4; sys_platform == 'win32'

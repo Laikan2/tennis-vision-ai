@@ -27,7 +27,7 @@ DEST.mkdir(parents=True, exist_ok=True)
 source_models = ROOT / 'data' / 'models'
 if not any(source_models.glob('*.pt')):
     source_models = ROOT / 'release-assets' / 'models'
-for model in source_models.glob('*.pt'):
+for model in list(source_models.glob('*.pt'))+list((ROOT/'release-assets'/'models').glob('*.onnx'))+list((ROOT/'release-assets'/'models').glob('*pose-256.json')):
     shutil.copy2(model, DEST / model.name)
 active = ROOT / 'data' / 'learning' / 'active.json'
 if not active.exists():

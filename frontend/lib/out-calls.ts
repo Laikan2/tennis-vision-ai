@@ -5,6 +5,7 @@ export function readyOutCalls(events: Event[], sessionId: string, since: number,
   now: number, seen: ReadonlySet<string>, cameraCount = 1,
   fusionWindowSeconds = .55): Event[] {
   return events.filter(event => {
+    if (event.manualReview || event.status === "rejected" || event.varAlert === false) return false;
     const received = event.createdAt ?? event.timestamp;
     const decisionAt = event.updatedAt ?? received;
     return event.sessionId === sessionId && event.inOrOut === "OUT" &&

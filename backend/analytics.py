@@ -5,6 +5,7 @@ from .target import court_sector
 class StatisticsEngine:
     @staticmethod
     def summarize(events, samples=None):
+        events = [e for e in events if e.get('status') != 'rejected']
         confirmed = [e for e in events if e.get('status')=='confirmed']
         speeds = [e['physicalKmh'] for e in (samples or []) if e.get('physicalKmh') is not None and
                   np.isfinite(e['physicalKmh']) and 0 <= e['physicalKmh'] <= 250]

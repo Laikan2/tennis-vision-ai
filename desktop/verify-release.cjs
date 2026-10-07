@@ -28,6 +28,7 @@ function verifyRelease(directory, expectedVersion, repository) {
 if (require.main===module) {
   try {
     const pkg = require('./package.json');
+    require('./verify-ui.cjs').verifyUi(path.dirname(__dirname),path.join(__dirname,'releases','win-unpacked','resources','ui'));
     console.log(JSON.stringify(verifyRelease(path.join(__dirname,'releases'),pkg.version,pkg.build.publish)));
   } catch (error) {console.error(error.message);process.exitCode=1;}
 }

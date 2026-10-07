@@ -4,17 +4,20 @@ import threading
 
 
 class LatestFramePublisher:
-    def __init__(self, publish):
+    def __init__(self, publish, preserve_all=False):
         self.publish=publish
         self.condition=threading.Condition()
         self.pending=None
         self.closing=False
         self.skipped=0
+        self.preserve_all=preserve_all
         self.thread=threading.Thread(target=self._run,daemon=True,name='analysis-frame-publisher')
         self.thread.start()
 
     def submit(self, frame, state, session_id):
         with self.condition:
+            while self.preserve_all and self.pending is not None and not self.closing:
+                self.condition.wait()
             if self.closing:return
             if self.pending is not None:self.skipped+=1
             # One pending image; replace it if encoding falls behind. Its
@@ -35,5 +38,6 @@ class LatestFramePublisher:
                 if self.pending is None:return
                 item=self.pending
                 self.pending=None
+                self.condition.notify_all()
             try:self.publish(*item)
             except Exception:logging.getLogger('tennis.publisher').exception('Frame publication failed')

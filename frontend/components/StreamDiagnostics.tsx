@@ -26,7 +26,9 @@ export function StreamDiagnostics({ status }: { status: Status }) {
               <div><dt>Fila + análise</dt><dd>{number(feed.frameLatencyMs)} <small>ms</small></dd></div>
               <div><dt>Codificação da prévia</dt><dd>{number(feed.jpegEncodingMs)} <small>ms</small></dd></div>
               <div><dt>Intervalo entre quadros · P95</dt><dd>{number(feed.captureGapP95Ms)} <small>ms</small></dd></div>
+              <div><dt>Pose · {feed.poseDevice || "CPU"}</dt><dd>{number(feed.poseInferenceMs)} <small>ms</small></dd></div>
             </dl>
+            {feed.acceleration?.validated && <small>GPU validada com os mesmos pesos · {number(feed.acceleration.speedup)}× na inferência de pose.</small>}
             <p>{!online ? "Inicie a transmissão no celular e confira a conexão."
               : feed.analysisStale ? "A análise está atrasada. As marcações antigas foram ocultadas; o vídeo continua independente."
               : feed.sourceTimingAvailable ? "Movimento calculado com o relógio do vídeo."

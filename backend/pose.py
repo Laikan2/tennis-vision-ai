@@ -65,6 +65,8 @@ class PoseEstimator:
         self.observed_at = None
         self.inference_ms = None
         self.thread = None
+        self.acceleration = None
+        self.device = 'cpu'
         try:
             self.max_width = max(256, min(640, int(os.getenv('TV_POSE_MAX_WIDTH', '320'))))
         except ValueError:
@@ -97,6 +99,30 @@ class PoseEstimator:
 
     def _run(self):
         try:
+            from pathlib import Path
+            onnx_path=Path(self.path).with_name('yolo11n-pose-256.onnx')
+            manifest=onnx_path.with_suffix('.json')
+            approved=False
+            if Path(self.path).stem == 'yolo11n-pose' and onnx_path.is_file() and manifest.is_file():
+                import hashlib,json
+                try:
+                    evidence=json.loads(manifest.read_text(encoding='utf-8'))
+                    approved=(evidence['originalSha256']==hashlib.sha256(Path(self.path).read_bytes()).hexdigest() and
+                              evidence['onnxSha256']==hashlib.sha256(onnx_path.read_bytes()).hexdigest() and evidence.get('parity') is True)
+                except (KeyError,ValueError,OSError):pass
+            if approved:
+                try:
+                    from .onnx_pose import OnnxPose
+                    runtime=OnnxPose(onnx_path)
+                    self.acceleration=runtime.report
+                    self.device=runtime.report['device']
+                    if runtime.report['validated'] and 'TV_POSE_INTERVAL' not in os.environ:
+                        self.inference_interval=.35
+                    self.status='pose ativa · 17 pontos · '+self.device
+                    self._onnx_loop(runtime)
+                    return
+                except Exception:
+                    log.exception('ONNX pose unavailable; original model kept')
             import torch
             from ultralytics import YOLO
             # Ultralytics disables OpenCV threading during import for its
@@ -108,6 +134,7 @@ class PoseEstimator:
             torch.set_num_threads(1)
             model = YOLO(self.path)
             device = '0' if torch.cuda.is_available() else 'cpu'
+            self.device=device
             model.predict(np.zeros((self.model_size, self.model_size, 3), np.uint8),
                           imgsz=self.model_size, device=device, verbose=False)
             # select_device() inside the first YOLO prediction resets this to
@@ -139,6 +166,21 @@ class PoseEstimator:
         except Exception:
             self.status = 'pose indisponível'
             log.exception('Pose worker stopped')
+
+    def _onnx_loop(self, runtime):
+        while True:
+            with self.condition:
+                self.condition.wait_for(lambda:self.pending is not None or self.stopped)
+                if self.stopped:return
+                image,timestamp=self.pending
+                self.pending=None
+            started=time.perf_counter()
+            persons=runtime.predict(image,timestamp)
+            self.inference_ms=(time.perf_counter()-started)*1000
+            self.acceleration=dict(runtime.report)
+            self.device=runtime.report['device']
+            with self.condition:
+                self.result=(timestamp,cv2.cvtColor(image,cv2.COLOR_BGR2GRAY),persons)
 
     def update(self, image, timestamp):
         if not self.available:

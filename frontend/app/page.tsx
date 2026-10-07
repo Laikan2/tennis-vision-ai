@@ -45,6 +45,9 @@ import {
 import { Court, LiveVideo, ReplayPlayer } from "../components/Visuals";
 import { LearningPanel } from "../components/LearningPanel";
 import { StreamDiagnostics } from "../components/StreamDiagnostics";
+import { ImpactReview } from "../components/ImpactReview";
+import { CameraSync } from "../components/CameraSync";
+import { RecordingPanel } from "../components/RecordingPanel";
 import { useOutAudio } from "../components/useOutAudio";
 import { DesktopTitlebar, DesktopSettings, DesktopNetworkSetup } from "../components/DesktopShell";
 
@@ -99,13 +102,20 @@ const initial: Status = {
 const tabs = ["Quadra 2D", "Mapa de calor", "Timeline", "Estatísticas"];
 
 function eventsForCamera(events: Event[], cameraId?: string) {
+  events=events.filter(e=>e.status!=="rejected");
   if (!cameraId) return events;
   return events.flatMap((event) => {
     const observation = event.observations?.find((item) => item.cameraId === cameraId);
     if (observation) {
+      const reviewedPosition = event.manualReview?.reason === "impact_position" && event.manualReview.cameraId === cameraId
+        ? { position: event.position, resolution: event.resolution, courtPosition: event.courtPosition,
+            targetPosition: event.targetPosition, courtSector: event.courtSector, positionApproximate: event.positionApproximate,
+            speedBefore: event.speedBefore, speedAfter: event.speedAfter, speedMethod: event.speedMethod }
+        : {};
       return [{
         ...event,
         ...observation,
+        ...reviewedPosition,
         id: event.id,
         sessionId: event.sessionId,
         cameraIds: event.cameraIds,
@@ -146,8 +156,11 @@ export default function Page() {
     [outAudio, setOutAudio] = useState(true),
     [debug, setDebug] = useState(false),
     [activeReplay, setActiveReplay] = useState<Replay | null>(null),
+    [activeImpact, setActiveImpact] = useState<Event | null>(null),
     [health, setHealth] = useState(false);
   const [phoneInfo, setPhoneInfo] = useState<PhoneCameraInfo | null>(null);
+  const [calibrationRecording,setCalibrationRecording]=useState<string|null>(null);
+  const [reviewRevision,setReviewRevision]=useState(0);
   const [phoneReceiver, setPhoneReceiver] = useState<PhoneReceiverStatus | null>(null);
   useEffect(() => {
     if (modal !== "phone") return;
@@ -355,7 +368,7 @@ export default function Page() {
     ? status.cameraFeeds
     : [status];
   const sessionEvents = useMemo(() => status.session
-    ? events.filter(event => event.sessionId === status.session!.id) : [],
+    ? events.filter(event => event.sessionId === status.session!.id && event.status !== "rejected") : [],
     [events, status.session?.id]);
   const decisions = useMemo(() => ({
     inside: sessionEvents.filter(event => event.inOrOut === "IN").length,
@@ -991,7 +1004,8 @@ export default function Page() {
                               )}
                             </strong>
                             <span>{roomMode ? "Possível impacto" : "Possível quique"}{e.strokeType ? ` · ${e.strokeType === "forehand" ? "forehand" : "backhand"}` : " · golpe não classificado"}{e.courtSector ? ` · ${e.courtSector.replaceAll("_"," ")}` : ""}{e.cameraIds?.length ? ` · ${e.cameraIds.length} câmera${e.cameraIds.length > 1 ? "s" : ""}` : ""}</span>
-                            <span className={`tag decision-${e.inOrOut.toLowerCase()}`}>{e.inOrOut === "IN" ? "DENTRO" : e.inOrOut === "OUT" ? "FORA" : "REVISAR"}</span>
+                            <span className={`tag decision-${e.inOrOut.toLowerCase()}`}>{e.inOrOut === "IN" ? "DENTRO" : e.inOrOut === "OUT" ? "FORA" : e.status==="rejected"?"IGNORADO":"REVISAR"}</span>
+                            <button onClick={()=>setActiveImpact(e)}><ShieldCheck size={15}/> {e.manualReview ? "Revisão salva" : "Revisar contato"}</button>
                           </div>
                         ))
                       )}
@@ -1065,6 +1079,8 @@ export default function Page() {
           {view === "settings" && (
             <div className="settings-grid">
               <DesktopSettings />
+              <CameraSync cameras={cameras} status={status}/>
+              <RecordingPanel cameras={cameras} onReview={setActiveImpact} reviewRevision={reviewRevision} onCalibrate={(id,cam)=>{setCameraId(cam);setCalibrationRecording(id);setModal("calibration");}}/>
               <section className="panel padded">
                 <div className="panel-heading">
                   <h2>
@@ -1119,6 +1135,10 @@ export default function Page() {
                   <span>Detector</span>
                   <b>{status.detector}</b>
                 </div>
+                <div className="data-row"><span>Pose · processamento</span><b>{status.poseDevice || "Aguardando câmera"}</b></div>
+                {status.acceleration && <p>{status.acceleration.validated
+                  ? `Aceleração validada: CPU ${number(status.acceleration.cpuMs)} ms / GPU ${number(status.acceleration.gpuMs)} ms por inferência.`
+                  : `Pose em CPU. ${status.acceleration.reason || "A GPU precisa passar na comparação de resultados e desempenho."}`}</p>}
                 <label className="toggle">
                   <input
                     type="checkbox"
@@ -1320,19 +1340,21 @@ export default function Page() {
           </motion.div>
         )}
       </AnimatePresence>
-      {(modal || activeReplay) && (
+      {(modal || activeReplay || activeImpact) && (
         <div
           className="modal-backdrop"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setModal(null);
               setActiveReplay(null);
+              setActiveImpact(null);
+              setCalibrationRecording(null);
             }
           }}
         >
           <Dialog
             title={
-              activeReplay
+              activeImpact ? "Revisar impacto" : activeReplay
                 ? "Replay da sessão"
                 : modal === "camera"
                   ? "Conectar câmera"
@@ -1345,6 +1367,8 @@ export default function Page() {
             close={() => {
               setModal(null);
               setActiveReplay(null);
+              setActiveImpact(null);
+              setCalibrationRecording(null);
             }}
           >
             {modal === "camera" && (
@@ -1661,6 +1685,7 @@ export default function Page() {
             )}
             {modal === "calibration" && (
               <CalibrationForm
+                recordingId={calibrationRecording}
                 status={status}
                 cameras={cameras}
                 cameraId={
@@ -1679,6 +1704,10 @@ export default function Page() {
               />
             )}
             {activeReplay && <ReplayPlayer replay={activeReplay} />}
+            {activeImpact && <ImpactReview event={activeImpact} cameras={cameras} onSaved={()=>{
+              setReviewRevision(value=>value+1);
+              api<Event[]>(`/events?sessionId=${encodeURIComponent(activeImpact.sessionId)}`).then(setEvents).catch(()=>{});refresh().catch(()=>{});
+            }}/>}
           </Dialog>
         </div>
       )}
@@ -2036,11 +2065,13 @@ function Dialog({
   );
 }
 function CalibrationForm({
+  recordingId,
   status,
   cameraId: initialCameraId,
   cameras,
   done,
 }: {
+  recordingId?: string | null;
   status: Status;
   cameraId: string;
   cameras: Camera[];
@@ -2051,22 +2082,32 @@ function CalibrationForm({
     [src, setSrc] = useState<string>(),
     [resolution, setResolution] = useState<[number, number] | null>(null),
     [refreshToken, setRefreshToken] = useState(0),
-    [mode, setMode] = useState<"room" | "court">("room"),
+    [mode, setMode] = useState<"room" | "court" | "surface">("room"),
+    [surface, setSurface] = useState<"ground" | "wall">("ground"),
+    [realWidth, setRealWidth] = useState("2"), [realHeight, setRealHeight] = useState("2"),
+    [checks, setChecks] = useState<{image:[number,number];court:[number,number]}[]>([]),
+    [checking,setChecking]=useState(false),
     [distance, setDistance] = useState("1"),
     [name, setName] = useState("Teste no quarto"),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
   const requiredPoints = mode === "room" ? 2 : 4;
+  const movingCorner=useRef<number|null>(null);
+  const suppressCornerClick=useRef(false);
+  const coverage=resolution && points.length===4 ? Math.abs(points.reduce((sum,p,i)=>sum+p[0]*points[(i+1)%4][1]-p[1]*points[(i+1)%4][0],0))/2/(resolution[0]*resolution[1])*100 : null;
+  const turns=points.length===4 ? points.map((p,i)=>{const q=points[(i+1)%4],r=points[(i+2)%4];return (q[0]-p[0])*(r[1]-q[1])-(q[1]-p[1])*(r[0]-q[0]);}) : [];
+  const crossed=turns.length>0 && !(turns.every(t=>t>0)||turns.every(t=>t<0));
   useEffect(() => {
     let url: string;
     let active = true;
     setError("");
     setSrc(undefined);
     setPoints([]);
+    setChecks([]);
     setResolution(null);
     // The fluid preview is resized for display. Calibration requires the
     // original analysed frame, from the selected camera, in original pixels.
-    fetch(`/api/frame?synchronized=true&cameraId=${encodeURIComponent(cameraId)}`, { cache: "no-store" })
+    fetch(recordingId?`/api/recordings/${recordingId}/frame`:`/api/frame?synchronized=true&cameraId=${encodeURIComponent(cameraId)}`, { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok)
           throw Error(
@@ -2081,7 +2122,7 @@ function CalibrationForm({
       active = false;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [refreshToken, cameraId]);
+  }, [refreshToken, cameraId,recordingId]);
   return (
     <>
       {cameras.length > 1 && <label>
@@ -2095,25 +2136,30 @@ function CalibrationForm({
         <select
           value={mode}
           onChange={(e) => {
-            const next = e.target.value as "room" | "court";
+            const next = e.target.value as "room" | "court" | "surface";
             setMode(next);
             setPoints([]);
+            setChecks([]);setChecking(false);
             setError("");
           }}
         >
           <option value="room">Ambiente / quarto (escala manual)</option>
           <option value="court">Quadra de tênis (quatro cantos)</option>
+          <option value="surface">Piso ou parede (quatro cantos e medidas)</option>
         </select>
       </label>
+      {mode === "surface" && <label>Superfície<select value={surface} onChange={e=>setSurface(e.target.value as "ground" | "wall")}><option value="ground">Piso / chão</option><option value="wall">Parede</option></select></label>}
+      <div className="calibration-steps"><span className={src?"complete":"active"}>1 · Imagem</span><span className={points.length===requiredPoints?"complete":"active"}>2 · Marcar pontos</span><span>3 · Medir e conferir</span></div>
       <p>
         {mode === "room"
           ? "Marque dois pontos visíveis cuja distância você conhece, como duas marcas separadas por 1 metro no chão ou na mesa."
+          : mode === "surface" ? "Clique nos quatro cantos de um retângulo real no piso ou na parede, seguindo o contorno. Depois arraste os cantos para ajustar e informe as medidas reais."
           : "Marque os quatro cantos externos, nesta ordem: fundo esquerdo, fundo direito, próximo direito, próximo esquerdo. O perfil usa a quadra de duplas (10,97 × 23,77 m)."}
       </p>
       <p className="calibration-why">
         {mode === "room"
           ? "A câmera enxerga pixels. A distância conhecida cria uma escala aproximada para converter o movimento da bola em metros e estimar km/h no ambiente."
-          : "A câmera enxerga pixels. Estes quatro pontos informam onde está o plano real da quadra, permitindo converter deslocamento em metros e estimar km/h."} A câmera continua rodando; esta imagem fica congelada só para a marcação.
+          : "Os quatro cantos corrigem a perspectiva do plano selecionado e permitem estimar deslocamentos em metros."} Calibrar é necessário para escala em km/h; desenhar a área basta para revisar dentro/fora. Esta imagem fica congelada só para a marcação.
       </p>
       {error && (
         <p role="alert" className="error">
@@ -2125,8 +2171,12 @@ function CalibrationForm({
           <div
             className="calibration-image"
             onClick={(e) => {
-              if (points.length >= requiredPoints || !resolution) return;
+              if(suppressCornerClick.current){suppressCornerClick.current=false;return;}
+              if (!resolution) return;
               const box = e.currentTarget.getBoundingClientRect();
+              const p: [number,number]=[((e.clientX-box.left)/box.width)*resolution[0],((e.clientY-box.top)/box.height)*resolution[1]];
+              if(checking){setChecks([...checks,{image:p,court:[0,0]}]);setChecking(false);return;}
+              if (points.length >= requiredPoints) return;
               setPoints([
                 ...points,
                 [
@@ -2151,10 +2201,13 @@ function CalibrationForm({
               }
             />
             {resolution && (
-              <svg viewBox={`0 0 ${resolution[0]} ${resolution[1]}`}>
+              <svg viewBox={`0 0 ${resolution[0]} ${resolution[1]}`} onPointerMove={e=>{if(movingCorner.current===null)return;const r=e.currentTarget.getBoundingClientRect();
+                const p: [number,number]=[Math.max(0,Math.min(resolution[0]-.01,(e.clientX-r.left)/r.width*resolution[0])),Math.max(0,Math.min(resolution[1]-.01,(e.clientY-r.top)/r.height*resolution[1]))];
+                setPoints(current=>current.map((v,i)=>i===movingCorner.current?p:v));}}
+                onPointerUp={()=>{movingCorner.current=null;}} onPointerCancel={()=>{movingCorner.current=null;}}>
                 {points.length > 1 && (
                   <polyline
-                    points={points.map((p) => p.join(",")).join(" ")}
+                    points={[...points,...(points.length===4?[points[0]]:[])].map((p) => p.join(",")).join(" ")}
                     fill="none"
                     stroke="#c9f56b"
                     strokeWidth="3"
@@ -2162,12 +2215,14 @@ function CalibrationForm({
                 )}
                 {points.map((p, i) => (
                   <g key={i}>
-                    <circle cx={p[0]} cy={p[1]} r="10" fill="#c9f56b" />
+                    <circle cx={p[0]} cy={p[1]} r={Math.max(10,resolution[0]/55)} fill="#c9f56b" stroke="#0c1818" strokeWidth={3}
+                      onClick={e=>{e.stopPropagation();suppressCornerClick.current=false;}} onPointerDown={e=>{e.stopPropagation();suppressCornerClick.current=true;movingCorner.current=i;e.currentTarget.ownerSVGElement?.setPointerCapture(e.pointerId);}} />
                     <text x={p[0] + 14} y={p[1]} fill="white" fontSize="24">
                       {i + 1}
                     </text>
                   </g>
                 ))}
+                {checks.map((c,i)=><circle key={`check-${i}`} cx={c.image[0]} cy={c.image[1]} r={resolution[0]/100} fill="#61c4f7"/>) }
               </svg>
             )}
           </div>
@@ -2185,6 +2240,7 @@ function CalibrationForm({
         </>
       )}
       <p>{points.length} / {requiredPoints} pontos marcados</p>
+      {coverage!==null && <p className={crossed?"error":"calibration-why"}>{crossed?"Os lados estão cruzados. Arraste os cantos seguindo o contorno.":`Área selecionada: ${number(coverage,0)}% da imagem. ${coverage<3?"Uma área muito pequena dificulta medir com precisão.":"Os cantos definem o plano; a precisão ainda precisa ser conferida."}`}</p>}
       <small className="point-order">
         {mode === "room"
           ? "Marque o ponto inicial e depois o ponto final da distância conhecida."
@@ -2201,6 +2257,13 @@ function CalibrationForm({
           onChange={(e) => setDistance(e.target.value)}
         />
       )}
+      {mode === "surface" && <div className="calibration-measures"><label>Largura real (m)<input type="number" min="0.02" max="100" step="0.01" value={realWidth} onChange={e=>setRealWidth(e.target.value)}/></label>
+        <label>{surface === "wall"?"Altura":"Comprimento"} real (m)<input type="number" min="0.02" max="100" step="0.01" value={realHeight} onChange={e=>setRealHeight(e.target.value)}/></label></div>}
+      {mode !== "room" && points.length===4 && <details className="calibration-checks"><summary>Conferir precisão com pontos independentes</summary>
+        <p>Use pelo menos dois pontos medidos dentro da superfície, diferentes dos cantos. X é a distância desde o lado esquerdo; Y começa no lado dos pontos 1 e 2.</p>
+        <button type="button" disabled={checks.length>=20} onClick={()=>setChecking(true)}>{checking?"Clique no ponto na imagem":"Adicionar ponto de verificação"}</button>
+        {checks.map((c,i)=><div className="calibration-measures" key={i}>{[0,1].map(axis=><label key={axis}>{axis===0?"X":"Y"} do ponto {i+1} (m)<input type="number" step="0.01" value={c.court[axis]} onChange={e=>setChecks(checks.map((v,j)=>j===i?{...v,court:axis===0?[+e.target.value,v.court[1]]:[v.court[0],+e.target.value]}:v))}/></label>)}<button type="button" onClick={()=>setChecks(checks.filter((_,j)=>j!==i))}>Remover</button></div>)}
+      </details>}
       <Field
         label="Nome do perfil"
         value={name}
@@ -2209,13 +2272,13 @@ function CalibrationForm({
       <p className="inline-note">
         {mode === "room"
           ? "A escala de ambiente é uma aproximação no plano dos pontos. Mantenha a bola perto desse plano para obter uma estimativa útil."
-          : "Quatro pontos ajustam a homografia, mas não comprovam sua qualidade. Valide com pontos independentes pela API antes de confiar nas posições."}
+          : "Sem pontos independentes, a precisão fica indicada como não validada. A velocidade de uma bola fora deste plano continua sendo uma estimativa."}
       </p>
       <div className="controls">
         <button type="button" onClick={() => setPoints([])}>Recomeçar</button>
         <button
           className="primary"
-          disabled={points.length !== requiredPoints || !cameraId || !resolution || saving}
+          disabled={points.length !== requiredPoints || !cameraId || !resolution || saving || crossed || checks.length===1}
           onClick={async () => {
             setSaving(true);
             try {
@@ -2225,6 +2288,8 @@ function CalibrationForm({
                 mode,
                 imagePoints: points,
                 resolution,
+                ...(mode!=="room"?{checks}:{}),
+                ...(mode==="surface"?{surface,realWidthM:Number(realWidth),realHeightM:Number(realHeight)}:{}),
                 ...(mode === "room" ? { realDistanceM: Number(distance) } : {}),
               });
               done();

@@ -21,6 +21,8 @@ try {
         $env:TV_DESKTOP_BUILD = 'true'
         pnpm build
         if ($LASTEXITCODE) { throw 'Falha ao compilar a interface.' }
+        node ../desktop/verify-ui.cjs --stamp
+        if ($LASTEXITCODE) { throw 'A interface exportada não corresponde ao código atual.' }
     } finally { $env:TV_DESKTOP_BUILD = $previousDesktop; Pop-Location }
     if (-not $SkipEngine) {
         & $studioPython -m pip install -r desktop/requirements-build.txt

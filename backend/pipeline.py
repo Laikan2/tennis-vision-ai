@@ -4,7 +4,7 @@ import threading
 import time
 import cv2
 from collections import deque
-from .camera import CameraCapture,FrameBuffer
+from .camera import CameraCapture,FileCapture,FrameBuffer
 from .detection import BallDetector
 from .tracking import BallTracker
 from .calibration import CalibrationEngine
@@ -48,7 +48,8 @@ class Pipeline:
         # Avoid OpenCV using every core while the independent pose worker and
         # video decoder need CPU time too. Does not throttle received frames.
         cv2.setNumThreads(2)
-        self.buffer=FrameBuffer(camera.get('buffer',1))
+        offline=bool(camera.get('_fileAnalysis'))
+        self.buffer=FrameBuffer(camera.get('buffer',1),preserve_all=offline,stop_event=self.stop_event)
         self.pose=PoseEstimator()
         self.adaptive=AdaptiveBallSignature(camera['id'])
         self.detector=BallDetector(camera.get('threshold',.65),external_pose=self.pose.available,
@@ -68,7 +69,7 @@ class Pipeline:
         self.bounce=BounceDetector()
         self.court=CourtDetector()
         self.trajectory=TrajectoryEstimator()
-        self.capture=CameraCapture(url,self.buffer)
+        self.capture=FileCapture(url,self.buffer,session.get('sourceEpoch')) if offline else CameraCapture(url,self.buffer)
         self.session=session
         self.camera_id=camera['id']
         self.region=camera.get('captureRegion')
@@ -85,7 +86,7 @@ class Pipeline:
         self.statistics=StatisticsEngine.summarize([])
         self.state={}; self.frame_state={}; self.jpeg=None; self.raw_jpeg=None
         self.replay=ReplayManager(self.store)
-        self.publisher=LatestFramePublisher(self._publish_frame)
+        self.publisher=LatestFramePublisher(self._publish_frame,preserve_all=offline)
         self.capture.start()
         self.pose.start()
         self.thread=threading.Thread(target=self._run,daemon=True,name='vision-worker')
@@ -139,6 +140,8 @@ class Pipeline:
                      ballDiameterMm=getattr(self,'ball_diameter_m',.04)*1000,
                      analysisMode=getattr(self,'environment',None) or (self.calibration.profile or {}).get('mode','room'),
                      poseStatus=self.pose.status if hasattr(self,'pose') else 'aguardando sessão',
+                     poseDevice=self.pose.device if hasattr(self,'pose') else None,
+                     acceleration=self.pose.acceleration if hasattr(self,'pose') else None,
                      calibration=self.calibration.profile,stale=stale,
                      analysisStale=analysis_stale,analysisAgeMs=analysis_age*1000 if analysis_age is not None else None,
                       captureRegion=getattr(self,'region',None),capturePolygon=getattr(self,'polygon',None),
@@ -268,7 +271,13 @@ class Pipeline:
                     self.statistics=StatisticsEngine.summarize(self.events)
                     log.info('Impact candidate: %s (%s)',event['inOrOut'],event.get('contactEvidence'))
                     try:
-                        self.replay.trigger(frame.timestamp,self.session['id'],'bounce_candidate')
+                        replay_id=self.replay.trigger(frame.timestamp,self.session['id'],'impact',
+                                                      event_id=event['id'],camera_id=self.camera_id)
+                        with self.store.lock:
+                            saved=self.store.get('event',event['id']) or event
+                            saved['replayIds']=list(dict.fromkeys([*(saved.get('replayIds') or []),replay_id]))
+                            event['replayIds']=saved['replayIds']
+                            self.store.put('event',saved)
                     except ValueError:
                         log.info('Replay trigger skipped: capacity')
                 self.processed+=1

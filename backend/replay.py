@@ -30,13 +30,22 @@ class ReplayManager:
                 if t>=job['end']:
                     self.pending.remove(job); self._dispatch(job)
 
-    def trigger(self,t,session_id,reason='manual'):
+    def trigger(self,t,session_id,reason='manual',event_id=None,camera_id=None):
         with self.lock:
+            # Nearby contacts can share one clip, without spawning unbounded
+            # writers. Each camera still retains its own synchronized frames.
+            if event_id:
+                for job in reversed(self.pending):
+                    if job['sessionId']==session_id and job.get('cameraId')==camera_id and abs(t-job.get('triggerTimestamp',t))<1:
+                        job['eventIds']=list(dict.fromkeys([*job.get('eventIds',[]),event_id]))
+                        job['end']=max(job['end'],t+self.post)
+                        return job['id']
             self.writers=[w for w in self.writers if w.is_alive()]
             if len(self.pending)+len(self.writers)>=3:
                 raise ValueError('Limite de replays em gravação. Aguarde.')
             job=dict(id=str(uuid.uuid4()),frames=list(self.ring),end=t+self.post,sessionId=session_id,
-                     reason=reason,bytes=self.bytes,truncated=False)
+                     reason=reason,bytes=self.bytes,truncated=False,cameraId=camera_id,
+                     eventIds=[event_id] if event_id else [],triggerTimestamp=t)
             self.pending.append(job)
             return job['id']
 

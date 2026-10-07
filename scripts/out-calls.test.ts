@@ -24,3 +24,14 @@ test("historical sessions and old decisions remain silent", () => {
   assert.equal(readyOutCalls([event("1")],"another",9,11,new Set()).length,0);
   assert.equal(readyOutCalls([event("1")],"s",9,30,new Set()).length,0);
 });
+
+test("human reviews, rejected impacts and muted decisions never speak OUT", () => {
+  const events = [
+    event("reviewed", { manualReview: { decision: "OUT" }, updatedAt: 10.8 }),
+    event("rejected", { status: "rejected", updatedAt: 10.8 }),
+    event("muted", { varAlert: false }),
+    event("allowed", { varAlert: true }),
+  ];
+  assert.deepEqual(readyOutCalls(events, "s", 9, 11, new Set()).map(e => e.id), ["allowed"]);
+  assert.equal(readyOutCalls(events, "s", 9, 11, new Set(["allowed"])).length, 0);
+});

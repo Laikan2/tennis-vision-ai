@@ -44,8 +44,8 @@ function project(points: XY[], u: number, v: number): XY {
   return [(a*u+b*v+tl[0])/scale,(d*u+e*v+tl[1])/scale];
 }
 
-export function CaptureArea({ status, cameraId, width, height, onEditing, controlsMount }: {
-  status: Status; cameraId?: string; width: number; height: number; onEditing?: (editing: boolean) => void; controlsMount?: HTMLElement | null;
+export function CaptureArea({ status, cameraId, width, height, onEditing, controlsMount, locked = false }: {
+  status: Status; cameraId?: string; width: number; height: number; onEditing?: (editing: boolean) => void; controlsMount?: HTMLElement | null; locked?: boolean;
 }) {
   const [mode, setMode] = useState<Mode>(null);
   const [draft, setDraft] = useState<XY[]>([]);
@@ -181,13 +181,13 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
         <div><button className="primary" disabled={!valid||saving} onClick={()=>save(draft,mode === "court" ? "court" : environment)}>{saving ? "Salvando…" : mode === "court" ? "Usar esta quadra" : "Usar esta superfície"}</button>
           <button disabled={saving} onClick={()=>setDraft(mode === "court" ? [[.18,.18],[.82,.18],[.96,.9],[.04,.9]] : [])}>Recomeçar</button><button disabled={saving} onClick={cancel}>Cancelar</button></div>
       </> : <>
-        <button className={!saved.length ? "selected" : ""} disabled={!status.session||saving} onClick={()=>save(null,environment,"full")}>Imagem inteira</button>
-        {environment === "court" ? <button disabled={!status.session||status.stale||saving} onClick={()=>start("court")}>{saved.length ? "Ajustar modelo da quadra" : "Encaixar modelo da quadra"}</button> :
-          <button disabled={!status.session||status.stale||saving} onClick={()=>start("corners")}>{saved.length ? "Ajustar 4 cantos" : "Marcar 4 cantos"}</button>}
-        <button disabled={!status.session||status.stale||saving} onClick={()=>start("rectangle")}>
+        <button className={!saved.length ? "selected" : ""} disabled={locked||!status.session||saving} onClick={()=>save(null,environment,"full")}>Imagem inteira</button>
+        {environment === "court" ? <button disabled={locked||!status.session||status.stale||saving} onClick={()=>start("court")}>{saved.length ? "Ajustar modelo da quadra" : "Encaixar modelo da quadra"}</button> :
+          <button disabled={locked||!status.session||status.stale||saving} onClick={()=>start("corners")}>{saved.length ? "Ajustar 4 cantos" : "Marcar 4 cantos"}</button>}
+        <button disabled={locked||!status.session||status.stale||saving} onClick={()=>start("rectangle")}>
           {environment === "court" ? "Arrastar chão" : environment === "room" ? "Arrastar parede" : "Arrastar área"}
         </button>
-        {environment === "court" && saved.length>0 && <select className="court-zone-select" aria-label="Zona válida da quadra" value={targetZone} disabled={saving} onChange={e=>save(saved,"court",e.target.value as TargetZone)}>
+        {environment === "court" && saved.length>0 && <select className="court-zone-select" aria-label="Zona válida da quadra" value={targetZone} disabled={locked||saving} onChange={e=>save(saved,"court",e.target.value as TargetZone)}>
           {Object.entries(zones).map(([value,zone])=><option key={value} value={value}>{zone.label}</option>)}
         </select>}
         {saved.length>0 && <button aria-pressed={showLimit} onClick={()=>setShowLimit(!showLimit)}>{showLimit ? "Ocultar linhas" : "Mostrar linhas"}</button>}

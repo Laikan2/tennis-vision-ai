@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 from zipfile import ZipFile, ZIP_DEFLATED
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, get_package_paths
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, get_package_paths, collect_dynamic_libs
 
 root = Path(SPECPATH).parent
 os.environ['YOLO_AUTOINSTALL'] = 'false'
@@ -11,10 +11,10 @@ os.environ['YOLO_AUTOINSTALL'] = 'false'
 vision_root = Path(get_package_paths('torchvision')[1])
 vision_ops = [(str(file), 'torchvision') for file in vision_root.glob('*.pyd')]
 analysis = Analysis([str(root / 'desktop/engine.py')], pathex=[str(root)],
-    binaries=vision_ops, datas=collect_data_files('ultralytics'),
+    binaries=vision_ops + collect_dynamic_libs('onnxruntime'), datas=collect_data_files('ultralytics'),
     hiddenimports=['backend.api', 'uvicorn.logging', 'uvicorn.loops.asyncio',
         'uvicorn.protocols.http.h11_impl', 'uvicorn.protocols.websockets.websockets_impl',
-        'uvicorn.lifespan.on', 'torch', 'torchvision'] + collect_submodules('ultralytics'),
+        'uvicorn.lifespan.on', 'torch', 'torchvision', 'onnxruntime'] + collect_submodules('ultralytics'),
     hookspath=[], hooksconfig={'matplotlib':{'backends':['Agg']}}, runtime_hooks=[],
     excludes=['tkinter','IPython','pytest','tensorboard','tensorflow','PyQt5','PyQt6','PySide6'],
     noarchive=False)

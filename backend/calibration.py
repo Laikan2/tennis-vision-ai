@@ -38,6 +38,14 @@ class CalibrationEngine:
                     method='planar', lensCorrected=False)
 
     @staticmethod
+    def fit_surface(image_points, width_m, height_m, resolution, name, surface, checks=None):
+        if surface not in ('ground', 'wall') or not np.isfinite([width_m, height_m]).all() or not (0.01 < width_m <= 100 and 0.01 < height_m <= 100):
+            raise ValueError('Informe a largura e a altura/comprimento reais da superfície em metros.')
+        profile = CalibrationEngine.fit(image_points, [(0, 0), (width_m, 0), (width_m, height_m), (0, height_m)], resolution, name, checks)
+        profile.update(mode='room', surface=surface, dimensions=[width_m, height_m])
+        return profile
+
+    @staticmethod
     def fit_scale(image_points, distance_m, resolution, name):
         """Fit a simple pixel-to-metre scale for a room or table test.
 
@@ -68,7 +76,7 @@ class CalibrationEngine:
     def map(self, x,y,resolution):
         if not self.profile or list(resolution) != list(self.profile['resolution']):
             return None
-        if self.profile.get('mode') == 'room' or self.profile.get('method') == 'scale':
+        if self.profile.get('method') == 'scale' or (self.profile.get('mode') == 'room' and self.H is None):
             scale = self.profile.get('scaleMetersPerPixel')
             origin = self.profile.get('imageOrigin', [0, 0])
             if scale is None:

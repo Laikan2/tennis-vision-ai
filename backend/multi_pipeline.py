@@ -141,7 +141,7 @@ class PipelineManager:
             'ballDiameterPx','positionUncertaintyPx','decisionMarginPx','decisionReason',
             'decisionMarginsPx','possiblePositions','contactRangePx','contactEvidence','contactLocated',
             'impactEstimatedBetweenFrames','positionApproximate','trackID',
-            'analysisMode',
+            'analysisMode', 'fusionTimestamp', 'syncCalibrationId', 'timeCorrectionMs',
         )
         return {key: event.get(key) for key in keys if key in event}
 
@@ -209,11 +209,19 @@ class PipelineManager:
         incoming = dict(event)
         camera_id = incoming.get('cameraId')
         timestamp = float(incoming.get('timestamp', time.time()))
+        sync = next((s for s in self.store.all('camera_sync') if
+                     camera_id in (s.get('referenceCameraId'), s.get('secondaryCameraId')) and
+                     {s.get('referenceCameraId'), s.get('secondaryCameraId')} <= set(self.pipelines)), None)
+        correction = float(sync.get('offsetSeconds',0)) if sync and camera_id == sync['secondaryCameraId'] else 0.
+        timestamp -= correction
+        incoming.update(fusionTimestamp=timestamp, timeCorrectionMs=correction*1000,
+                        syncCalibrationId=sync.get('updatedAt') if sync else None)
+        window=max(.15, min(.7, (float(sync.get('jitterMs',0))+2*float(sync.get('frameUncertaintyMs',100)))/1000)) if sync else self.fusion_window_seconds
         with self._fusion_lock:
             candidates = []
             for previous in reversed(self._fused_events):
-                age = abs(timestamp - float(previous.get('timestamp', timestamp)))
-                if age > self.fusion_window_seconds:
+                age = abs(timestamp - float(previous.get('fusionTimestamp',previous.get('timestamp', timestamp))))
+                if age > window or previous.get('syncCalibrationId') != incoming.get('syncCalibrationId'):
                     continue
                 if previous.get('sessionId') != incoming.get('sessionId'):
                     continue
@@ -252,6 +260,9 @@ class PipelineManager:
                 self._fused_events.append(saved)
                 return saved
 
+            persisted = self.store.get('event', match['id']) or match
+            match['replayIds']=list(dict.fromkeys([*persisted.get('replayIds',[]),*incoming.get('replayIds',[])]))
+            manual = dict(persisted) if persisted.get('manualReview') else None
             observations = list(match.get('observations') or [self._observation(match)])
             observations.append(self._observation(incoming))
             camera_ids = list(dict.fromkeys(
@@ -305,6 +316,10 @@ class PipelineManager:
                 strokeMethod='multi_camera_pose_vote' if stroke_type else None,
                 updatedAt=time.time(),
             )
+            if manual:
+                for key in ('status','inOrOut','targetDecision','position','resolution','cameraId','courtPosition','targetPosition',
+                            'courtSector','speedBefore','speedAfter','speedMethod','varAlert','manualReview','positionApproximate','decisionAgreement'):
+                    if key in manual:match[key]=manual[key]
             saved = self.store.put('event', match)
             index = self._fused_events.index(match)
             self._fused_events[index] = saved
@@ -318,7 +333,7 @@ class PipelineManager:
         with self._fusion_lock:
             if key != self._summary_key:
                 events = self._session_events(key[0]) if key[0] else []
-                latest = max(events, key=lambda item: (
+                latest = max((e for e in events if e.get('status')!='rejected'), key=lambda item: (
                     float(item.get('timestamp', 0)), float(item.get('updatedAt', 0))
                 ), default=None)
                 self._summary = (StatisticsEngine.summarize(events), latest)

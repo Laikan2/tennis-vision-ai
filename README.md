@@ -4,7 +4,7 @@ MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.j
 
 ## Aplicativos prontos
 
-Windows **0.6.4** e Android **0.5.5**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.4). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md) e a [correção de alta velocidade e conexão](docs/high-speed-2026-10-06.md).
+Windows **0.6.5** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.5). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md) e a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md).
 
 ## Executar no Windows
 
@@ -20,7 +20,9 @@ Abra [o dashboard local](http://127.0.0.1:3000). A API fica em [FastAPI /docs](h
 
 ### Aplicativo Galaxy S25 Ultra/Android sem Larix
 
-O aplicativo nativo já está compilado em `mobile/releases/Tennis-Vision-Camera-Android-v0.5.5.apk` e pode ser baixado também pelo botão **Baixar aplicativo** no painel. Envie o APK ao Galaxy por USB ou Quick Share e instale-o sobre a versão existente. O código-fonte está em `mobile/android`.
+O aplicativo nativo já está compilado em `mobile/releases/Tennis-Vision-Camera-Android-v0.5.6.apk` e pode ser baixado também pelo botão **Baixar aplicativo** no painel. Envie o APK ao Galaxy por USB ou Quick Share e instale-o sobre a versão existente. O código-fonte está em `mobile/android`.
+
+Em **Captura**, teste a estabilidade do perfil escolhido, consulte orientações de exposição/foco e grave o MP4 original no celular. No Windows, **Configurações → Analisar gravação original** processa o arquivo completo. **Timeline → Revisar contato** permite corrigir decisões, posições e falsos impactos com as imagens reais. [Uso e resultados medidos](docs/melhorias-2026-10-06.md).
 
 Ele captura a câmera traseira, usa o codificador H.264 do celular e publica por SRT direto no MediaMTX do computador. Execute `LIBERAR-CAMERA-CELULAR.bat` uma vez, mantenha os aparelhos na mesma rede e abra **Conectar celular**. Leia o QR dentro do aplicativo e toque em **Transmitir para o PC**. Quando o painel mostrar **Vídeo recebido**, clique em **Conectar e iniciar vídeo**. O app nativo não exige HTTPS para acessar a câmera.
 

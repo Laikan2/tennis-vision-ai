@@ -39,7 +39,7 @@ def prepare_state(state, resources, project=None):
     model_root = data / 'models'
     model_root.mkdir(exist_ok=True)
     packaged = Path(resources) / 'models'
-    for model in packaged.glob('*.pt'):
+    for model in list(packaged.glob('*.pt'))+list(packaged.glob('*.onnx'))+list(packaged.glob('*pose-256.json')):
         if not (model_root / model.name).exists():
             shutil.copy2(model, model_root / model.name)
     appearance = data / 'learning'

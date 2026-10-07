@@ -47,6 +47,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -58,6 +59,9 @@ import com.pedro.encoder.input.video.CameraCallbacks
 import com.pedro.encoder.input.video.CameraHelper
 import com.pedro.library.util.QueueAwareBitrateAdapter
 import java.util.Locale
+import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -137,6 +141,11 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   private var adapter: QueueAwareBitrateAdapter? = null
   private var pendingConfig: PairingConfig? = null
   private var requestedStream = false
+  private var localOnly = false
+  private var lastRecording: File? = null
+  private var stabilityProbe: StabilityProbe? = null
+  private var pendingStability = false
+  private var stabilityOwnsCapture = false
   @Volatile private var cameraReady = false
   @Volatile private var openingCamera = false
   private var profilePrepared = false
@@ -269,13 +278,41 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     surfaceReady = preview.holder.surface?.isValid == true
     loadPairing()
     loadCapturePreferences()
+    findViewById<CheckBox>(R.id.recordOriginal).setOnCheckedChangeListener { _, _ -> saveCapturePreferences() }
     handleIntent(intent)
     scanButton.setOnClickListener { scanQr() }
     connectButton.setOnClickListener {
       if (requestedStream) stopTransmission("TRANSMISSÃO ENCERRADA")
-      else { startAfterPermission = true; requestStart() }
+      else { localOnly=false; startAfterPermission = true; requestStart() }
     }
     findViewById<Button>(R.id.quickConnect).setOnClickListener { connectButton.performClick() }
+    findViewById<Button>(R.id.localRecordButton).setOnClickListener {
+      if (requestedStream && localOnly) stopTransmission("GRAVAÇÃO ENCERRADA")
+      else if (!requestedStream) { localOnly=true; requestStart() }
+    }
+    lastRecording = File(filesDir,"recordings").listFiles()?.filter { it.extension=="mp4" && it.length()>0 }?.maxByOrNull { it.lastModified() }
+    findViewById<Button>(R.id.shareRecording).setOnClickListener {
+      val file=lastRecording?.takeIf { it.isFile } ?: return@setOnClickListener
+      runCatching {
+        val uri=FileProvider.getUriForFile(this,"${BuildConfig.APPLICATION_ID}.updates",file)
+        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+          type="video/mp4";putExtra(Intent.EXTRA_STREAM,uri);addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+          clipData=ClipData.newRawUri("Gravação Tennis Vision",uri)
+        },"Enviar vídeo para o PC"))
+      }.onFailure { setStatus("Não foi possível compartilhar: ${it.message}",true) }
+    }
+    findViewById<Button>(R.id.testStability).setOnClickListener {
+      if (stabilityProbe!=null || pendingStability) {
+        pendingStability=false; finishStability()
+        if(stabilityOwnsCapture) { stabilityOwnsCapture=false;stopTransmission("TESTE ENCERRADO") }
+      } else {
+        pendingStability=true;stabilityOwnsCapture=!requestedStream
+        if(requestedStream) { if(camera.isStreaming) beginStability() }
+        else { localOnly=true;requestStart() }
+        updateControls()
+      }
+    }
+    findViewById<TextView>(R.id.stabilityResult).text = getSharedPreferences("diagnostics",MODE_PRIVATE).getString("stabilitySummary",getString(R.string.stability_explanation))
     qualitySpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
       override fun onNothingSelected(parent: AdapterView<*>?) = Unit
       override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -470,6 +507,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     fastShutter.isChecked = saved.getBoolean("fast", false)
     shutterSpinner.setSelection(saved.getInt("shutter", 0).coerceIn(shutters.indices))
     findViewById<CheckBox>(R.id.guideSwitch).isChecked = saved.getBoolean("guide", false)
+    findViewById<CheckBox>(R.id.recordOriginal).isChecked = saved.getBoolean("recordOriginal",false)
   }
 
   private fun saveCapturePreferences() {
@@ -478,6 +516,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       .putBoolean("fast", fastShutter.isChecked)
       .putInt("shutter", shutterSpinner.selectedItemPosition.coerceAtLeast(0))
       .putBoolean("guide", findViewById<CheckBox>(R.id.guideSwitch).isChecked)
+      .putBoolean("recordOriginal",findViewById<CheckBox>(R.id.recordOriginal).isChecked)
       .putInt("width", profile.width).putInt("height", profile.height).putInt("fps", profile.fps).apply()
   }
 
@@ -489,7 +528,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED -> {
         if (!cameraPermissionInFlight) { cameraPermissionInFlight = true; cameraPermission.launch(Manifest.permission.CAMERA) }
       }
-      Build.VERSION.SDK_INT >= 37 && ContextCompat.checkSelfPermission(this, "android.permission.ACCESS_LOCAL_NETWORK") != PackageManager.PERMISSION_GRANTED -> {
+      !localOnly && Build.VERSION.SDK_INT >= 37 && ContextCompat.checkSelfPermission(this, "android.permission.ACCESS_LOCAL_NETWORK") != PackageManager.PERMISSION_GRANTED -> {
         if (!networkPermissionInFlight) { networkPermissionInFlight = true; networkPermission.launch("android.permission.ACCESS_LOCAL_NETWORK") }
       }
       else -> { startAfterPermission = false; beginRequestedStream() }
@@ -569,16 +608,16 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   private fun beginRequestedStream() {
     val profile = currentProfile()
     val config = runCatching {
-      PairingConfig(hostInput.text.toString().trim(),
-        portInput.text.toString().toIntOrNull() ?: error("Informe a porta SRT."),
-        pathInput.text.toString().trim().removePrefix("/"),
+      PairingConfig(if(localOnly) "127.0.0.1" else hostInput.text.toString().trim(),
+        if(localOnly) 8890 else portInput.text.toString().toIntOrNull() ?: error("Informe a porta SRT."),
+        if(localOnly) "local" else pathInput.text.toString().trim().removePrefix("/"),
         profile.fps, profile.width, profile.height, profile.bitrate, currentTransport().latencyMs)
     }.onFailure { setStatus(it.message ?: "Configuração inválida.", true) }.getOrNull() ?: return
     pendingConfig = config
     requestedStream = true
-    savePairing(config)
+    if(!localOnly) savePairing(config)
     updateControls()
-    setStatus("PREPARANDO TRANSMISSÃO…")
+    setStatus(if(localOnly) "PREPARANDO CAPTURA LOCAL…" else "PREPARANDO TRANSMISSÃO…")
     if (configuredProfile != profile || !profilePrepared) closePreview(reopen = true)
     if (cameraReady) transmit() else ensurePreview()
   }
@@ -611,14 +650,23 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     runCatching {
       camera.getStreamClient().setLatency(config.latencyMs)
       camera.getStreamClient().resizeCache(currentTransport().queueFrames(profile.fps))
-      acquireWifiLock()
-      camera.startStream(config.toSrtUrl())
+      if(!localOnly) acquireWifiLock()
+      val record = (localOnly && !stabilityOwnsCapture) || findViewById<CheckBox>(R.id.recordOriginal).isChecked
+      val file=if(record) File(filesDir,"recordings/TennisVision-${System.currentTimeMillis()}.mp4.pending") else null
+      camera.startStream(if(localOnly) null else config.toSrtUrl(),file) { saved, error -> onMain {
+        if(saved!=null)lastRecording=saved
+        findViewById<TextView>(R.id.recordingStatus).text = error ?: "Gravação salva: ${saved?.name}. Use Compartilhar para enviar ao PC."
+        updateControls()
+      } }
+      if(localOnly) { setStatus(if(record) "GRAVANDO NO CELULAR" else "TESTANDO CAPTURA LOCAL");detailText.text="Sem envio pela rede · perfil ${profile.fps} fps escolhido" }
+      if(pendingStability) beginStability()
     }
       .onFailure { stopTransmission("Não conectou: ${it.message}", true) }
   }
 
   private fun stopTransmission(message: String, error: Boolean = false, resumePreview: Boolean = true,
                                afterStopped: (() -> Unit)? = null) {
+    if(stabilityProbe!=null || pendingStability) { pendingStability=false;finishStability();stabilityOwnsCapture=false }
     requestedStream = false
     startAfterPermission = false
     connected = false
@@ -862,6 +910,12 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     findViewById<Button>(R.id.quickConnect).isSelected = requestedStream
     connectButton.isEnabled = !closingCamera && !scanning
     findViewById<Button>(R.id.quickConnect).isEnabled = connectButton.isEnabled
+    findViewById<CheckBox>(R.id.recordOriginal).isEnabled = !requestedStream && !closingCamera
+    findViewById<Button>(R.id.localRecordButton).apply { isEnabled = (!requestedStream || localOnly) && !closingCamera && !scanning;
+      text=if(requestedStream && localOnly) "Parar captura local" else getString(R.string.record_local) }
+    findViewById<Button>(R.id.shareRecording).isEnabled = !requestedStream && lastRecording?.isFile==true
+    findViewById<Button>(R.id.testStability).apply { isEnabled = !closingCamera && !scanning;
+      text=if(stabilityProbe!=null || pendingStability) "Encerrar teste" else getString(R.string.test_stability) }
     listOf<View>(hostInput, portInput, pathInput, qualitySpinner, scanButton, transportSpinner, zoomSlider,
       findViewById(R.id.fastPreset), findViewById(R.id.stablePreset), findViewById(R.id.manualButton),
       findViewById(R.id.resetCapture)).forEach { it.isEnabled = !requestedStream && !scanning && !closingCamera }
@@ -912,6 +966,14 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
       else -> "Sem rede ativa"
     }
     val thermal = if (Build.VERSION.SDK_INT >= 29) getSystemService(PowerManager::class.java).currentThermalStatus else 0
+    findViewById<TextView>(R.id.imageAdvice).text=ImageAdvice.describe(exposureNs,sensorIso,currentProfile().fps,focusLock.isChecked)
+    if(camera.recordingActive) findViewById<TextView>(R.id.recordingStatus).text=String.format(Locale.getDefault(),"Gravando vídeo H.264 · %.1f MB · encerre para finalizar",camera.recordingBytes/1048576.0)
+    stabilityProbe?.let { probe ->
+      val now=SystemClock.elapsedRealtime()
+      probe.add(StabilitySample(now-probe.startedMs,captureFps,actualFps,sentFps,droppedFrames,StreamHealth.queueMs(queueBytes,actualBitrate),batteryCelsius,thermal))
+      findViewById<TextView>(R.id.stabilityResult).text="Teste ${currentProfile().fps} fps · ${probe.remaining(now)/1000} s restantes\nCaptura ${captureFps.toInt()} · H.264 ${actualFps.toInt()} · envio ${sentFps.toInt()} fps"
+      if(probe.remaining(now)==0L) { finishStability();if(stabilityOwnsCapture){stabilityOwnsCapture=false;stopTransmission("TESTE CONCLUÍDO")} }
+    }
     val stalled = StreamHealth.captureStalled(lastCaptureMs, camera.encodingStartedMs, camera.lastEncodedMs,
       SystemClock.elapsedRealtime(), cameraReady && resumed && !scanning && !closingCamera, camera.isStreaming)
     if (stalled && !warnedStall) {
@@ -943,6 +1005,30 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
   }
 
   private fun onMain(action: () -> Unit) = runOnUiThread { if (!destroyed) action() }
+
+  private fun beginStability() {
+    pendingStability=false
+    stabilityProbe=StabilityProbe(currentProfile().fps,!localOnly,SystemClock.elapsedRealtime())
+    updateControls()
+  }
+
+  private fun finishStability() {
+    val result=stabilityProbe?.result()
+    stabilityProbe=null
+    if(result!=null) {
+      val summary=String.format(Locale.getDefault(),"%dp / %d fps escolhidos\nCaptura %.1f · H.264 %.1f · envio %.1f fps\n%d descartados · fila máxima %d ms · %.1f °C bateria\n%s",
+        currentProfile().height,result.requestedFps,result.captureFps,result.encodedFps,result.sentFps,result.dropped,result.peakQueueMs,result.peakTemperature,result.reason)
+      val preferences=getSharedPreferences("diagnostics",MODE_PRIVATE)
+      val rows=runCatching { JSONArray(preferences.getString("stabilityRuns","[]")) }.getOrElse { JSONArray() }
+      rows.put(JSONObject().put("timestamp",System.currentTimeMillis()).put("width",currentProfile().width).put("height",currentProfile().height)
+        .put("fps",result.requestedFps).put("captureFps",result.captureFps).put("encodedFps",result.encodedFps).put("sentFps",result.sentFps)
+        .put("stable",result.stable).put("network",!localOnly).put("dropped",result.dropped).put("temperature",result.peakTemperature))
+      val bounded=JSONArray(); for(i in maxOf(0,rows.length()-30) until rows.length()) bounded.put(rows.get(i))
+      preferences.edit().putString("stabilitySummary",summary).putString("stabilityRuns",bounded.toString()).apply()
+      findViewById<TextView>(R.id.stabilityResult).text=summary
+    }
+    updateControls()
+  }
 
   private fun setStatus(value: String, error: Boolean = false) {
     statusText.text = value
@@ -1014,7 +1100,7 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
         lastRecoveryAt = nowMs
       }
       lastDropped = droppedFrames
-      adapter?.onStreamingStats(report)
+      if(!camera.recordingActive) adapter?.onStreamingStats(report)
       renderMetrics()
     }
   }

@@ -85,6 +85,7 @@ export type Event = {
   courtPosition: [number, number] | null;
   confidence: number | null;
   speedBefore: number | null;
+  speedAfter?: number | null;
   speedMethod?: string | null;
   positionApproximate?: boolean;
   ballColor?: "tennis_green" | null;
@@ -109,6 +110,8 @@ export type Event = {
   decisionReason?: string;
   contactEvidence?: string;
   impactEstimatedBetweenFrames?: boolean;
+  replayIds?: string[];
+  manualReview?: { reason: string; timestamp: number; reviewer: string; cameraId?: string; replayId?: string; frameIndex?: number };
 };
 export type EventObservation = Partial<Event> & {
   cameraId: string;
@@ -220,6 +223,8 @@ export type Status = {
   captureFpsTotal?: number | null;
   processingFpsTotal?: number | null;
   fusionWindowMs?: number;
+  poseDevice?: string;
+  acceleration?: { device: string; validated: boolean; parity: boolean; cpuMs: number | null; gpuMs: number | null; speedup: number | null; reason?: string };
 };
 export type Replay = {
   id: string;
@@ -228,6 +233,9 @@ export type Replay = {
   reason: string;
   frames: number;
   truncated: boolean;
+  cameraId?: string;
+  eventIds?: string[];
+  triggerTimestamp?: number;
 };
 export type ReplayFrame = {
   index: number;

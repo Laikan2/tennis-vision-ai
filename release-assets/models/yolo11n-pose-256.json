@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "originalSha256": "869e83fcdffdc7371fa4e34cd8e51c838cc729571d1635e5141e3075e9319dc0",
+  "onnxSha256": "8375d10b5508fefbf620a6c834f940b72e29fcc3ed7ae21aa5b7cfb6d06eb835",
+  "parity": true,
+  "inputSize": 256,
+  "evaluationFrames": 12,
+  "originalWeightsMaxError": 0.00115966796875,
+  "rtol": 0.002,
+  "atol": 0.03,
+  "torchCpuMedianMs": 22.36115,
+  "directMlMedianMs": 2.4414,
+  "hardware": "AMD Radeon RX 9060 XT",
+  "validationDate": "2026-10-06",
+  "scope": "Same pose weights exported without quantization. Does not measure ball or impact accuracy. Each installation also checks CPU/GPU parity and runtime speed."
+}

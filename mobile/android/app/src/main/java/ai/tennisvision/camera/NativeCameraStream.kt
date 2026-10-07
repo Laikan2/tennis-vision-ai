@@ -24,6 +24,7 @@ import com.pedro.library.util.streamclient.SrtStreamClient
 import com.pedro.library.util.streamclient.StreamClientListener
 import com.pedro.srt.srt.SrtClient
 import java.nio.ByteBuffer
+import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Direct camera -> hardware AVC input surface -> SRT, preserving camera presentation times. */
@@ -42,6 +43,10 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
   private val connectionQueued = AtomicBoolean(false)
   @Volatile private var released = false
   private val recovery = KeyframeRecovery()
+  @Volatile private var recording: LocalRecording? = null
+  private var recordingEpoch = 0L
+  val recordingActive: Boolean get() = recording != null
+  val recordingBytes: Long get() = recording?.bytes ?: 0
   val recoveryDiscarded: Long get() = synchronized(recovery) { recovery.discarded }
   var maxBitrate = 0
     private set
@@ -56,14 +61,15 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
 
   private val encoder = object : VideoEncoder(object : GetVideoData {
     override fun onVideoInfo(sps: ByteBuffer, pps: ByteBuffer?, vps: ByteBuffer?) { srt.setVideoInfo(sps, pps, vps) }
-    override fun onVideoFormat(mediaFormat: MediaFormat) = Unit
+    override fun onVideoFormat(mediaFormat: MediaFormat) { recording?.format(mediaFormat) }
     override fun getVideoData(videoBuffer: ByteBuffer, info: MediaCodec.BufferInfo) {
       if (isStreaming && info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
         lastEncodedMs = SystemClock.elapsedRealtime()
+        recording?.packet(videoBuffer, info)
         connectWhenVideoReady()
         encoderMeter.frame(SystemClock.elapsedRealtimeNanos())?.let { encodedFpsListener?.invoke(it) }
         synchronized(recovery) {
-          if (isStreaming && recovery.accepts(info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
+          if (isStreaming && pendingUrl != null && recovery.accepts(info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0))
             srt.sendVideo(videoBuffer, info)
         }
       }
@@ -137,7 +143,7 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     camera.open(config, preview.holder.surface)
   }
 
-  fun startStream(url: String) {
+  fun startStream(url: String?, recordFile: File? = null, onRecording: (File?, String?) -> Unit = { _, _ -> }) {
     check(isOnPreview && opened && !isStreaming) { "Aguarde a câmera ficar pronta." }
     val config = checkNotNull(profile)
     val codecInfo = checkNotNull(CameraCapabilities.encoderFor(config)) { "O H.264 não oferece este perfil." }
@@ -157,6 +163,13 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     lastEncodedMs = 0L
     synchronized(recovery) { recovery.reset() }
     encoderMeter.reset()
+    if (recordFile != null) {
+      val recordToken = ++recordingEpoch
+      recording = LocalRecording(recordFile, completed = { file, error ->
+        if (recordToken == recordingEpoch) recording = null
+        onRecording(file, error)
+      })
+    }
     encoder.start()
     val token = callbackEpoch.current()
     camera.record(preview.holder.surface, encoder.inputSurface) {
@@ -191,6 +204,7 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
     val stoppedClient = srt
     try { closeResources({ stopPreview() }, { stoppedClient.disconnect() }, { encoder.stop() }) }
     finally {
+      recording?.finish(); recording = null
       if (!released) { srt = newSrtClient(); client = newStreamClient() }
     }
   }

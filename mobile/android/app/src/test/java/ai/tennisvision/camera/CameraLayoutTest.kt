@@ -33,6 +33,20 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class CameraLayoutTest {
+  @Test fun recordingAndStabilityControlsAreAccessibleAndDoNotChangePairing() {
+    val controller=Robolectric.buildActivity(MainActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.findViewById<Button>(R.id.captureTab).performClick()
+    activity.findViewById<CheckBox>(R.id.recordOriginal).isChecked=true
+    assertTrue(activity.getSharedPreferences("capture",0).getBoolean("recordOriginal",false))
+    assertNotNull(activity.findViewById<Button>(R.id.testStability))
+    assertNotNull(activity.findViewById<Button>(R.id.localRecordButton))
+    val scroll=activity.findViewById<android.widget.ScrollView>(R.id.settingsScroll)
+    draw(activity,"android-capture-tools")
+    scroll.fullScroll(View.FOCUS_DOWN);shadowOf(Looper.getMainLooper()).idle()
+    draw(activity,"android-recording-stability")
+    controller.pause().stop().destroy()
+  }
   @Test fun aFailedHighRateNeverChangesTheSelectedOrSavedFpsTo60() {
     for (fps in listOf(120, 240)) {
       val controller = Robolectric.buildActivity(MainActivity::class.java).create().start().resume().visible()

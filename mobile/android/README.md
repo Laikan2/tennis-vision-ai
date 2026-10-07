@@ -31,7 +31,7 @@ A fila de envio é curta e o bitrate se ajusta à rede para reduzir acúmulo de 
 O APK compilado e assinado para teste está em:
 
 ```text
-mobile/releases/Tennis-Vision-Camera-Android-v0.5.5.apk
+mobile/releases/Tennis-Vision-Camera-Android-v0.5.6.apk
 ```
 
 Envie esse arquivo ao Galaxy, abra-o e autorize a instalação desta fonte quando o Android solicitar. Esta versão usa uma assinatura de desenvolvimento; ela serve para instalar e testar diretamente no seu aparelho. Uma publicação futura na loja precisa de uma chave de lançamento própria.

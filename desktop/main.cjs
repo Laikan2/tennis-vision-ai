@@ -94,7 +94,8 @@ async function sessionActive() {
   try {
     const response = await fetch(`${backendUrl}/api/status`, {signal:AbortSignal.timeout(2500)});
     if (!response.ok) return true;
-    return Boolean((await response.json()).running);
+    const state = await response.json();
+    return Boolean(state.running || state.busy);
   } catch { return true; }
 }
 async function stopServices() {
@@ -219,7 +220,7 @@ else {
     handle('studio:retry',()=>launch());
     handle('studio:quit',()=>app.quit());
     handle('studio:project',async()=>{
-      if(ready) {const status=await fetch(`${backendUrl}/api/status`).then(r=>r.json());if(status.running)throw new Error('Encerre a sessão antes de trocar a pasta de dados.');}
+      if(ready) {const status=await fetch(`${backendUrl}/api/status`).then(r=>r.json());if(status.running || status.busy)throw new Error('Encerre a sessão, análise ou treinamento antes de trocar a pasta de dados.');}
       const result=await dialog.showOpenDialog(window,{title:'Selecione a pasta tennis-vision-ai',properties:['openDirectory']});
       if(result.canceled)return {cancelled:true};
       const selected=result.filePaths[0];

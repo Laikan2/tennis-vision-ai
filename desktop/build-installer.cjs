@@ -2,6 +2,7 @@
 // it even when the app itself fits. Keep only compiler templates/vendor assets
 // in a short, private temporary directory; no global or dependency files change.
 const fs=require('node:fs');const os=require('node:os');const path=require('node:path');
+require('./verify-ui.cjs').verifyUi(path.dirname(__dirname),process.argv.includes('--prepackaged')?path.join(__dirname,'releases/win-unpacked/resources/ui'):undefined);
 const electronRoot=path.dirname(require.resolve('electron-builder/package.json'));
 const builderRoot=path.dirname(require.resolve('app-builder-lib/package.json',{paths:[electronRoot]}));
 const compilerAssets=fs.mkdtempSync(path.join(os.tmpdir(),'tennis-nsis-'));

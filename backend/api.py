@@ -10,7 +10,7 @@ import time
 import uuid
 import threading
 import re
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager,ExitStack
 from pathlib import Path
 from typing import Literal
 from urllib.parse import urlencode
@@ -45,11 +45,17 @@ async def lifespan(app):
                                port=int(os.getenv('TV_CAMERA_PORT','554')),path=os.getenv('TV_CAMERA_PATH','/Streaming/Channels/101'),
                                buffer=1,threshold=.65,credentialSource='environment'))
     yield
+    await asyncio.to_thread(recordings.stop)
     await asyncio.to_thread(pipeline.stop)
 
 
 app=FastAPI(title='Tennis Vision AI',version='0.1.0',lifespan=lifespan)
-ANDROID_APP_VERSION='0.5.5'
+from .review import install_review_routes
+install_review_routes(app,store,pipeline,learning,DATA/'replays',control_lock)
+from .recordings import Recordings
+recordings=Recordings(app,store,pipeline,learning,DATA/'recordings',control_lock)
+learning.is_running=lambda:pipeline.session is not None or recordings.busy
+ANDROID_APP_VERSION='0.5.6'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
 desktop_origin=os.getenv('TV_DESKTOP_ORIGIN','')
@@ -110,10 +116,13 @@ class CalibrationCheck(StrictModel):
 class CalibrationInput(StrictModel):
     cameraId:str
     name:str=Field(default='Quadra principal',max_length=100)
-    mode:Literal['court','room']='court'
+    mode:Literal['court','room','surface']='court'
     imagePoints:list[tuple[float,float]]=Field(min_length=2,max_length=4)
     resolution:tuple[int,int]
     realDistanceM:float|None=Field(default=None,gt=.01,le=100)
+    realWidthM:float|None=Field(default=None,gt=.01,le=100)
+    realHeightM:float|None=Field(default=None,gt=.01,le=100)
+    surface:Literal['ground','wall']='ground'
     checks:list[CalibrationCheck]=Field(default_factory=list,max_length=20)
 
 
@@ -266,7 +275,7 @@ def add_camera(data:CameraInput):
 
 @app.get('/api/status')
 def status():
-    return pipeline.snapshot() | dict(cpuPercent=psutil.cpu_percent(),ramMb=psutil.Process().memory_info().rss/1024**2,gpuPercent=None)
+    return pipeline.snapshot() | dict(busy=recordings.busy or learning.busy,cpuPercent=psutil.cpu_percent(),ramMb=psutil.Process().memory_info().rss/1024**2,gpuPercent=None)
 
 
 class BallScaleInput(StrictModel):
@@ -314,6 +323,8 @@ def start(data:SessionInput):
 
 
 def _start(data:SessionInput):
+    if recordings.busy:
+        raise HTTPException(409,'Uma gravação está sendo analisada. Aguarde ou encerre a análise do vídeo.')
     if learning.busy:
         raise HTTPException(409,'A IA está treinando. Aguarde a conclusão para iniciar a câmera.')
     if pipeline.session:
@@ -621,6 +632,11 @@ def _calibrate(data:CalibrationInput):
             if len(data.imagePoints) != 2 or data.realDistanceM is None:
                 raise ValueError('No modo ambiente, marque dois pontos e informe a distância real entre eles.')
             profile=CalibrationEngine.fit_scale(data.imagePoints,data.realDistanceM,data.resolution,data.name)
+        elif data.mode == 'surface':
+            if data.realWidthM is None or data.realHeightM is None:
+                raise ValueError('Informe as duas medidas reais da superfície.')
+            profile=CalibrationEngine.fit_surface(data.imagePoints,data.realWidthM,data.realHeightM,data.resolution,data.name,data.surface,
+                                                  [check.model_dump() for check in data.checks])
         else:
             if len(data.imagePoints) != 4:
                 raise ValueError('Na quadra, marque exatamente quatro pontos.')
@@ -640,16 +656,26 @@ def _calibrate(data:CalibrationInput):
     return profile
 
 
+class ReplayInput(StrictModel):
+    allCameras:bool=False
+    cameraId:str|None=None
+
+
 @app.post('/api/replays')
-def mark_replay():
-    worker=active_pipeline()
-    if not worker.session or not worker.jpeg or worker.snapshot()['stale']:
-        raise HTTPException(409,'Inicie uma sessão com frames reais.')
-    try:
-        id=worker.replay.trigger(time.time(),worker.session['id'])
-        return dict(id=id,status='recording')
-    except ValueError as e:
-        raise HTTPException(409,str(e))
+def mark_replay(data:ReplayInput|None=None):
+    with control_lock:
+        workers=list(pipeline.pipelines.values()) if data and data.allCameras and hasattr(pipeline,'pipelines') else [active_pipeline(data.cameraId if data else None)]
+        if not workers or any(not w or not w.session or not w.jpeg or w.snapshot()['stale'] for w in workers):
+            raise HTTPException(409,'Inicie uma sessão com frames reais em todas as câmeras selecionadas.')
+        try:
+            with ExitStack() as leases:
+                for worker in workers:leases.enter_context(worker.replay.lock)
+                if any(len(w.replay.pending)+sum(t.is_alive() for t in w.replay.writers)>=3 for w in workers):
+                    raise ValueError('Uma câmera atingiu o limite de replays. Aguarde antes de gravar a referência nas duas.')
+                marked=[dict(id=w.replay.trigger(time.time(),w.session['id'],camera_id=w.camera_id),cameraId=w.camera_id) for w in workers]
+            return dict(id=marked[0]['id'],status='recording',replays=marked)
+        except ValueError as e:
+            raise HTTPException(409,str(e))
 
 
 @app.get('/api/replays')
@@ -677,6 +703,7 @@ def replay_manifest(id:str):
 @app.get('/api/replays/{id}/frames/{index}')
 def replay_frame(id:str,index:int):
     path=replay_folder(id)/f'{index}.jpg'
+    if not path.is_file():path=replay_folder(id)/f'{index:05d}.jpg'
     if index<0 or not path.is_file():
         raise HTTPException(404,'Frame não encontrado.')
     return FileResponse(path,media_type='image/jpeg')

@@ -1,7 +1,7 @@
-TENNIS VISION CAMERA 0.5.5 — ANDROID
+TENNIS VISION CAMERA 0.5.6 — ANDROID
 
 INSTALAR / ATUALIZAR
-1. Envie Tennis-Vision-Camera-Android-v0.5.5.apk para o Galaxy S25 Ultra.
+1. Envie Tennis-Vision-Camera-Android-v0.5.6.apk para o Galaxy S25 Ultra.
 2. Abra o APK e toque em Atualizar. O arquivo usa o mesmo certificado dos APKs
    anteriores entregues neste PC; a atualização mantém o pareamento.
 3. Abra Tennis Vision Studio no computador.

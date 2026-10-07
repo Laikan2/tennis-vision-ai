@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+  <string name="image_assistant">ASSISTENTE DE IMAGEM</string>
+  <string name="recording_title">GRAVAÇÃO NO CELULAR</string>
+  <string name="record_original">Salvar MP4 também enquanto transmite</string>
+  <string name="record_local">Gravar somente no celular</string>
+  <string name="share_recording">Compartilhar última gravação</string>
+  <string name="recording_explanation">Vídeo H.264 com timestamps da câmera, sem áudio e sem passar pela prévia do PC. Encerre para finalizar e compartilhar.</string>
+  <string name="stability_title">TESTE DE ESTABILIDADE</string>
+  <string name="test_stability">Testar perfil atual · 25 segundos</string>
+  <string name="stability_explanation">5 s de aquecimento + 20 s medidos. Repita nos perfis 60, 120 e 240 FPS disponíveis. O teste não troca seu perfil.</string>
   <string name="update_title">ATUALIZAÇÕES DO APLICATIVO</string>
   <string name="update_automatic_help">Consulta automática ao abrir. O download espera a transmissão parar e uma rede sem cobrança.</string>
   <string name="update_install_help">O Android pede autorização para instalar. O pareamento e os ajustes continuam salvos.</string>

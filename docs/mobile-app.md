@@ -4,7 +4,7 @@
 
 Retirar a dependência do Larix e manter a análise no computador, onde há mais CPU/GPU, armazenamento e espaço para o painel completo. O celular funciona como câmera especializada; o PC recebe, analisa e apresenta os resultados.
 
-A versão Android **0.5.5** inclui consulta e download de atualizações pelo GitHub. Instale essa versão uma vez para ativar o recurso e use **Rede → Atualizações do aplicativo** para confirmar a instalação das próximas. Veja [android-updates.md](android-updates.md).
+A versão Android **0.5.6** inclui consulta e download de atualizações pelo GitHub. Instale essa versão sobre a anterior e use **Rede → Atualizações do aplicativo** para confirmar a instalação das próximas. Veja [android-updates.md](android-updates.md). Em **Captura**, estão o teste de estabilidade, assistente de imagem e gravação do MP4 original; veja [uso e validação](melhorias-2026-10-06.md).
 
 ```mermaid
 flowchart LR

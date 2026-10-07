@@ -22,13 +22,18 @@ class Frame:
 
 
 class FrameBuffer:
-    def __init__(self, capacity=1):
+    def __init__(self, capacity=1, preserve_all=False, stop_event=None):
         self.items = deque(maxlen=capacity)
         self.condition = threading.Condition()
         self.dropped = 0
+        self.preserve_all = preserve_all
+        self.stop_event = stop_event
 
     def push(self, frame):
         with self.condition:
+            while self.preserve_all and len(self.items)==self.items.maxlen:
+                if self.stop_event and self.stop_event.is_set():return
+                self.condition.wait(.1)
             if len(self.items) == self.items.maxlen:
                 self.dropped += 1
             self.items.append(frame)
@@ -40,6 +45,10 @@ class FrameBuffer:
                 self.condition.wait(timeout)
             if not self.items:
                 return None
+            if self.preserve_all:
+                frame=self.items.popleft()
+                self.condition.notify_all()
+                return frame
             # The capacity may exceed one, but processing always consumes newest.
             self.dropped += len(self.items) - 1
             latest = self.items[-1]
@@ -268,3 +277,46 @@ class CameraCapture:
                     cap.release()
             self.stop_event.wait(2)
         self.status = 'offline'
+
+
+class FileCapture(CameraCapture):
+    """Read an original recording sequentially, with back-pressure and no loop."""
+    def __init__(self, path, buffer, epoch=None):
+        super().__init__(str(path), buffer, source_factory=lambda: cv2.VideoCapture(str(path)))
+        if buffer.stop_event is None:buffer.stop_event=self.stop_event
+        self.epoch=epoch if epoch is not None else time.time()
+        self.eof=False
+        self.failed=False
+
+    def _run(self):
+        cap=None
+        try:
+            cap=self.source_factory()
+            if not cap.isOpened():raise ValueError('open')
+            fps=float(cap.get(cv2.CAP_PROP_FPS))
+            if not np.isfinite(fps) or fps<=0:raise ValueError('fps')
+            self.fps=fps
+            previous=-1.
+            while not self.stop_event.is_set():
+                ok,image=cap.read()
+                if not ok:break
+                source=float(cap.get(cv2.CAP_PROP_POS_MSEC))/1000
+                if not np.isfinite(source) or source<0 or source<=previous:
+                    source=self.frames/fps
+                previous=source
+                self.frames+=1
+                self.last_received=time.time()
+                self.resolution=[image.shape[1],image.shape[0]]
+                self.status='online'
+                self.source_timing_available=True
+                frame=Frame(image,self.epoch+source,time.monotonic(),self.frames,source,1)
+                with self.preview_condition:
+                    self.latest_frame=frame;self.preview_condition.notify_all()
+                self.buffer.push(frame)
+            self.eof=True
+        except Exception:
+            self.failed=True;self.eof=True
+            self.error='Não foi possível decodificar a gravação.'
+        finally:
+            if cap is not None:cap.release()
+            self.status='finished' if not self.failed else 'offline'

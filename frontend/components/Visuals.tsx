@@ -763,7 +763,14 @@ export function LiveVideo({
   );
 }
 
-export function ReplayPlayer({ replay }: { replay: Replay }) {
+export function ReplayPlayer({ replay, onFrame, onPoint, onBox, annotation = "none", focusTimestamp }: {
+  replay: Replay; onFrame?: (frame: ReplayFrame) => void;
+  onPoint?: (point: [number, number]) => void; onBox?: (box: [number, number, number, number]) => void;
+  annotation?: "none" | "point" | "box"; focusTimestamp?: number;
+}) {
+  const [overlays, setOverlays] = useState(true);
+  const [selection, setSelection] = useState<[number, number, number, number] | null>(null);
+  const anchor = useRef<[number, number] | null>(null);
   const [frames, setFrames] = useState<ReplayFrame[]>([]),
     [index, setIndex] = useState(0),
     [rate, setRate] = useState(1),
@@ -776,7 +783,8 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
     setIndex(0);
     setPlaying(false);
     api<ReplayFrame[]>(`/replays/${replay.id}`)
-      .then(value => { if (active) setFrames(value); })
+      .then(value => { if (active) { setFrames(value); const t = focusTimestamp ?? replay.triggerTimestamp;
+        if (t && value.length) setIndex(value.reduce((best, f, i) => Math.abs(f.timestamp-t)<Math.abs(value[best].timestamp-t)?i:best, 0)); } })
       .catch((e) => { if (active) setError(e.message); });
     return () => { active = false; };
   }, [replay.id]);
@@ -793,6 +801,12 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
   }, [playing, index, rate, frames]);
   const f = frames[index],
     res = f?.overlay.resolution;
+  useEffect(() => { setSelection(null); if (f) onFrame?.(f); }, [f, onFrame]);
+  function point(e: React.PointerEvent<SVGSVGElement>): [number, number] {
+    const r=e.currentTarget.getBoundingClientRect();
+    return [Math.max(0,Math.min((res?.[0] ?? 1)-.01,(e.clientX-r.left)/r.width*(res?.[0] ?? 1))),
+      Math.max(0,Math.min((res?.[1] ?? 1)-.01,(e.clientY-r.top)/r.height*(res?.[1] ?? 1)))];
+  }
   return (
     <div className="replay-player">
       {error && <p role="alert">{error}</p>}
@@ -803,7 +817,16 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
               src={`/api/replays/${replay.id}/frames/${f.index}`}
               alt={`Replay, frame ${index + 1}`}
             />
-            <svg viewBox={`0 0 ${res?.[0]} ${res?.[1]}`}>
+            <svg className={annotation !== "none" ? "replay-annotate" : ""} viewBox={`0 0 ${res?.[0]} ${res?.[1]}`}
+              onPointerDown={e => { if (annotation === "none") return; setPlaying(false); const p=point(e);
+                if (annotation === "point") { onPoint?.(p); setSelection([p[0],p[1],0,0]); }
+                else { anchor.current=p; e.currentTarget.setPointerCapture(e.pointerId); } }}
+              onPointerMove={e => { if (!anchor.current) return; const p=point(e), a=anchor.current;
+                setSelection([Math.min(p[0],a[0]),Math.min(p[1],a[1]),Math.abs(p[0]-a[0]),Math.abs(p[1]-a[1])]); }}
+              onPointerUp={e => { if (!anchor.current) return; const p=point(e), a=anchor.current; anchor.current=null;
+                const b: [number,number,number,number]=[Math.min(p[0],a[0]),Math.min(p[1],a[1]),Math.abs(p[0]-a[0]),Math.abs(p[1]-a[1])];
+                setSelection(b); onBox?.(b); }} onPointerCancel={() => { anchor.current=null; }}>
+              {overlays && <>
               <PoseOverlay persons={f.overlay.persons || []} width={res?.[0]} />
               <polyline
                 points={(f.overlay.trajectory || [])
@@ -813,6 +836,9 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
                 stroke={color(f.overlay.speed?.projectedKmh)}
                 strokeWidth="3"
               />
+              </>}
+              {selection && (annotation === "point" ? <circle cx={selection[0]} cy={selection[1]} r={Math.max(5,(res?.[0] ?? 640)/80)} fill="#c9f56b" stroke="#0a1515" strokeWidth={2}/>
+                : <rect x={selection[0]} y={selection[1]} width={selection[2]} height={selection[3]} fill="#c9f56b33" stroke="#c9f56b" strokeWidth={2} />)}
             </svg>
           </>
         )}
@@ -830,6 +856,7 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
         }}
       />
       <div className="controls">
+        <label className="replay-overlay-toggle"><input type="checkbox" checked={overlays} onChange={e => setOverlays(e.target.checked)} /> Mostrar marcações</label>
         <button
           aria-label="Frame anterior"
           disabled={!frames.length || index === 0}
@@ -871,6 +898,7 @@ export function ReplayPlayer({ replay }: { replay: Replay }) {
         </select>
         <small>
           {frames.length ? index + 1 : 0} / {frames.length} frames
+          {f && focusTimestamp != null ? ` · ${((f.timestamp-focusTimestamp)*1000).toFixed(0)} ms do contato` : ""}
         </small>
       </div>
     </div>
