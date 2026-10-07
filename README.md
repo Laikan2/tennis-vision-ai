@@ -4,7 +4,7 @@ MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.j
 
 ## Aplicativos prontos
 
-Windows **0.6.5** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.5). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md) e a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md).
+Windows **0.6.6** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.6). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md), a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md) e os [testes e correções de IN/OUT](docs/inout-testes-2026-10-06.md).
 
 ## Executar no Windows
 

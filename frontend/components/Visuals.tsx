@@ -763,10 +763,11 @@ export function LiveVideo({
   );
 }
 
-export function ReplayPlayer({ replay, onFrame, onPoint, onBox, annotation = "none", focusTimestamp }: {
+export function ReplayPlayer({ replay, onFrame, onPoint, onBox, annotation = "none", focusTimestamp, contact }: {
   replay: Replay; onFrame?: (frame: ReplayFrame) => void;
   onPoint?: (point: [number, number]) => void; onBox?: (box: [number, number, number, number]) => void;
   annotation?: "none" | "point" | "box"; focusTimestamp?: number;
+  contact?: Partial<Event>;
 }) {
   const [overlays, setOverlays] = useState(true);
   const [selection, setSelection] = useState<[number, number, number, number] | null>(null);
@@ -801,6 +802,7 @@ export function ReplayPlayer({ replay, onFrame, onPoint, onBox, annotation = "no
   }, [playing, index, rate, frames]);
   const f = frames[index],
     res = f?.overlay.resolution;
+  const contactFits = Boolean(res && contact?.resolution?.[0]===res[0] && contact?.resolution?.[1]===res[1]);
   useEffect(() => { setSelection(null); if (f) onFrame?.(f); }, [f, onFrame]);
   function point(e: React.PointerEvent<SVGSVGElement>): [number, number] {
     const r=e.currentTarget.getBoundingClientRect();
@@ -827,6 +829,18 @@ export function ReplayPlayer({ replay, onFrame, onPoint, onBox, annotation = "no
                 const b: [number,number,number,number]=[Math.min(p[0],a[0]),Math.min(p[1],a[1]),Math.abs(p[0]-a[0]),Math.abs(p[1]-a[1])];
                 setSelection(b); onBox?.(b); }} onPointerCancel={() => { anchor.current=null; }}>
               {overlays && <>
+              {contactFits && <g pointerEvents="none">
+                {contact?.surfaceSnapshot?.targetPolygonPx && <polygon points={contact.surfaceSnapshot.targetPolygonPx.map(p=>p.join(",")).join(" ")}
+                  fill="#c9f56b" fillOpacity=".06" stroke="#c9f56b" strokeWidth="2" strokeDasharray="10 5" vectorEffect="non-scaling-stroke"/>}
+                {contact?.surfaceSnapshot?.floorBoundary && <polyline points={contact.surfaceSnapshot.floorBoundary.map(p=>`${p[0]*res![0]},${p[1]*res![1]}`).join(" ")}
+                  fill="none" stroke="#ffd28d" strokeWidth="2" strokeDasharray="10 5" vectorEffect="non-scaling-stroke"/>}
+                {contact?.possiblePositions && <polyline points={contact.possiblePositions.map(p=>p.join(",")).join(" ")}
+                  fill="none" stroke="#ffd28d" strokeWidth="3" vectorEffect="non-scaling-stroke"/>}
+                {contact?.position && <g>
+                  <circle cx={contact.position[0]} cy={contact.position[1]} r={contact.positionUncertaintyPx || 3} fill="#ffd28d" fillOpacity=".08" stroke="#ffd28d" strokeWidth="2" strokeDasharray="5 4" vectorEffect="non-scaling-stroke"/>
+                  <circle cx={contact.position[0]} cy={contact.position[1]} r={Math.max(4,(res?.[0] || 640)/160)} fill={contact.inOrOut === "OUT" ? "#ff746d" : contact.inOrOut === "IN" ? "#c9f56b" : "#ffd28d"} stroke="#102020" strokeWidth="2"/>
+                </g>}
+              </g>}
               <PoseOverlay persons={f.overlay.persons || []} width={res?.[0]} />
               <polyline
                 points={(f.overlay.trajectory || [])

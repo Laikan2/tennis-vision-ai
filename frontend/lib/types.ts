@@ -28,6 +28,7 @@ export type Camera = {
   analysisMode?: AnalysisMode;
   captureRegion?: [number, number, number, number] | null;
   capturePolygon?: [number, number][] | null;
+  floorBoundary?: [number, number][] | null;
 };
 export type Track = {
   centerX: number;
@@ -107,6 +108,10 @@ export type Event = {
   spatialSpread?: number | null;
   ballDiameterPx?: number;
   positionUncertaintyPx?: number;
+  possiblePositions?: [number, number][];
+  surfaceSnapshot?: Pick<Camera,"captureRegion"|"capturePolygon"|"floorBoundary"|"targetZone"|"courtOrientation"|"analysisMode"> & {
+    targetPolygonPx?: [number,number][] | null;
+  } | null;
   decisionReason?: string;
   contactEvidence?: string;
   impactEstimatedBetweenFrames?: boolean;
@@ -178,6 +183,7 @@ export type Status = {
   cameraCount?: number;
   onlineCameras?: number;
   capturePolygon?: [number, number][] | null;
+  floorBoundary?: [number, number][] | null;
   targetZone?: TargetZone;
   courtOrientation?: "normal" | "opposite";
   autoLearning?: AutoLearning | null;

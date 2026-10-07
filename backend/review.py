@@ -128,13 +128,21 @@ def review_event(store, learning, folder, event_id, data):
                              status='confirmed' if data.decision in ('IN', 'OUT') else 'candidate')
             if data.position:
                 camera = store.get('camera', replay.get('cameraId')) or {}
-                profile = store.get('calibration', camera.get('calibrationId', ''))
+                observation=next((o for o in event.get('observations',[])
+                                  if o.get('cameraId')==replay.get('cameraId')),None)
+                snapshot=(observation or {}).get('surfaceSnapshot')
+                if snapshot is None and event.get('cameraId')==replay.get('cameraId'):
+                    snapshot=event.get('surfaceSnapshot')
+                geometry=snapshot if snapshot is not None else camera
+                profile=(snapshot.get('calibration') if snapshot is not None else
+                         store.get('calibration',camera.get('calibrationId','')))
                 target = orient_target(map_target(data.position[0]/resolution[0], data.position[1]/resolution[1],
-                                                 camera.get('captureRegion'), camera.get('capturePolygon')),
-                                       camera.get('courtOrientation', 'normal'))
+                                                 geometry.get('captureRegion'), geometry.get('capturePolygon')),
+                                       geometry.get('courtOrientation','normal') if geometry.get('analysisMode','court')=='court' else 'normal')
                 event.update(position=list(data.position), resolution=resolution, cameraId=replay.get('cameraId'),
                              courtPosition=CalibrationEngine(profile).map(*data.position, resolution),
-                             targetPosition=target, courtSector=court_sector(target), positionApproximate=False)
+                             targetPosition=target, courtSector=court_sector(target), positionApproximate=False,
+                             surfaceSnapshot=snapshot)
                 # Old speed was estimated at the original contact, not at the
                 # human-corrected point. Invalidate it instead of moving it.
                 event.update(speedBefore=None, speedAfter=None, speedMethod=None)

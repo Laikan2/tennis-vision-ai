@@ -33,8 +33,12 @@ export function ImpactReview({ event, cameras, onSaved }: { event: Event; camera
     {!!clips.length && <label>Câmera / evidência<select value={selected} onChange={e=>{setSelected(e.target.value);setFrame(undefined);setPoint(undefined);setBox(undefined);setSaved("");}}>
       {clips.map(c=><option key={c.id} value={c.id}>{cameras.find(cam=>cam.id===c.cameraId)?.name || "Câmera"} · {c.frames} quadros {c.truncated ? "· trecho parcial" : ""}</option>)}</select></label>}
     {clip && <ReplayPlayer key={clip.id} replay={clip} onFrame={selectFrame} focusTimestamp={observation?.timestamp ?? event.timestamp}
+      contact={observation || (event.cameraId === clip.cameraId ? event : undefined)}
       annotation={reason === "impact_position" ? "point" : reason === "ball_missed" || reason === "false_ball" ? "box" : "none"}
       onPoint={setPoint} onBox={setBox} />}
+    {clip && <p className="surface-explanation">{(observation?.surfaceSnapshot || (event.cameraId===clip.cameraId && event.surfaceSnapshot))
+      ? "Área original do contato preservada. O círculo pontilhado e a faixa mostram a incerteza da posição; o ponto pode ter sido estimado entre quadros."
+      : "Esta gravação não guardou a área original. Confira o local do contato antes de corrigir a decisão."}</p>}
     {clip && <div className="review-form">
       <label>O que precisa corrigir?<select value={reason} disabled={busy} onChange={e=>{setReason(e.target.value);setSaved("");setPoint(undefined);setBox(undefined);}}>
         <option value="decision_error">Decisão dentro / fora</option><option value="impact_position">Local do contato</option>

@@ -2001,6 +2001,8 @@ input[type="range"] {
 .video-panel .coach-summary .eyebrow { letter-spacing:1.5px; }
 .surface-mount { position:relative; z-index:6; border-bottom:1px solid var(--line); }
 .capture-area-controls.surface-tools { position:static; max-width:none; padding:12px 16px; border-radius:0; background:#142020; gap:7px; font-size:11px; }
+.surface-tools .floor-boundary-button { color:#ffd28d; border-color:#706249; }
+.surface-tools .floor-boundary-button:hover:not(:disabled) { background:#2b2a22; border-color:#ffd28d; }
 .surface-tools button,.surface-tools select { padding:7px 10px; font-size:11px; border:1px solid #3e5051; background:#203031; color:#e1ebe7; border-radius:5px; }
 .surface-tools button.selected { background:#c9f56b; color:#172719; border-color:#c9f56b; }
 .surface-tools .court-zone-select { border-color:#78944e; color:#dcffc2; max-width:220px; }

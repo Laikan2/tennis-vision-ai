@@ -4,6 +4,7 @@ import numpy as np
 from .speed import estimate_segment_speed
 from .ball_evidence import has_tennis_core, person_contact
 from .observation_time import observation_times, observation_delta
+from .surface import on_floor_side
 
 
 class BounceDetector:
@@ -299,7 +300,10 @@ class BounceDetector:
             sizes=np.array([max(2.,p.get('ballDiameterPx',min(p.get('width',2),p.get('height',2))))
                             for p in [contact,*after]],dtype=float)
             ratios=sizes[1:]/np.maximum(1.,sizes[:-1])
-            if np.any(ratios<.28) or np.any(ratios>3.3):
+            # Abrupt thickness changes often mean the hand covered the ball
+            # or association switched objects. A coherent return needs the
+            # same physical ball on both sides of the lowest measurement.
+            if np.any(ratios<.45) or np.any(ratios>2.2):
                 continue
 
             # Use up to two approach observations. A small last-frame movement
@@ -475,6 +479,9 @@ class BounceDetector:
                 surface=position[1]/frame_height>=min(thresholds)
             else:
                 surface=any(self._ground_surface(p) for p in sample[1:3])
+            boundary=sample[1].get('floorBoundary')
+            if boundary:
+                surface=on_floor_side(position,[sample[1]['frameWidth'],frame_height],boundary,diameter)
             if not surface or (frame_height and position[1]>frame_height-diameter*.25):
                 continue
             stamp=float(np.interp(contact_t,ts,[p['timestamp'] for p in sample]))

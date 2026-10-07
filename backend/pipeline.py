@@ -1,4 +1,5 @@
 import logging
+from copy import deepcopy
 import math
 import threading
 import time
@@ -16,6 +17,7 @@ from .analytics import StatisticsEngine
 from .replay import ReplayManager
 from .pose import PoseEstimator
 from .target import map_target, orient_target, classify_impact, court_sector
+from .surface import on_floor_side
 from .adaptive import AdaptiveBallSignature
 from .stroke import StrokeClassifier
 from .frame_publisher import LatestFramePublisher
@@ -74,6 +76,7 @@ class Pipeline:
         self.camera_id=camera['id']
         self.region=camera.get('captureRegion')
         self.polygon=camera.get('capturePolygon')
+        self.floor_boundary=camera.get('floorBoundary')
         self.target_zone=camera.get('targetZone','full')
         self.court_orientation=camera.get('courtOrientation','normal')
         self.environment=camera.get('analysisMode')
@@ -145,6 +148,7 @@ class Pipeline:
                      calibration=self.calibration.profile,stale=stale,
                      analysisStale=analysis_stale,analysisAgeMs=analysis_age*1000 if analysis_age is not None else None,
                       captureRegion=getattr(self,'region',None),capturePolygon=getattr(self,'polygon',None),
+                      floorBoundary=getattr(self,'floor_boundary',None),
                       targetZone=getattr(self,'target_zone','full'),
                       courtOrientation=getattr(self,'court_orientation','normal'),
                       regionChangedAt=getattr(self,'region_changed_at',0))
@@ -181,6 +185,12 @@ class Pipeline:
         threshold=max(0.,min(.55,threshold))
         track['groundSurfaceThresholdY']=threshold
         track['groundSurfaceEligible']=bool(normalized_y>=threshold)
+        boundary=getattr(self,'floor_boundary',None)
+        if boundary:
+            track['floorBoundary']=boundary
+            track['groundSurfaceEligible']=on_floor_side(
+                [track.get('measuredX',track['centerX']),track.get('measuredY',track['centerY'])],
+                resolution,boundary,diameter)
         return track
 
     def _run(self):
@@ -194,6 +204,7 @@ class Pipeline:
                 with self.lock:
                     region_key=(tuple(self.region) if self.region else None,
                                 tuple(map(tuple,self.polygon)) if self.polygon else None,
+                                tuple(map(tuple,getattr(self,'floor_boundary',None))) if getattr(self,'floor_boundary',None) else None,
                                 self.target_zone,self.region_changed_at,self.ball_diameter_m,self.environment)
                     if region_key != self.applied_region:
                         self.detector.region=self.region
@@ -247,6 +258,15 @@ class Pipeline:
                     event['analysisMode']=mode
                     event['targetZone']=self.target_zone
                     event['courtOrientation']=self.court_orientation
+                    # Review uses the geometry at the time of the contact,
+                    # including a secondary view. Later area/scale edits must
+                    # not move old contacts into a different scoring surface.
+                    event['surfaceSnapshot']=deepcopy(dict(
+                        captureRegion=self.region,capturePolygon=self.polygon,
+                        floorBoundary=getattr(self,'floor_boundary',None),
+                        targetZone=self.target_zone,courtOrientation=self.court_orientation,
+                        analysisMode=mode,calibration=self.calibration.profile,
+                        targetPolygonPx=event.get('targetPolygonPx')))
                     event['courtSector']=court_sector(target_position) if mode == 'court' else None
                     if stroke_info:
                         event.update(stroke_info)

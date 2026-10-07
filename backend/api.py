@@ -25,6 +25,7 @@ from .multi_pipeline import PipelineManager
 from .calibration import CalibrationEngine
 from .analytics import StatisticsEngine
 from .target import validate_polygon
+from .surface import validate_floor_boundary
 from .learning import LearningManager
 from .mobile_receiver import receiver_status
 
@@ -297,6 +298,29 @@ def set_ball_scale(camera_id:str,data:BallScaleInput):
 
 class AnalysisModeInput(StrictModel):
     analysisMode:Literal['room','court','tracking']
+
+
+class FloorBoundaryInput(StrictModel):
+    boundary:list[tuple[float,float]]|None
+
+
+@app.post('/api/cameras/{camera_id}/floor-boundary')
+def set_floor_boundary(camera_id:str,data:FloorBoundaryInput):
+    """Separate the physical floor from the wall without changing the IN/OUT area."""
+    with control_lock:
+        camera_with_credentials(camera_id)
+        try:
+            boundary=validate_floor_boundary(data.boundary)
+        except ValueError as e:
+            raise HTTPException(400,str(e))
+        saved=store.get('camera',camera_id)
+        camera=store.put('camera',dict(saved,floorBoundary=boundary))
+        worker=active_pipeline(camera_id)
+        if worker and worker.session:
+            with worker.lock:
+                worker.floor_boundary=boundary
+                worker.region_changed_at=time.time()
+        return public_camera(camera)
 
 
 @app.post('/api/cameras/{camera_id}/analysis-mode')

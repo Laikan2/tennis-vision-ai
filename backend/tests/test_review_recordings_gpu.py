@@ -58,6 +58,34 @@ def test_corrected_contact_invalidates_old_speed_and_preserves_session_group(evi
     assert learning.examples[0]['label']==1 and learning.examples[0]['reviewed']
 
 
+def test_contact_review_uses_original_area_and_scale_after_camera_edit(evidence):
+    store,folder,learning=evidence
+    old=CalibrationEngine.fit_surface([[20,12],[180,12],[180,108],[20,108]],2,4,[200,120],'Piso original','ground')
+    snapshot=json.loads(json.dumps(dict(captureRegion=[.1,.1,.9,.9],capturePolygon=None,
+                  courtOrientation='opposite',analysisMode='court',calibration=old)))
+    store.put('event',dict(store.get('event','event'),surfaceSnapshot=snapshot))
+    new=store.put('calibration',CalibrationEngine.fit_surface([[0,0],[200,0],[200,120],[0,120]],10,20,[200,120],'Piso novo','ground'))
+    store.put('camera',dict(store.get('camera','a'),captureRegion=[.3,.3,.9,.9],calibrationId=new['id']))
+    event=review_event(store,learning,folder,'event',ReviewInput(replayId='ra',frameIndex=2,reason='impact_position',position=(60,60),decision='IN'))['event']
+    assert event['targetPosition']==pytest.approx([.75,.5])
+    assert event['courtPosition']==pytest.approx([.5,2.])
+    assert event['surfaceSnapshot']==snapshot
+
+
+def test_secondary_view_review_preserves_its_own_original_full_image(evidence):
+    store,folder,learning=evidence
+    original=dict(captureRegion=None,capturePolygon=None,courtOrientation='normal',analysisMode='court',calibration=None)
+    observation=dict(cameraId='b',timestamp=10.8,surfaceSnapshot=original)
+    assert PipelineManager._observation(observation)['surfaceSnapshot']==original
+    store.put('event',dict(store.get('event','event'),surfaceSnapshot={'captureRegion':[.3,.3,.9,.9]},
+                           observations=[observation]))
+    store.put('camera',dict(store.get('camera','b'),captureRegion=[.3,.3,.9,.9]))
+    event=review_event(store,learning,folder,'event',ReviewInput(replayId='rb',frameIndex=2,reason='impact_position',position=(60,60)))['event']
+    assert event['targetPosition']==pytest.approx([.3,.5])
+    assert event['courtPosition'] is None
+    assert event['surfaceSnapshot']==original
+
+
 @pytest.mark.parametrize('data', [dict(frameIndex=100),dict(position=(-1,20)),dict(box=(190,90,30,30),reason='false_ball')])
 def test_invalid_review_never_changes_decision_or_creates_labels(evidence,data):
     store,folder,learning=evidence

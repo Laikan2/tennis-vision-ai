@@ -358,12 +358,14 @@ export default function Page() {
   const stat = status.statistics;
   const liveSpeed =
     status.speed?.projectedKmh ?? status.lastEvent?.speedBefore ?? null;
-  const analysisMode = status.analysisMode ?? status.calibration?.mode ?? "room";
-  const roomMode = analysisMode === "room";
-  const trackingOnly = analysisMode === "tracking";
   const activeCamera =
     cameras.find((camera) => camera.id === status.session?.cameraId) ??
     cameras.find((camera) => camera.id === cameraId);
+  const analysisMode = status.session
+    ? status.analysisMode ?? status.calibration?.mode ?? activeCamera?.analysisMode ?? "room"
+    : activeCamera?.analysisMode ?? status.analysisMode ?? "room";
+  const roomMode = analysisMode === "room";
+  const trackingOnly = analysisMode === "tracking";
   const cameraFeeds = status.cameraFeeds?.length
     ? status.cameraFeeds
     : [status];
@@ -583,11 +585,23 @@ export default function Page() {
                   </div>
                   <div className={`camera-wall ${cameraFeeds.length > 1 ? "is-dual" : ""}`}>
                     {cameraFeeds.map((feed, index) => {
-                      const feedCameraId = feed.cameraId || status.session?.cameraId || cameraId;
+                      const feedCameraId = status.session
+                        ? feed.cameraId || status.session.cameraId || cameraId
+                        : cameraId || feed.cameraId || "";
                       const camera = cameras.find((item) => item.id === feedCameraId);
                       const feedAnalysisMode: AnalysisMode = status.session
                         ? feed.analysisMode ?? camera?.analysisMode ?? "room"
                         : camera?.analysisMode ?? feed.analysisMode ?? "room";
+                      const feedStatus: Status = status.session || !camera ? feed : {
+                        ...feed,
+                        cameraId: feedCameraId,
+                        analysisMode: feedAnalysisMode,
+                        captureRegion: camera.captureRegion,
+                        capturePolygon: camera.capturePolygon,
+                        floorBoundary: camera.floorBoundary,
+                        targetZone: camera.targetZone,
+                        courtOrientation: camera.courtOrientation,
+                      };
                       const feedEvents = status.session
                         ? eventsForCamera(sessionEvents, feedCameraId)
                         : [];
@@ -630,7 +644,7 @@ export default function Page() {
                           </label>
                           <LiveVideo
                             events={showImpacts ? feedEvents : []}
-                            status={feed}
+                            status={feedStatus}
                             cameraId={feedCameraId}
                             trajectory={trajectory}
                             length={length}

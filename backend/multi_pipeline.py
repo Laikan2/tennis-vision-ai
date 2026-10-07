@@ -141,6 +141,7 @@ class PipelineManager:
             'ballDiameterPx','positionUncertaintyPx','decisionMarginPx','decisionReason',
             'decisionMarginsPx','possiblePositions','contactRangePx','contactEvidence','contactLocated',
             'impactEstimatedBetweenFrames','positionApproximate','trackID',
+            'surfaceSnapshot',
             'analysisMode', 'fusionTimestamp', 'syncCalibrationId', 'timeCorrectionMs',
         )
         return {key: event.get(key) for key in keys if key in event}
