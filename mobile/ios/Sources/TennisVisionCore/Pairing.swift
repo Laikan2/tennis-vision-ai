@@ -26,10 +26,13 @@ public struct PairingConfiguration: Codable, Equatable {
     public let port: Int
     public let path: String
     public let profile: CaptureProfile
+    public let panelPort: Int?
+    public let panelToken: String?
+    public var panelURL: URL? { panelPort.flatMap { URL(string:"http://\(host):\($0)") } }
     public var rtspURL: String { "rtsp://\(host):\(port)/\(path)" }
 
     public init(host: String, port: Int = 8554, path: String = "iphone",
-                profile: CaptureProfile = .standard) throws {
+                profile: CaptureProfile = .standard, panelPort: Int? = nil, panelToken: String? = nil) throws {
         let host = host.trimmingCharacters(in: .whitespacesAndNewlines)
         let labels = host.split(separator: ".", omittingEmptySubsequences: false)
         guard (1...253).contains(host.utf8.count), labels.allSatisfy({
@@ -50,6 +53,12 @@ public struct PairingConfiguration: Codable, Equatable {
             throw CameraError.invalid("Escolha 720p ou 1080p, com 30, 60, 120 ou 240 fps.")
         }
         self.host = host; self.port = port; self.path = path; self.profile = profile
+        guard (panelPort == nil && panelToken == nil) ||
+              (panelPort.map { (1...65535).contains($0) } == true &&
+               panelToken?.range(of: #"^[a-f0-9]{64}$"#, options:.regularExpression) != nil) else {
+            throw CameraError.invalid("O QR do painel está incompleto. Leia novamente o QR do Windows atualizado.")
+        }
+        self.panelPort=panelPort; self.panelToken=panelToken
     }
 
     public static func parse(_ value: String) throws -> PairingConfiguration {
@@ -79,11 +88,13 @@ public struct PairingConfiguration: Codable, Equatable {
         return try PairingConfiguration(host: fields["host"] ?? "", port: number("port",8554),
             path: fields["path"] ?? "iphone", profile: CaptureProfile(
                 width: number("width",1920), height: number("height",1080),
-                fps: number("fps",60), bitrate: number("bitrate",12_000_000)))
+                fps: number("fps",60), bitrate: number("bitrate",12_000_000)),
+            panelPort: fields["panelPort"] == nil ? nil : number("panelPort",8894), panelToken:fields["panelToken"])
     }
 
     public static func restore(_ data: Data) throws -> PairingConfiguration {
         let stored = try JSONDecoder().decode(PairingConfiguration.self, from: data)
-        return try PairingConfiguration(host: stored.host, port: stored.port, path: stored.path, profile: stored.profile)
+        return try PairingConfiguration(host: stored.host, port: stored.port, path: stored.path, profile: stored.profile,
+                                        panelPort:stored.panelPort,panelToken:stored.panelToken)
     }
 }

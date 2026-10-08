@@ -1,15 +1,16 @@
 /** Desktop uses a private backend port; its local HTTP relay owns that route. */
-export function videoEndpoints(pageUrl: string, native: boolean, path?: string) {
+export function videoEndpoints(pageUrl: string, native: boolean, path?: string, phonePanel=false) {
   const page = new URL(pageUrl);
+  const phone = phonePanel || page.searchParams.get("phone") === "1";
   const preview = new URL(page.origin);
-  if (!native && page.protocol === "http:") preview.port = "8000";
+  if (!native && !phone && page.protocol === "http:") preview.port = "8000";
   const encodedPath = path?.split("/").filter(Boolean).map(encodeURIComponent).join("/");
   const receiver = new URL(page.origin);
   receiver.port = "8889";
   // The local receiver serves HTTP. HTTPS pages use their own preview relay.
   return {
     previewOrigin: preview.origin,
-    directUrl: encodedPath && page.protocol === "http:"
+    directUrl: encodedPath && page.protocol === "http:" && !phone
       ? `${receiver.origin}/${encodedPath}/whep` : undefined,
   };
 }

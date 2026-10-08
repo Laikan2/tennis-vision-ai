@@ -58,7 +58,7 @@ recordings=Recordings(app,store,pipeline,learning,DATA/'recordings',control_lock
 learning.is_running=lambda:pipeline.session is not None or recordings.busy
 ANDROID_APP_VERSION='0.5.6'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
-IOS_APP_VERSION='0.1.0'
+IOS_APP_VERSION='0.2.0'
 IOS_PROJECT_ZIP=Path(os.getenv('TV_IOS_PROJECT_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-Projeto.zip')))
 IOS_IPA=Path(os.getenv('TV_IOS_IPA_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-AltStore.ipa')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
@@ -208,13 +208,20 @@ def mobile_camera(platform:Literal['android','ios']='android'):
     })
     moq=urlencode(common | {'video-codec':'avc3.640028','video-keyframe-interval':'30'})
     webrtc=urlencode(common | {'video-codec':'h264/90000','audio-bitrate':'32'})
-    app_pairing=urlencode({
+    pair_fields={
         'host':display_host,'port':'8554' if platform=='ios' else '8890','path':path,
         'transport':'rtsp' if platform=='ios' else 'srt',
         'fps':'60','width':'1920','height':'1080','bitrate':'12000000','latency':'40',
-    })
+    }
+    panel_port=os.getenv('TV_MOBILE_PANEL_PORT','')
+    panel_token=os.getenv('TV_MOBILE_PANEL_TOKEN','')
+    panel_available=bool(re.fullmatch(r'[0-9]{1,5}',panel_port) and 1<=int(panel_port)<=65535
+                         and re.fullmatch(r'[a-f0-9]{64}',panel_token))
+    if platform=='ios' and panel_available:
+        pair_fields.update(panelPort=panel_port,panelToken=panel_token)
+    app_pairing=urlencode(pair_fields)
     return dict(
-        platform=platform,available=bool(address),localIp=address,path=path,
+        platform=platform,available=bool(address),localIp=address,path=path,panelAvailable=panel_available,
         androidUrl=f'https://{display_host}:8892/{path}/publish?{moq}',
         webRtcUrl=f'http://{display_host}:8889/{path}/publish?{webrtc}',
         appPairingUri=f'tennisvision://pair?{app_pairing}',
@@ -233,6 +240,7 @@ def _ios_app_info():
     if not re.fullmatch(r'https://testflight\.apple\.com/join/[A-Za-z0-9]{8}',invitation):
         invitation=None
     return dict(version=IOS_APP_VERSION,minimumIOS='17.4',testFlightUrl=invitation,
+                altStoreSourceUrl='https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json',
                 sourceAvailable=IOS_PROJECT_ZIP.is_file(),sourceDownloadUrl='/api/mobile-camera/ios-project.zip',
                 ipaAvailable=IOS_IPA.is_file(),ipaDownloadUrl='/api/mobile-camera/ios.ipa',
                 ipaSizeBytes=IOS_IPA.stat().st_size if IOS_IPA.is_file() else None,

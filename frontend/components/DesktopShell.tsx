@@ -25,7 +25,7 @@ type StudioBridge = {
   fullscreen: () => Promise<boolean>;
   onStatus: (callback: (info: StudioInfo) => void) => () => void;
 };
-declare global { interface Window { tennisStudio?: StudioBridge; } }
+declare global { interface Window { tennisStudio?: StudioBridge; tennisPhonePanel?: boolean; } }
 
 export function DesktopTitlebar() {
   const [native, setNative] = useState(false);

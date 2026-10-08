@@ -1,0 +1,38 @@
+/* The paired iPhone shows the full Studio, with controls sized for fingers. */
+.phone-control-card { margin:16px; padding:18px; border:1px solid #364641; border-radius:16px; background:#17251e; }
+.phone-control-card > div { display:flex; gap:10px; align-items:center; color:#d0fa85; }
+.phone-control-card p,.phone-control-card small { display:block; font-size:13px; line-height:1.6; color:#b8c9c5; margin:10px 0 0; }
+.phone-control-card button { margin-top:14px; min-height:44px; }
+.phone-panel .sidebar { position:static; width:100%; height:auto; padding:12px; display:flex; flex-wrap:wrap; gap:8px; }
+.phone-panel .sidebar .brand,.phone-panel .workspace-label,.phone-panel .engine-status,.phone-panel .local-profile { display:none; }
+.phone-panel .sidebar nav { display:flex; gap:8px; margin:0; overflow:auto; flex:1; }
+.phone-panel .sidebar-bottom { margin:0; }
+.phone-panel .nav-item { font-size:12px; width:auto; min-width:66px; min-height:50px; padding:8px; margin:0; display:flex; flex-direction:column; gap:5px; white-space:nowrap; }
+.phone-panel .nav-item svg { width:18px; height:18px; }
+.phone-panel .nav-tick { display:none; }
+.phone-panel .app-shell { display:block; }
+.phone-panel .app-shell > main { margin:0; min-width:0; }
+.phone-panel .topbar { display:none; }
+.phone-panel .page-content { padding:10px 14px 24px; }
+.phone-panel .page-heading h1 { font-size:25px; letter-spacing:-.5px; }
+.phone-panel button,.phone-panel select { min-height:44px; }
+.phone-panel input,.phone-panel select { font-size:16px; }
+.phone-panel .camera-feed-heading { flex-wrap:wrap; gap:8px; padding:12px; }
+.phone-panel .camera-feed-heading > strong { font-size:12px; }
+.phone-panel .camera-feed-heading > small { font-size:11px; }
+.phone-panel .surface-tools { padding:14px; gap:10px; }
+.phone-panel .surface-tools button,.phone-panel .video-controls button { font-size:12px; }
+.phone-panel .surface-hint,.phone-panel .surface-explanation { font-size:12px; line-height:1.6; }
+.phone-panel .ball-scale-control { padding:12px; gap:10px; }
+.phone-panel .performance > span { font-size:10px; }
+.phone-panel .tabs { overflow-x:auto; flex-wrap:nowrap; }
+.phone-panel .tabs button { white-space:nowrap; font-size:12px; }
+.phone-panel .modal-overlay { padding:12px; align-items:center; }
+.phone-panel .modal { width:100%; max-height:90dvh; overflow:auto; padding:20px; }
+@media(max-width:760px) {
+  .phone-panel .live-grid,.phone-panel .camera-wall,.phone-panel .metrics-body,.phone-panel .live-grid:has(.camera-wall.is-dual) .metrics-body { display:block; }
+  .phone-panel .metrics-body > section { margin-bottom:14px; }
+  .phone-panel .video-empty h2 { font-size:16px; }
+  .phone-panel .video-empty p { font-size:12px; }
+}
+

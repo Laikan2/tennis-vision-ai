@@ -2,6 +2,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { videoEndpoints, VideoProgress, PlaybackMeter } from "../lib/video-playback.ts";
 
+test("paired phone video stays on the authenticated bridge without a second unpaired port", () => {
+  for (const [url,phone] of [["http://192.168.1.2:8894/?phone=1",false],["http://192.168.1.2:8894/",true]] as const) {
+    const media=videoEndpoints(url,false,"/iphone",phone);
+    assert.equal(media.previewOrigin,"http://192.168.1.2:8894");
+    assert.equal(media.directUrl,undefined);
+  }
+});
+
 test("Windows fallback reaches the bundled backend through its random-port relay", () => {
   const media = videoEndpoints("http://127.0.0.1:51346/", true, "/galaxy");
   assert.equal(media.previewOrigin, "http://127.0.0.1:51346");

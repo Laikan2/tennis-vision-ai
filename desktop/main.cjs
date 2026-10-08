@@ -4,6 +4,7 @@ const path = require('node:path');
 const net = require('node:net');
 const { spawn } = require('node:child_process');
 const { createStudioServer } = require('./server.cjs');
+const { createMobilePanel, loadPanelToken } = require('./mobile-panel.cjs');
 const { createStudioUpdater, loadUpdateRepository } = require('./updater.cjs');
 
 const option = name => process.argv.find(a=>a.startsWith(`--${name}=`))?.slice(name.length+3);
@@ -14,7 +15,7 @@ fs.mkdirSync(path.join(state,'logs'), {recursive:true});
 const logFile = path.join(state,'logs','desktop.log');
 function log(message) { fs.appendFileSync(logFile, `${new Date().toISOString()} ${message}\n`); }
 let window, web, engine, receiver, backendUrl, shuttingDown=false, ready=false, starting;
-let block, updates, shutdown;
+let block, updates, shutdown, mobilePanel;
 const smokeStartedAt=Date.now();
 let project = option('project-dir');
 const configFile = path.join(state,'studio.json');
@@ -103,6 +104,7 @@ async function stopServices() {
   shuttingDown = true;
   shutdown = (async () => {
     await stopEngine();
+    await mobilePanel?.close();
     await web?.close();
     receiver?.kill();
     if (block!==undefined && powerSaveBlocker.isStarted(block)) powerSaveBlocker.stop(block);
@@ -115,6 +117,17 @@ async function launch() {
     issue='';
     await stopEngine();
     if(!web) {web=await createStudioServer(ui,()=>backendUrl);}
+    if (!mobilePanel) {
+      try {
+        const token=loadPanelToken(state);
+        mobilePanel=await createMobilePanel({target:web.url,token,port:Number(option('mobile-port') || 8894)});
+        process.env.TV_MOBILE_PANEL_PORT=String(mobilePanel.port);
+        process.env.TV_MOBILE_PANEL_TOKEN=token;
+      } catch (error) {
+        delete process.env.TV_MOBILE_PANEL_PORT; delete process.env.TV_MOBILE_PANEL_TOKEN;
+        log(`Painel do celular indisponível: ${error.code || 'CONFIGURATION'}`);
+      }
+    }
     update('Preparando o receptor das câmeras');
     if(await listening(8554)) receiverState='compartilhado';
     else {
@@ -207,7 +220,7 @@ else {
       if(!fs.existsSync(script)||!fs.existsSync(receiverFile))throw new Error('O arquivo de configuração da rede não está disponível.');
       const code=await new Promise((resolve,reject)=>{
         const child=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',script,
-          '-ReceiverPath',receiverFile,'-ResultPath',resultFile],{windowsHide:true,stdio:'ignore'});
+          '-ReceiverPath',receiverFile,'-StudioPath',process.execPath,'-ResultPath',resultFile],{windowsHide:true,stdio:'ignore'});
         child.on('error',reject);child.on('exit',resolve);
       });
       if(fs.existsSync(resultFile)&&fs.statSync(resultFile).mtimeMs>=startedAt-1000) {

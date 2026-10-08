@@ -1,8 +1,8 @@
 {
   "name": "tennis-vision-studio",
   "productName": "Tennis Vision Studio",
-  "version": "0.6.7",
-  "description": "Estúdio local de análise de tênis e câmeras de alta velocidade",
+  "version": "0.6.8",
+  "description": "Est\u00c3\u00badio local de an\u00c3\u00a1lise de t\u00c3\u00aanis e c\u00c3\u00a2meras de alta velocidade",
   "author": "Tennis Vision",
   "private": true,
   "main": "main.cjs",
@@ -23,7 +23,12 @@
   "build": {
     "appId": "ai.tennisvision.studio",
     "productName": "Tennis Vision Studio",
-    "publish": { "provider": "github", "owner": "Laikan2", "repo": "tennis-vision-releases", "releaseType": "release" },
+    "publish": {
+      "provider": "github",
+      "owner": "Laikan2",
+      "repo": "tennis-vision-releases",
+      "releaseType": "release"
+    },
     "directories": {
       "output": "releases",
       "buildResources": "assets"
@@ -35,7 +40,8 @@
       "preload.cjs",
       "startup.html",
       "assets/icon.png",
-      "package.json"
+      "package.json",
+      "mobile-panel.cjs"
     ],
     "extraResources": [
       {
@@ -70,7 +76,10 @@
       {
         "from": "build/ios",
         "to": "ios",
-        "filter": ["Tennis-Vision-Camera-iOS-v0.1.0-Projeto.zip", "Tennis-Vision-Camera-iOS-v0.1.0-AltStore.ipa"]
+        "filter": [
+          "Tennis-Vision-Camera-iOS-v0.2.0-Projeto.zip",
+          "Tennis-Vision-Camera-iOS-v0.2.0-AltStore.ipa"
+        ]
       },
       {
         "from": "../mobile/releases",

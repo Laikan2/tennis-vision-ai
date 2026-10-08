@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./studio.css";
+import "./phone.css";
 export const metadata: Metadata = {
   title: "Tennis Vision Studio",
   description:

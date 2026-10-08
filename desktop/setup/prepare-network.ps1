@@ -1,4 +1,5 @@
 param([Parameter(Mandatory=$true)][string]$ReceiverPath,
+      [string]$StudioPath,
       [Parameter(Mandatory=$true)][string]$ResultPath)
 $ErrorActionPreference = 'Stop'
 try {
@@ -9,6 +10,7 @@ try {
         $elevatedArguments = @('-NoProfile','-ExecutionPolicy','Bypass','-File',
             ('"{0}"' -f $PSCommandPath),'-ReceiverPath',('"{0}"' -f $ReceiverPath),
             '-ResultPath',('"{0}"' -f $ResultPath)) -join ' '
+        if ($StudioPath) { $elevatedArguments += ' -StudioPath "' + $StudioPath + '"' }
         $elevated = Start-Process -FilePath 'powershell.exe' -ArgumentList $elevatedArguments -Verb RunAs -WindowStyle Hidden -Wait -PassThru
         exit $elevated.ExitCode
     }
@@ -29,7 +31,14 @@ try {
         New-NetFirewallRule -DisplayName $rule.Name -Direction Inbound -Action Allow -Program $receiverResolved `
             -Protocol $rule.Protocol -LocalPort $rule.Ports -Profile Private -RemoteAddress LocalSubnet | Out-Null
     }
-    @{ ok=$true; detail='Rede preparada. Mantenha o PC e o celular na mesma rede privada.' } |
+    if ($StudioPath) {
+        $studioResolved = (Resolve-Path -LiteralPath $StudioPath).Path
+        if ([IO.Path]::GetFileName($studioResolved) -notin @('Tennis Vision Studio.exe','electron.exe')) { throw 'Studio invalido.' }
+        Get-NetFirewallRule -DisplayName 'Tennis Vision Studio - Painel celular' -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+        New-NetFirewallRule -DisplayName 'Tennis Vision Studio - Painel celular' -Direction Inbound -Action Allow `
+            -Program $studioResolved -Protocol TCP -LocalPort 8894 -Profile Private -RemoteAddress LocalSubnet | Out-Null
+    }
+    @{ ok=$true; detail='Rede preparada para a camera e o painel do celular. Mantenha o PC e o celular na mesma rede privada.' } |
         ConvertTo-Json | Set-Content -LiteralPath $ResultPath -Encoding UTF8
 } catch {
     @{ ok=$false; detail='Nao foi possivel preparar a rede. Autorize o pedido do Windows e confira o perfil de rede privada.' } |

@@ -49,6 +49,7 @@ import { ImpactReview } from "../components/ImpactReview";
 import { CameraSync } from "../components/CameraSync";
 import { RecordingPanel } from "../components/RecordingPanel";
 import { useOutAudio } from "../components/useOutAudio";
+import { PhonePanel } from "../components/PhonePanel";
 import { DesktopTitlebar, DesktopSettings, DesktopNetworkSetup } from "../components/DesktopShell";
 
 type View = "live" | "sessions" | "replays" | "accuracy" | "settings" | "learning";
@@ -457,6 +458,7 @@ export default function Page() {
         </div>
       </aside>
       <main>
+        <PhonePanel running={Boolean(status.session)} />
         <header className="topbar">
           <div className="breadcrumb">
             Estúdio <ChevronRight size={14} />

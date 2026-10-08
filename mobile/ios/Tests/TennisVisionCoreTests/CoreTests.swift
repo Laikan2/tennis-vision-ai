@@ -169,3 +169,49 @@ final class QueueTests: XCTestCase {
         XCTAssertEqual(meter.value(now:2.1),0)
     }
 }
+
+final class MobileExperienceTests: XCTestCase {
+    func testAutomaticUsesRealFormatsAndPrefersResolutionAtSameRate() {
+        let p60=CaptureProfile.standard
+        let p120=CaptureProfile(width:1280,height:720,fps:120,bitrate:20_000_000)
+        let full120=CaptureProfile(width:1920,height:1080,fps:120,bitrate:20_000_000)
+        XCTAssertEqual(CameraPolicy.best([p60,p120,full120]),full120)
+        XCTAssertEqual(CameraPolicy.best([p60])?.fps,60)
+        XCTAssertNil(CameraPolicy.best([]))
+        XCTAssertEqual(CameraPolicy.next(after:full120,in:[p60,p120,full120]),p120)
+        XCTAssertNil(CameraPolicy.next(after:p60,in:[p60,p120,full120]))
+    }
+    func testBriefSlowdownDoesNotAdaptButSustainedStarvationDoes() {
+        var health=ProfileHealth()
+        for _ in 0..<20 { XCTAssertFalse(health.sample(elapsed:4,requested:120,capture:0,encoded:0)) }
+        for _ in 0..<5 { XCTAssertFalse(health.sample(elapsed:15,requested:120,capture:60,encoded:60)) }
+        XCTAssertFalse(health.sample(elapsed:20,requested:120,capture:120,encoded:118))
+        for _ in 0..<5 { XCTAssertFalse(health.sample(elapsed:25,requested:120,capture:60,encoded:60)) }
+        XCTAssertTrue(health.sample(elapsed:31,requested:120,capture:60,encoded:60))
+    }
+    func testNewQRPreservesPanelPairingAndOldQRStillWorks() throws {
+        let base="tennisvision://pair?host=192.168.1.2&transport=rtsp"
+        let legacy=try PairingConfiguration.parse(base)
+        XCTAssertNil(legacy.panelURL)
+        let paired=try PairingConfiguration.parse(base+"&panelPort=8894&panelToken="+String(repeating:"a",count:64))
+        XCTAssertEqual(paired.panelURL?.absoluteString,"http://192.168.1.2:8894")
+        XCTAssertEqual(try PairingConfiguration.restore(JSONEncoder().encode(paired)),paired)
+    }
+    func testIncompleteOrUnsafePanelParametersAreRejected() {
+        let base="tennisvision://pair?host=192.168.1.2&transport=rtsp"
+        for suffix in ["&panelPort=8894","&panelToken=x","&panelPort=0&panelToken="+String(repeating:"a",count:64),
+                       "&panelPort=8894&panelToken="+String(repeating:"é",count:64)] {
+            XCTAssertThrowsError(try PairingConfiguration.parse(base+suffix))
+        }
+    }
+    func testFeedSelectsCompatibleReleaseAndComparesVersionsNumerically() throws {
+        let data=Data(#"{"apps":[{"bundleIdentifier":"ai.tennisvision.camera.ios","versions":[{"version":"0.10.0","buildVersion":"10","downloadURL":"https://github.com/Laikan2/tennis-vision-releases/releases/download/v1/app.ipa","size":1000,"minOSVersion":"17.4"}]}]}"#.utf8)
+        let latest=try UpdateSource.latest(data,os:"18.0")
+        XCTAssertTrue(latest.newer(than:"0.9.0"))
+        XCTAssertFalse(latest.newer(than:"0.10.0"))
+        XCTAssertThrowsError(try UpdateSource.latest(data,os:"16.0"))
+        let foreign=Data(String(data:data,encoding:.utf8)!.replacingOccurrences(of:"https://github.com/Laikan2",with:"https://other.example/Laikan2").utf8)
+        XCTAssertThrowsError(try UpdateSource.latest(foreign,os:"18.0"))
+    }
+}
+

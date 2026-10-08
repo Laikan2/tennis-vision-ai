@@ -15,6 +15,8 @@ struct CameraSnapshot {
     var focusLocked=false
     var exposure="Automática"
     var thermal="Normal"
+    var adaptation: String?
+    var cameraName="Câmera traseira"
 }
 
 /// Session, camera and stream state live on one queue. UI and network callbacks never block capture.
@@ -35,6 +37,8 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
     private var bytesSinceReport=0, lastReport=0.0
     private var timer: DispatchSourceTimer?
     private var notifications=[NSObjectProtocol]()
+    private var automatic=false
+    private var profileHealth=ProfileHealth()
 
     override init() {
         super.init()
@@ -57,7 +61,7 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
     }
     deinit { notifications.forEach(NotificationCenter.default.removeObserver); timer?.cancel() }
 
-    func prepare(profile: CaptureProfile) {
+    func prepare(profile: CaptureProfile, automatic: Bool = false) {
         queue.async { [weak self] in
             guard let self, !self.snapshot.transmitting else { return }
             do {
@@ -65,20 +69,23 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
                 guard let previewProfile=self.snapshot.profiles.first(where:{$0.fps <= 60}) ?? self.snapshot.profiles.first else {
                     throw CameraError.invalid("Nenhum perfil disponível para a prévia.")
                 }
-                let selected=self.formats[profile.id] != nil ? profile : previewProfile
+                let selected=automatic ? CameraPolicy.best(self.snapshot.profiles) ?? previewProfile : self.formats[profile.id] != nil ? profile : previewProfile
                 try self.applyProfile(selected)
                 if !self.session.isRunning { self.session.startRunning() }
                 self.snapshot.previewReady=self.session.isRunning
-                self.snapshot.error=self.formats[profile.id] == nil ? "O perfil \(profile.label) não está disponível nesta câmera. Escolha um dos perfis detectados." : nil
+                self.snapshot.error = !automatic && self.formats[profile.id] == nil ? "O perfil \(profile.label) não está disponível nesta câmera. Escolha um dos perfis detectados." : nil
+                self.snapshot.adaptation=nil
                 self.snapshot.state="Prévia da câmera"
                 self.emit()
             } catch { self.fail(error.localizedDescription) }
         }
     }
-    func start(_ configuration: PairingConfiguration) {
+    func start(_ configuration: PairingConfiguration, automatic: Bool = false, adaptation: String? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
             self.stopStream()
+            self.automatic=automatic; self.configuration=configuration
+            self.profileHealth=ProfileHealth(); self.snapshot.adaptation=adaptation
             do {
                 if self.device == nil { try self.configureDevice() }
                 guard self.formats[configuration.profile.id] != nil else {
@@ -111,7 +118,7 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
                     guard let self, self.generation==current else {return}; self.snapshot.encoderDrops+=1
                 }}
                 codec.onError = { [weak self] message in self?.queue.async {
-                    guard let self, self.generation==current else{return}; self.fail(message)
+                    guard let self, self.generation==current else{return}; self.adaptOrFail(message)
                 }}
                 stream.requestKeyframe = { [weak codec] in codec?.forceKeyframe() }
                 stream.onSent = { [weak self] bytes, time in self?.queue.async {
@@ -135,7 +142,7 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
                 self.timer?.schedule(deadline:.now()+1,repeating:1)
                 self.timer?.setEventHandler { [weak self] in self?.report() }
                 self.timer?.resume(); self.emit()
-            } catch { self.fail(error.localizedDescription) }
+            } catch { self.adaptOrFail(error.localizedDescription) }
         }
     }
     func stop() { queue.async { [weak self] in self?.stopStream(); self?.snapshot.state="Transmissão parada"; self?.emit() } }
@@ -228,6 +235,7 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
             connection.automaticallyAdjustsVideoMirroring=false; connection.isVideoMirrored=false
         }
         device=camera
+        snapshot.cameraName=camera.localizedName
         snapshot.profiles=profiles.sorted { $0.fps == $1.fps ? $0.height > $1.height : $0.fps < $1.fps }
         snapshot.torchAvailable=camera.hasTorch; snapshot.thermal=thermalText()
     }
@@ -259,17 +267,30 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
         snapshot.transmitting=false; snapshot.captureFPS=0; snapshot.encodedFPS=0; snapshot.sentFPS=0; snapshot.mbps=0
     }
     private func fail(_ message: String) { stopStream(); snapshot.error=message; snapshot.state="Atenção necessária"; emit() }
+    private func adaptOrFail(_ message: String) {
+        guard automatic, let current=configuration,
+              let next=CameraPolicy.next(after:current.profile,in:snapshot.profiles),
+              let config=try? PairingConfiguration(host:current.host,port:current.port,path:current.path,profile:next,
+                  panelPort:current.panelPort,panelToken:current.panelToken) else { fail(message); return }
+        let reason="\(current.profile.label) não se manteve estável. Automático ajustado para \(next.label). \(message)"
+        stopStream(); snapshot.adaptation=reason; snapshot.state="Ajustando o perfil automático"; emit()
+        start(config,automatic:true,adaptation:reason)
+    }
     private func report() {
         let now=ProcessInfo.processInfo.systemUptime
         if now-startedAt > 8 && (lastCaptured == 0 || now-lastCaptured > 3) {
-            fail("A câmera parou de produzir quadros no perfil selecionado. Tente outra taxa ou resolução; o perfil foi preservado."); return
+            adaptOrFail("A câmera parou de produzir quadros neste perfil."); return
         }
         if now-startedAt > 8 && (lastEncoded == 0 || now-lastEncoded > 3) {
-            fail("O codificador H.264 parou. Escolha outro perfil ou tente transmitir novamente."); return
+            adaptOrFail("O codificador H.264 parou neste perfil."); return
         }
         snapshot.captureFPS=captureMeter.value(now:now); snapshot.encodedFPS=encodeMeter.value(now:now)
         snapshot.sentFPS=sentMeter.value(now:now); snapshot.mbps=Double(bytesSinceReport)*8/max(0.1,now-lastReport)/1_000_000
         bytesSinceReport=0; lastReport=now; snapshot.networkDrops=publisher?.outbox.droppedFrames ?? 0
+        if automatic, let profile=configuration?.profile,
+           profileHealth.sample(elapsed:now-startedAt,requested:profile.fps,capture:snapshot.captureFPS,encoded:snapshot.encodedFPS) {
+            adaptOrFail("A captura/codificação ficou abaixo de 65% da taxa por 6 medições consecutivas."); return
+        }
         emit()
     }
     private func thermalText() -> String {

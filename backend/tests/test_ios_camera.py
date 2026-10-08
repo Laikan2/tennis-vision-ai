@@ -111,3 +111,25 @@ def test_ios_connection_reuses_saved_area_without_overwriting_it(client,monkeypa
 def test_unknown_mobile_platform_is_rejected(client,endpoint):
     response=client.post(endpoint+'?platform=unknown') if endpoint.endswith('/connect') else client.get(endpoint+'?platform=unknown')
     assert response.status_code==422
+
+def test_paired_mobile_panel_credentials_are_only_in_ios_qr(client,monkeypatch):
+    from backend import api
+    monkeypatch.setattr(api,'_local_ipv4',lambda:'192.168.15.2')
+    monkeypatch.setenv('TV_MOBILE_PANEL_PORT','8894')
+    monkeypatch.setenv('TV_MOBILE_PANEL_TOKEN','a'*64)
+    ios=client.get('/api/mobile-camera?platform=ios').json()
+    fields=parse_qs(urlparse(ios['appPairingUri']).query)
+    assert ios['panelAvailable'] and fields['panelPort']==['8894'] and fields['panelToken']==['a'*64]
+    android=client.get('/api/mobile-camera').json()
+    assert 'panelToken' not in parse_qs(urlparse(android['appPairingUri']).query)
+    assert ios['iosApp']['altStoreSourceUrl'].endswith('/main/altstore.json')
+
+
+@pytest.mark.parametrize('port,token',[('0','a'*64),('8894','short'),('invalid','a'*64),('65536','a'*64)])
+def test_missing_or_invalid_panel_does_not_offer_broken_control_link(client,monkeypatch,port,token):
+    monkeypatch.setenv('TV_MOBILE_PANEL_PORT',port)
+    monkeypatch.setenv('TV_MOBILE_PANEL_TOKEN',token)
+    value=client.get('/api/mobile-camera?platform=ios').json()
+    assert not value['panelAvailable']
+    assert 'panelToken' not in value['appPairingUri']
+

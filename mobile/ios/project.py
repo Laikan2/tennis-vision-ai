@@ -47,7 +47,7 @@ def generate():
         }
         target_settings = {
             "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "ai.tennisvision.camera.ios",
-            "MARKETING_VERSION": "0.1.0", "CURRENT_PROJECT_VERSION": "1",
+            "MARKETING_VERSION": "0.2.0", "CURRENT_PROJECT_VERSION": "2",
             "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "App/Info.plist",
             "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "CODE_SIGN_STYLE": "Automatic",
             "TARGETED_DEVICE_FAMILY": "1,2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",

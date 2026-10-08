@@ -194,6 +194,7 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
         </>}
       </g>}
       {mode && handles.map((p,i)=><g key={i}>
+          <circle data-corner={i} cx={p[0]*width} cy={p[1]*height} r={Math.max(24,width/18)} fill="transparent" aria-hidden="true" style={{cursor:"grab"}} />
           <circle data-corner={i} cx={p[0]*width} cy={p[1]*height} r={Math.max(14,width/70)} fill="#17384b" stroke="#e4f6ff" strokeWidth="3"
             tabIndex={0} role="slider" aria-label={`${editingFloor ? "Ponto do piso" : "Canto"} ${i+1}; use as setas para ajustar`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p[0]*100)}
             style={{cursor:"grab"}} onKeyDown={e=>{

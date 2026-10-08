@@ -289,7 +289,7 @@ export function LiveVideo({
     // The Next.js proxy is useful for normal JSON calls, but relaying every
     // 1080p JPEG through it drops several live frames. The browser can read an
     // image stream cross-origin, so connect it straight to the local backend.
-    const endpoints = videoEndpoints(location.href, Boolean(window.tennisStudio), webrtcPath);
+    const endpoints = videoEndpoints(location.href, Boolean(window.tennisStudio), webrtcPath, Boolean(window.tennisPhonePanel));
     setPreviewOrigin(endpoints.previewOrigin);
     setDirectSrc(endpoints.directUrl);
   }, [webrtcPath]);
