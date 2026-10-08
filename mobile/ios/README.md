@@ -1,6 +1,27 @@
-# Tennis Vision Camera para iPhone — 0.1.0
+# Tennis Vision Camera para iPhone — 0.2.0
 
 Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. A câmera traseira transmite H.264 por RTSP/TCP ao Tennis Vision Studio no Windows. Bola verde, rastro, impactos, IN/OUT e estatísticas são analisados no PC. A câmera nativa não precisa de Larix ou HTTPS.
+
+## Câmera e painel no iPhone
+
+- **Câmera:** prévia nativa, foco por toque, exposição curta e taxas medidas.
+- **Treino:** a mesma sessão do Windows 0.6.8+, incluindo áreas por arraste ou quatro cantos, calibração, IN/OUT, revisão, som OUT, estatísticas, histórico e duas câmeras. O PC precisa estar ligado e continua executando a IA. A câmera permanece transmitindo nesta aba.
+- **Ajustes:** QR, perfil automático ou manual, exposição, foco, lanterna e rede.
+- **Atualizações:** consulta à fonte oficial no GitHub e botão para abrir o AltStore.
+
+Leia o **novo QR** no Windows atualizado para habilitar Treino. O QR antigo ainda conecta a câmera, mas não contém o pareamento do painel. Use **Analisar câmera do iPhone** para iniciar a sessão e **Testar som OUT** para liberar o áudio. As áreas ficam salvas no PC por câmera.
+
+O painel usa TCP 8894, separado da câmera RTSP 8554. Um token aleatório por PC é trocado por cookie HttpOnly; o iPhone guarda o pareamento no Keychain. O motor de IA permanece em loopback. Preparar rede do PC libera o painel para a rede privada local. O transporte do painel é HTTP na LAN; use sua rede confiável, sem encaminhar essa porta na internet.
+
+### Atualizações sem procurar o IPA novamente
+
+Adicione uma vez ao **AltStore Classic → Sources → +**:
+
+    https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json
+
+O AltStore detecta as versões e oferece **My Apps → Update**. O usuário ainda confirma a instalação; a assinatura continua pelo AltStore e AltServer. O aplicativo não pode substituir silenciosamente seu próprio executável no iOS. Atualize sobre o app existente e mantenha a renovação semanal da assinatura gratuita.
+
+O publicador Windows executa `scripts/altstore-source.py` após publicar a versão estável. O script confere IPA, versão, permissões, tamanho e hash do asset público antes de atualizar a fonte. Uma versão Windows sem novo iOS preserva o URL do IPA anterior.
 
 ## Distribuição e instalação
 
@@ -8,7 +29,7 @@ Este pacote é um **projeto Xcode**, não um instalador de iPhone. O GitHub comp
 
 ### Tenho somente Windows
 
-Use o arquivo separado **Tennis-Vision-Camera-iOS-v0.1.0-AltStore.ipa**, disponível no painel Windows em **Conectar celular → iPhone / iOS** e na página de versões do projeto. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic.
+Use o arquivo separado **Tennis-Vision-Camera-iOS-v0.2.0-AltStore.ipa**, disponível no painel Windows em **Conectar celular → iPhone / iOS** e na página de versões do projeto. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic.
 
 1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Você informa sua conta Apple diretamente no AltServer.
 2. Coloque o `.ipa` no app Arquivos do iPhone. Com o AltServer aberto no PC e o iPhone conectado, use **AltStore Classic → My Apps → +** para selecionar o arquivo.
@@ -44,9 +65,9 @@ O QR Android usa SRT e não serve para este app. O aplicativo também aceita o l
 
 ## Captura e atraso
 
-- Padrão solicitado: **1080p / 60 FPS / 12 Mbps**, sem áudio.
+- Padrão: **melhor perfil automático**, sem áudio. Usa a maior taxa anunciada pela câmera traseira e prefere 1080p na mesma taxa. O modo manual mantém sua escolha.
 - A lista usa taxas realmente anunciadas pela câmera traseira. 120/240 FPS só são oferecidos quando aparecem nos formatos de captura.
-- O H.264 exige hardware, não reordena quadros e opera em tempo real. O perfil pode ser recusado pelo dispositivo ou interrompido por temperatura; o app explica e **não troca silenciosamente para 60 FPS**.
+- O H.264 exige hardware, sem reordenar quadros. Em automático, uma falha de captura/codificação ou seis amostras abaixo de 65% da taxa após aquecimento ajustam para o próximo perfil, com motivo visível. Falha de rede não é tratada como câmera incompatível. O modo manual não altera a taxa. Temperatura crítica interrompe a transmissão.
 - Captura, codificação e envio têm FPS medidos separadamente. Envio não comprova a taxa de decodificação ou análise no PC.
 - A fila aceita até 8 quadros, 2 MB e 80 ms. Ao descartar vídeo, espera um novo quadro completo antes de enviar quadros dependentes. Uma escrita parada por 1 segundo força reconexão.
 - Exposição curta, boa iluminação, câmera firme e foco correto reduzem o borrão. Exposição manual aceita somente valores suportados pelo perfil ativo.

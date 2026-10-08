@@ -52,6 +52,8 @@ Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador i
     $iosVersion = [regex]::Match((Get-Content -LiteralPath (Join-Path $studioRoot 'mobile\ios\project.py') -Raw), '"MARKETING_VERSION": "([0-9.]+)"').Groups[1].Value
     $iosIpa = Join-Path $studioRoot "mobile\releases\Tennis-Vision-Camera-iOS-v$iosVersion-AltStore.ipa"
     if (Test-Path -LiteralPath $iosIpa) { $releaseAssets += $iosIpa }
+    $iosSource = Join-Path $studioRoot "mobile\releases\Tennis-Vision-Camera-iOS-v$iosVersion-Projeto.zip"
+    if (Test-Path -LiteralPath $iosSource) { $releaseAssets += $iosSource }
     & $releaseGh release upload $releaseTag --repo $releaseRepo @releaseAssets
     if ($LASTEXITCODE) { throw 'O envio falhou. A versão permanece em rascunho e não será oferecida aos programas instalados.' }
     $remote = & $releaseGh release view $releaseTag --repo $releaseRepo --json assets
@@ -67,6 +69,10 @@ Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador i
     if (-not $KeepDraft) {
         & $releaseGh release edit $releaseTag --repo $releaseRepo --draft=false --latest
         if ($LASTEXITCODE) { throw 'Os arquivos foram enviados, mas a versão ainda não foi publicada.' }
+        if (Test-Path -LiteralPath $iosIpa) {
+            & (Join-Path $studioRoot '.venv/Scripts/python.exe') scripts/altstore-source.py --ipa $iosIpa --tag $releaseTag --publish --gh $releaseGh
+            if ($LASTEXITCODE) { throw 'A versão Windows foi publicada, mas a fonte AltStore precisa ser atualizada. Execute scripts/altstore-source.py novamente após conferir o IPA.' }
+        }
     }
     Write-Output "https://github.com/$releaseRepo/releases/tag/$releaseTag"
 } finally { Pop-Location }

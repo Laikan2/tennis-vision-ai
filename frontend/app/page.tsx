@@ -75,6 +75,7 @@ type PhoneCameraInfo = {
     sizeBytes: number | null;
   };
   iosApp: {
+    altStoreSourceUrl?: string;
     version: string;
     minimumIOS: string;
     distribution: "xcode" | "testflight" | "altstore";
@@ -1593,6 +1594,15 @@ export default function Page() {
                   )}
                 </div>}
 
+                {phoneInfo.platform === "ios" && !phoneInfo.iosApp.testFlightUrl && (
+                  <section className="phone-control-card">
+                    <strong>Atualizações no iPhone pelo AltStore</strong>
+                    <p>No AltStore, abra <b>Sources → +</b> e cole a fonte abaixo uma vez. As próximas versões aparecerão em <b>My Apps → Update</b>, mantendo o app e o pareamento.</p>
+                    <button type="button" onClick={() => copyPhoneUrl(phoneInfo.iosApp.altStoreSourceUrl || "https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json")}><Copy size={16} /> Copiar fonte de atualizações</button>
+                    <p>A assinatura e a renovação continuam pelo AltStore com o AltServer aberto no PC.</p>
+                    <p>Depois de atualizar o Windows e o iPhone, leia o novo QR de pareamento. A aba <b>Treino</b> abre áreas, impactos, IN/OUT, som e estatísticas no celular.</p>
+                  </section>
+                )}
                 {phoneInfo.platform === "ios" && !phoneInfo.iosApp.testFlightUrl && (
                   <details className="phone-browser-fallback">
                     <summary>Como instalar a versão nativa no iPhone</summary>

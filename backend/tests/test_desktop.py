@@ -66,3 +66,16 @@ def test_desktop_serves_the_latest_android_when_resources_keep_previous_apks(tmp
     engine_module().prepare_state(tmp_path / 'state', folder.parent)
     import os
     assert Path(os.environ['TV_ANDROID_APK_PATH']).read_bytes() == b'0.5.10'
+
+def test_desktop_selects_latest_ios_when_old_packages_remain(tmp_path,monkeypatch):
+    for key in ('TV_SECRET_KEY','TV_DATA_DIR','TV_IOS_PROJECT_PATH','TV_IOS_IPA_PATH'):
+        monkeypatch.setenv(key,'')
+    resources=tmp_path/'resources'
+    (resources/'ios').mkdir(parents=True)
+    for version in ('0.1.0','0.2.0','0.10.0'):
+        for suffix in ('AltStore.ipa','Projeto.zip'):
+            (resources/'ios'/f'Tennis-Vision-Camera-iOS-v{version}-{suffix}').write_bytes(b'app')
+    engine_module().prepare_state(tmp_path/'state',resources)
+    import os
+    assert 'v0.10.0' in os.environ['TV_IOS_IPA_PATH']
+    assert 'v0.10.0' in os.environ['TV_IOS_PROJECT_PATH']

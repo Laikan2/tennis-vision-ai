@@ -3,9 +3,9 @@
 .phone-control-card > div { display:flex; gap:10px; align-items:center; color:#d0fa85; }
 .phone-control-card p,.phone-control-card small { display:block; font-size:13px; line-height:1.6; color:#b8c9c5; margin:10px 0 0; }
 .phone-control-card button { margin-top:14px; min-height:44px; }
-.phone-panel .sidebar { position:static; width:100%; height:auto; padding:12px; display:flex; flex-wrap:wrap; gap:8px; }
+.phone-panel .sidebar { position:static; width:100%; height:auto; padding:12px; display:flex; flex-direction:row; flex-wrap:nowrap; gap:8px; }
 .phone-panel .sidebar .brand,.phone-panel .workspace-label,.phone-panel .engine-status,.phone-panel .local-profile { display:none; }
-.phone-panel .sidebar nav { display:flex; gap:8px; margin:0; overflow:auto; flex:1; }
+.phone-panel .sidebar nav { display:flex; gap:8px; margin:0; overflow:auto; flex:1; min-width:0; }
 .phone-panel .sidebar-bottom { margin:0; }
 .phone-panel .nav-item { font-size:12px; width:auto; min-width:66px; min-height:50px; padding:8px; margin:0; display:flex; flex-direction:column; gap:5px; white-space:nowrap; }
 .phone-panel .nav-item svg { width:18px; height:18px; }
@@ -29,7 +29,15 @@
 .phone-panel .tabs button { white-space:nowrap; font-size:12px; }
 .phone-panel .modal-overlay { padding:12px; align-items:center; }
 .phone-panel .modal { width:100%; max-height:90dvh; overflow:auto; padding:20px; }
+.phone-panel .official-review,.phone-panel .camera-wall.is-dual .official-review { width:210px; max-width:calc(100% - 24px); grid-template-columns:54px minmax(0,1fr); left:auto; right:12px; bottom:28px; transform:none; border-width:2px; animation:none; }
+.phone-panel .official-review > strong,.phone-panel .camera-wall.is-dual .official-review > strong { min-height:46px; font-size:25px; letter-spacing:0; }
+.phone-panel .official-review.decision-revisar > strong { font-size:10px; }
+.phone-panel .official-review-kicker { padding:4px 6px; font-size:8px; }
+.phone-panel .official-review > div { padding:6px 8px; gap:2px; }
+.phone-panel .official-review > div b,.phone-panel .official-review > div span { font-size:9px; }
 @media(max-width:760px) {
+  .phone-panel .camera-feed .ball-scale-control,.phone-panel .camera-feed .impact-mode-control { grid-column:1/-1; flex-direction:row; flex-wrap:wrap; padding:10px 12px; gap:10px; border:0; border-bottom:1px solid var(--line); font-size:12px; }
+  .phone-panel .camera-feed .ball-scale-control select,.phone-panel .camera-feed .impact-mode-control select { flex:1 1 190px; min-width:0; width:auto; }
   .phone-panel .live-grid,.phone-panel .camera-wall,.phone-panel .metrics-body,.phone-panel .live-grid:has(.camera-wall.is-dual) .metrics-body { display:block; }
   .phone-panel .metrics-body > section { margin-bottom:14px; }
   .phone-panel .video-empty h2 { font-size:16px; }
