@@ -67,7 +67,7 @@ def generate():
     project = add("project", f"isa = PBXProject; attributes = {{ BuildIndependentTargetsInParallel = YES; LastUpgradeCheck = 1600; }}; buildConfigurationList = {project_configs}; compatibilityVersion = \"Xcode 14.0\"; developmentRegion = pt; hasScannedForEncodings = 0; knownRegions = (pt, en, Base,); mainGroup = {main_group}; productRefGroup = {product_group}; projectDirPath = \"\"; projectRoot = \"\"; targets = ({target},);")
     destination = ROOT/f"{APP_NAME}.xcodeproj"
     destination.mkdir(exist_ok=True)
-    (destination/"project.pbxproj").write_text("// !$*UTF8*$!\n{\n\tarchiveVersion = 1;\n\tclasses = {};\n\tobjectVersion = 56;\n\tobjects = {\n"+"\n".join(objects)+f"\n\t}};\n\trootObject = {project};\n}}\n", encoding="utf-8")
+    (destination/"project.pbxproj").write_text("// !$*UTF8*$!\n{\n\tarchiveVersion = 1;\n\tclasses = {};\n\tobjectVersion = 56;\n\tobjects = {\n"+"\n".join(objects)+f"\n\t}};\n\trootObject = {project};\n}}\n", encoding="utf-8", newline="\n")
     schemes = destination/"xcshareddata/xcschemes"
     schemes.mkdir(parents=True, exist_ok=True)
     reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{target}" BuildableName="{APP_NAME}.app" BlueprintName="{APP_NAME}" ReferencedContainer="container:{APP_NAME}.xcodeproj"/>'
@@ -79,7 +79,7 @@ def generate():
   <ProfileAction buildConfiguration="Release" shouldUseLaunchSchemeArgsEnv="YES" savedToolIdentifier="" useCustomWorkingDirectory="NO" debugServiceExtension="internal"><BuildableProductRunnable runnableDebuggingMode="0">{reference}</BuildableProductRunnable></ProfileAction>
   <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>
-''', encoding="utf-8")
+''', encoding="utf-8", newline="\n")
 
 if __name__ == "__main__":
     generate()
