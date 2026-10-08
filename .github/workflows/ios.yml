@@ -41,9 +41,23 @@ jobs:
           RECEIVER_PID=$!
           trap 'kill "$RECEIVER_PID" 2>/dev/null || true' EXIT
           sleep 1
+          python3 -m venv /tmp/ios-ffmpeg
+          /tmp/ios-ffmpeg/bin/pip install imageio-ffmpeg==0.6.0
+          FFMPEG=$(/tmp/ios-ffmpeg/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')
           cd mobile/ios
-          swift run TransportSmoke | tee /tmp/ios-transport.log
-          grep -E 'is publishing.*H264|H264.*publishing' /tmp/ios-receiver.log
+          swift run TransportSmoke > /tmp/ios-transport.log 2>&1 &
+          SMOKE_PID=$!
+          trap 'kill "$SMOKE_PID" "$RECEIVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 50); do
+            if grep -q 'stream is available and online' /tmp/ios-receiver.log; then break; fi
+            sleep 0.2
+          done
+          "$FFMPEG" -hide_banner -loglevel error -xerror -rtsp_transport tcp -timeout 10000000 -i rtsp://127.0.0.1:8554/ios-ci -an -frames:v 60 -f framemd5 /tmp/ios-decoded.md5
+          python3 -c 'from pathlib import Path; frames=[s for s in Path("/tmp/ios-decoded.md5").read_text().splitlines() if s and not s.startswith("#")]; assert len(frames)==60,len(frames); print("Decoded 60 received H.264 frames")'
+          wait "$SMOKE_PID"
+          cat /tmp/ios-transport.log
+          grep 'stream is available and online.*H264' /tmp/ios-receiver.log
+          grep "is publishing to path 'ios-ci'" /tmp/ios-receiver.log
       - name: Simulator launch and screenshot
         run: |
           set -euo pipefail
