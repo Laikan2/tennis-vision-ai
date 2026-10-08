@@ -26,6 +26,11 @@ struct ContentView: View {
             }.background(Palette.background).preferredColorScheme(.dark)
         }
         .tint(Palette.lime)
+        .safeAreaInset(edge:.bottom) {
+            primaryAction.padding(.horizontal,20).padding(.vertical,12)
+                .frame(maxWidth:850).frame(maxWidth:.infinity)
+                .background(Palette.background.opacity(0.98))
+        }
         .task { model.prepare() }
         .onChange(of:phase) { _, value in
             if value == .active { model.prepare() } else if value == .background { model.suspend() }
@@ -61,9 +66,11 @@ struct ContentView: View {
                 if !model.snapshot.previewReady {
                     VStack(spacing:12) {
                         Image(systemName:model.denied ? "camera.fill.badge.ellipsis" : "camera").font(.largeTitle)
-                        Text(model.denied ? "Permita o acesso à câmera" : "Preparando sua câmera").font(.headline)
+                        Text(model.denied ? "Permita o acesso à câmera" : model.snapshot.error != nil ? "Câmera indisponível" : "Preparando sua câmera").font(.headline)
                         if model.denied {
                             Button("Abrir Ajustes") { if let url=URL(string:UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
+                        } else if model.snapshot.error != nil {
+                            Button("Tentar novamente") { model.prepare() }
                         }
                     }.foregroundStyle(.white).padding(24).background(Palette.background.opacity(0.9),in:RoundedRectangle(cornerRadius:18))
                 }
@@ -108,19 +115,22 @@ struct ContentView: View {
             if let message=model.message {
                 Text(message).font(.subheadline).foregroundStyle(Palette.muted)
             }
-            Button {
-                if model.snapshot.transmitting { model.controller.stop() } else { model.transmit() }
-            } label: {
-                HStack(spacing:10) {
-                    Image(systemName:model.snapshot.transmitting ? "stop.fill" : "play.fill")
-                    Text(model.snapshot.transmitting ? "Parar transmissão" : "Transmitir ao Windows")
-                }.font(.headline).frame(maxWidth:.infinity).padding(.vertical,18)
-            }.buttonStyle(.plain).foregroundStyle(Palette.background)
-                .background(model.snapshot.transmitting ? Color(red:1,green:0.43,blue:0.4) : Palette.lime,in:RoundedRectangle(cornerRadius:16))
-                .disabled(!model.snapshot.transmitting && (!model.selectedSupported || model.denied || !model.snapshot.previewReady))
             Text("O envio mede os quadros entregues à rede local. A recepção e a análise são medidas no PC.")
                 .font(.caption).foregroundStyle(Palette.muted)
         }.padding(22).background(Palette.panel,in:RoundedRectangle(cornerRadius:24)).overlay(RoundedRectangle(cornerRadius:24).stroke(Palette.line))
+    }
+    private var primaryAction: some View {
+        Button {
+            if model.snapshot.transmitting { model.controller.stop() } else { model.transmit() }
+        } label: {
+            HStack(spacing:10) {
+                Image(systemName:model.snapshot.transmitting ? "stop.fill" : "play.fill")
+                Text(model.snapshot.transmitting ? "Parar transmissão" : "Transmitir ao Windows")
+            }.font(.headline).frame(maxWidth:.infinity).padding(.vertical,18)
+        }.buttonStyle(.plain).foregroundStyle(Palette.background)
+            .background(model.snapshot.transmitting ? Color(red:1,green:0.43,blue:0.4) : Palette.lime,in:RoundedRectangle(cornerRadius:16))
+            .opacity(!model.snapshot.transmitting && (!model.selectedSupported || model.denied || !model.snapshot.previewReady) ? 0.45 : 1)
+            .disabled(!model.snapshot.transmitting && (!model.selectedSupported || model.denied || !model.snapshot.previewReady))
     }
     private var connection: some View {
         VStack(alignment:.leading,spacing:16) {
