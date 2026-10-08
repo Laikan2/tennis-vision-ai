@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "TennisVisionCore",
-    platforms: [.iOS(.v17), .macOS(.v13)],
+    platforms: [.iOS("17.4"), .macOS(.v13)],
     products: [
         .library(name: "TennisVisionCore", targets: ["TennisVisionCore"]),
         .executable(name: "TransportSmoke", targets: ["TransportSmoke"]),

@@ -40,7 +40,7 @@ def generate():
     for mode in ("Debug", "Release"):
         project_settings = {
             "CLANG_ENABLE_MODULES": "YES", "CLANG_ENABLE_OBJC_ARC": "YES",
-            "SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": "17.0",
+            "SDKROOT": "iphoneos", "IPHONEOS_DEPLOYMENT_TARGET": "17.4",
             "SWIFT_VERSION": "5.0", "ENABLE_TESTABILITY": "YES" if mode == "Debug" else "NO",
             "SWIFT_OPTIMIZATION_LEVEL": "-Onone" if mode == "Debug" else "-O",
             "DEBUG_INFORMATION_FORMAT": "dwarf" if mode == "Debug" else "dwarf-with-dsym",

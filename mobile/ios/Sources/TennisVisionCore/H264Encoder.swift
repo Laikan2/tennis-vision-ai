@@ -32,15 +32,16 @@ public final class H264Encoder {
             (kVTCompressionPropertyKey_AverageBitRate,NSNumber(value:profile.bitrate)),
             (kVTCompressionPropertyKey_MaxKeyFrameInterval,NSNumber(value:profile.fps)),
             (kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration,NSNumber(value:1.0)),
-            (kVTCompressionPropertyKey_MaxFrameDelayCount,NSNumber(value:1)),
         ]
         for (key,value) in values {
             let status=VTSessionSetProperty(session,key:key,value:value)
             if status != noErr {
                 VTCompressionSessionInvalidate(session); self.session=nil
-                throw CameraError.invalid("O H.264 recusou este perfil (\(status)). A taxa escolhida não foi alterada.")
+                throw CameraError.invalid("O H.264 recusou \(key) (\(status)). A taxa escolhida não foi alterada.")
             }
         }
+        // Optional on some encoders; our own input queue still caps pending frames.
+        VTSessionSetProperty(session,key:kVTCompressionPropertyKey_MaxFrameDelayCount,value:NSNumber(value:1))
         guard VTCompressionSessionPrepareToEncodeFrames(session) == noErr else {
             VTCompressionSessionInvalidate(session); self.session=nil
             throw CameraError.invalid("O codificador não conseguiu preparar este perfil.")
