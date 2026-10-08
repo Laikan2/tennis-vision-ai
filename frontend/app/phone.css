@@ -22,6 +22,12 @@
 .phone-panel .camera-feed-heading > small { font-size:11px; }
 .phone-panel .surface-tools { padding:14px; gap:10px; }
 .phone-panel .surface-tools button,.phone-panel .video-controls button { font-size:12px; }
+.surface-mode-choice { display:flex; align-items:center; flex-wrap:wrap; gap:10px; font-size:13px; }
+.surface-mode-choice select { min-height:44px; max-width:100%; color:#e4f2eb; background:#14231e; border:1px solid #566952; border-radius:8px; padding:8px 10px; }
+.surface-live-hint { display:block; color:#b7d4c1; font-size:12px; line-height:1.5; }
+.capture-motion-warning { margin:0; padding:12px 16px; color:#ffdc9e; background:#33271b; font-size:13px; line-height:1.5; }
+.phone-panel .surface-tools.is-editing { border-top:2px solid #c9f56b; }
+.phone-panel .surface-tools.is-editing > div { display:flex; flex-wrap:wrap; gap:8px; }
 .phone-panel .surface-hint,.phone-panel .surface-explanation { font-size:12px; line-height:1.6; }
 .phone-panel .ball-scale-control { padding:12px; gap:10px; }
 .phone-panel .performance > span { font-size:10px; }

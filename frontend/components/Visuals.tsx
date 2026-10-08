@@ -273,7 +273,6 @@ export function LiveVideo({
   const [clearedAt, setClearedAt] = useState(0);
   const [overlay, setOverlay] = useState<Partial<Status>>({});
   const lastFrameSequence = useRef<number | undefined>(undefined);
-  const editingSurface = useRef(false);
   const [surfaceEditing, setSurfaceEditing] = useState(false);
   const [controlsMount, setControlsMount] = useState<HTMLDivElement | null>(null);
   const [previewOrigin, setPreviewOrigin] = useState("");
@@ -300,7 +299,7 @@ export function LiveVideo({
     return () => document.removeEventListener("visibilitychange", update);
   }, []);
   const directConnecting = Boolean(
-    pageVisible && !surfaceEditing && !synchronized && !directFailed && directSrc && !status.stale &&
+    pageVisible && !synchronized && !directFailed && directSrc && !status.stale &&
     status.cameraStatus === "online",
   );
   const directActive = directConnecting && directReady;
@@ -308,17 +307,17 @@ export function LiveVideo({
     if (!directConnecting) setDirectReady(false);
   }, [directConnecting]);
   useEffect(() => {
-    if (!pageVisible || surfaceEditing || synchronized || status.stale || status.cameraStatus !== "online" ||
+    if (!pageVisible || synchronized || status.stale || status.cameraStatus !== "online" ||
         (!directFailed && !previewFailed)) return;
     const retry = window.setTimeout(() => {
       setDirectFailed(false); setPreviewFailed(false);
     }, 15000);
     return () => window.clearTimeout(retry);
-  }, [pageVisible, surfaceEditing, synchronized, status.stale, status.cameraStatus, directFailed, previewFailed]);
+  }, [pageVisible, synchronized, status.stale, status.cameraStatus, directFailed, previewFailed]);
   const cameraQuery = cameraId ? `&cameraId=${encodeURIComponent(cameraId)}` : "";
   const previewQuery = cameraId ? `?cameraId=${encodeURIComponent(cameraId)}` : "";
   const fluidPreview = Boolean(
-    pageVisible && !surfaceEditing && !synchronized && !directActive && !previewFailed && !status.stale &&
+    pageVisible && !synchronized && !directActive && !previewFailed && !status.stale &&
     status.cameraStatus === "online",
   );
   useEffect(() => {
@@ -327,6 +326,7 @@ export function LiveVideo({
     let socket: WebSocket | undefined;
     let fallback = false;
     let current: string | undefined;
+    let request: AbortController | undefined;
     lastFrameSequence.current = undefined;
     // Hiding a WebRTC tab disables directActive. It must not activate the
     // JPEG fallback: every hidden tab then encoded and fetched full frames.
@@ -336,15 +336,13 @@ export function LiveVideo({
       return;
     }
     const pull = async () => {
-      if (editingSurface.current && current) {
-        if (active) timer = setTimeout(pull, 60);
-        return;
-      }
+      request = new AbortController();
+      const deadline = setTimeout(() => request?.abort(), 5000);
       try {
         const after = lastFrameSequence.current;
         const response = await fetch(
-          `/api/frame?synchronized=${synchronized || editingSurface.current ? "true" : "false"}${cameraQuery}${after == null ? "" : `&after=${after}`}`,
-          { cache: "no-store" },
+          `/api/frame?synchronized=${synchronized ? "true" : "false"}${cameraQuery}${after == null ? "" : `&after=${after}`}`,
+          { cache: "no-store", signal: request.signal },
         );
         if (response.status === 204) {
           // The analyser has not committed a newer frame yet. Keep the current
@@ -359,7 +357,7 @@ export function LiveVideo({
             const decoded = new Image();
             decoded.src = url;
             try { await decoded.decode(); } catch (error) { URL.revokeObjectURL(url); throw error; }
-            if (!active || (editingSurface.current && current)) { URL.revokeObjectURL(url); if(active)timer=setTimeout(pull,60); return; }
+            if (!active) { URL.revokeObjectURL(url); return; }
             setSrc(url);
             setOverlay(metadata);
             if (typeof metadata.sequence === "number") {
@@ -377,7 +375,7 @@ export function LiveVideo({
           setSrc(undefined);
           setOverlay({});
         }
-      }
+      } finally { clearTimeout(deadline); }
       // Pull sequentially so requests never accumulate. The server returns 204
       // for duplicate frames, keeping rendering tied to real AI output.
       if (active) timer = setTimeout(pull, 8);
@@ -391,19 +389,12 @@ export function LiveVideo({
           const size = new DataView(data).getUint32(0);
           if (size > data.byteLength - 4) throw new Error("Quadro incompleto");
           const metadata = JSON.parse(new TextDecoder().decode(data.slice(4, 4 + size)));
-          if (editingSurface.current && current) {
-            // Hold this single packet while annotating; after editing, discard
-            // it and request the newest frame instead of playing a backlog.
-            while (active && editingSurface.current) await new Promise(resolve => setTimeout(resolve, 60));
-            if (active && socket?.readyState === WebSocket.OPEN) socket.send(String(metadata.sequence));
-            return;
-          }
           const url = URL.createObjectURL(new Blob([data.slice(4 + size)], { type: "image/jpeg" }));
           const decoded = new Image();
           decoded.src = url;
           try { await decoded.decode(); } catch (error) { URL.revokeObjectURL(url); throw error; }
           await new Promise<void>(resolve => requestAnimationFrame(() => {
-            if (active && !(editingSurface.current && current)) {
+            if (active) {
               setSrc(url); setOverlay(metadata);
               lastFrameSequence.current = metadata.sequence;
               if (current) URL.revokeObjectURL(current);
@@ -420,6 +411,7 @@ export function LiveVideo({
     return () => {
       active = false;
       clearTimeout(timer);
+      request?.abort();
       socket?.close();
       if (current) URL.revokeObjectURL(current);
     };
@@ -489,11 +481,12 @@ export function LiveVideo({
     && e.timestamp > Math.max(clearedAt, status.regionChangedAt || 0)).slice(-30);
   return (
     <div className="video-wrapper">
-    <div className="video-stage">
+    <div className="video-stage" style={{aspectRatio: `${w} / ${h}`}}>
       {hasVideo ? (
         <>
           {fluidPreview ? (
             <img
+              key={`${cameraId || "primary"}:${status.session?.id || "idle"}`}
               className="video-frame fluid-video"
               src={`${previewOrigin}/api/preview${previewQuery}`}
               alt="Vídeo fluido da câmera"
@@ -755,9 +748,10 @@ export function LiveVideo({
           {number(directActive ? playback?.fps : fluidPreview ? status.previewFps : status.processingFps)} FPS · {directActive ? "REPRODUÇÃO" : fluidPreview ? "PRÉVIA" : "IA"}
         </span>
       </div>
-      <CaptureArea status={status} cameraId={cameraId} width={w} height={h} controlsMount={controlsMount} onEditing={value=>{editingSurface.current=value;setSurfaceEditing(value);}} />
+      <CaptureArea status={status} cameraId={cameraId} width={w} height={h} controlsMount={controlsMount} onEditing={setSurfaceEditing} />
       {hasVideo && !surfaceEditing && <button className="clear-video-marks" onClick={() => setClearedAt(Date.now()/1000)}>Limpar marcas</button>}
     </div>
+    {status.cameraMoving && !status.stale && <p className="capture-motion-warning" role="status">A câmera está se movendo. Apoie o aparelho e mantenha o enquadramento para medir os impactos com segurança.</p>}
     <div ref={setControlsMount} className="surface-mount" />
     </div>
   );

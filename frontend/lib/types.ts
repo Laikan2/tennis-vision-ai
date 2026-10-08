@@ -254,29 +254,7 @@ export type ReplayFrame = {
     resolution: [number, number];
   };
 };
-export async function api<T>(path: string, body?: unknown): Promise<T> {
-  const r = await fetch(
-    "/api" + path,
-    body === undefined
-      ? { cache: "no-store" }
-      : {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-  );
-  if (!r.ok) {
-    const error = await r
-      .json()
-      .catch(() => ({ detail: "Backend indisponível." }));
-    throw new Error(
-      typeof error.detail === "string"
-        ? error.detail
-        : "Confira os campos informados.",
-    );
-  }
-  return r.json();
-}
+export { api } from "./api-client";
 export const number = (n: number | null | undefined, digits = 1) =>
   n == null || !Number.isFinite(n)
     ? "—"

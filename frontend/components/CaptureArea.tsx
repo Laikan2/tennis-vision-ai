@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, PointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { AnalysisMode, api, Status, TargetZone } from "../lib/types";
+import { validSurface } from "../lib/surface-geometry";
 
 type XY = [number, number];
 type Mode = "corners" | "rectangle" | "court" | "floor" | null;
@@ -57,13 +58,16 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
   const [environment, setEnvironment] = useState(status.analysisMode || "room");
   const [targetZone, setTargetZone] = useState<TargetZone>(status.targetZone || "full");
   const drag = useRef<{ start: XY; corner?: number; original: XY[] } | null>(null);
+  const pending = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    setMode(null); setDraft([]); setLocal(null); setError("");
+    pending.current?.abort(); pending.current = null;
+    setMode(null); setDraft([]); setLocal(null); setError(""); setSaving(false); drag.current=null;
     setShowLimit(Boolean(status.capturePolygon?.length || status.captureRegion || status.floorBoundary?.length));
     setEnvironment(status.analysisMode || "room");
     setTargetZone(status.targetZone || "full");
     onEditing?.(false);
+    return () => { pending.current?.abort(); };
   }, [status.session?.id, cameraId]);
   useEffect(() => {
     setLocal(null); setEnvironment(status.analysisMode || "room");
@@ -81,9 +85,7 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
   const wall = environment === "room";
   const sortedFloor = [...floorPoints].sort((a,b)=>a[0]-b[0]);
   const validFloor = sortedFloor.length >= 2 && sortedFloor.at(-1)![0]-sortedFloor[0][0] >= .08 && sortedFloor.slice(1).every((p,i)=>p[0]-sortedFloor[i][0]>=.02);
-  const valid = editingFloor ? validFloor : points.length === 4 && Math.abs(points.reduce((sum,p,i) => {
-    const next=points[(i+1)%4]; return sum+p[0]*next[1]-next[0]*p[1];
-  },0)) > .004;
+  const valid = editingFloor ? validFloor : validSurface(points);
 
   function start(next: Mode) {
     setMode(next);
@@ -97,7 +99,10 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
     }
     setError(""); onEditing?.(true);
   }
-  function cancel() { setMode(null); drag.current=null; setError(""); onEditing?.(false); }
+  function cancel() {
+    pending.current?.abort(); pending.current=null; setSaving(false);
+    setMode(null); drag.current=null; setError(""); onEditing?.(false);
+  }
   function point(e: PointerEvent<SVGSVGElement>): XY {
     const p=e.currentTarget.createSVGPoint(); p.x=e.clientX; p.y=e.clientY;
     const matrix=e.currentTarget.getScreenCTM(); const q=matrix ? p.matrixTransform(matrix.inverse()) : p;
@@ -114,32 +119,37 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
     }
   }
   async function save(polygon: XY[] | null, nextEnvironment = environment, nextZone = targetZone) {
+    if (polygon && !validSurface(polygon)) { setError("Ajuste os cantos em volta da área, sem cruzar as linhas."); return; }
+    const request = new AbortController(); pending.current?.abort(); pending.current=request;
     setSaving(true); setError("");
     const appliedZone: TargetZone = nextEnvironment === "court" ? nextZone : "full";
     try {
       const result=await api<Saved>("/capture-region", {
         cameraId: cameraId || status.cameraId || status.session?.cameraId,
         polygon, region:null, analysisMode:nextEnvironment, targetZone:appliedZone,
-      });
+      }, {signal:request.signal, timeoutMs:10000});
+      if (request.signal.aborted) return;
       setLocal({...current,...result}); setEnvironment(nextEnvironment); setTargetZone(result.targetZone || appliedZone);
       setShowLimit(Boolean(polygon?.length || current.floorBoundary?.length));
       cancel();
-    } catch(e) { setError(e instanceof Error ? e.message : "Não foi possível salvar."); }
-    finally { setSaving(false); }
+    } catch(e) { if (!request.signal.aborted) setError(e instanceof Error ? e.message : "Não foi possível salvar."); }
+    finally { if (pending.current === request) { pending.current=null; setSaving(false); } }
   }
   async function saveFloor(boundary: XY[] | null) {
+    const request = new AbortController(); pending.current?.abort(); pending.current=request;
     setSaving(true); setError("");
     try {
       const id = cameraId || status.cameraId || status.session?.cameraId;
       if (!id) throw new Error("Selecione uma câmera antes de marcar o piso.");
-      const result=await api<Saved>(`/cameras/${encodeURIComponent(id)}/floor-boundary`,{boundary});
+      const result=await api<Saved>(`/cameras/${encodeURIComponent(id)}/floor-boundary`,{boundary}, {signal:request.signal, timeoutMs:10000});
+      if (request.signal.aborted) return;
       setLocal({...current,floorBoundary:result.floorBoundary});
       setShowLimit(Boolean(boundary?.length || saved.length)); cancel();
-    } catch(e) { setError(e instanceof Error ? e.message : "Não foi possível salvar o limite do piso."); }
-    finally { setSaving(false); }
+    } catch(e) { if (!request.signal.aborted) setError(e instanceof Error ? e.message : "Não foi possível salvar o limite do piso."); }
+    finally { if (pending.current === request) { pending.current=null; setSaving(false); } }
   }
 
-  const courtVisible = environment === "court" && points.length === 4 && Boolean(mode || showLimit);
+  const courtVisible = environment === "court" && validSurface(points) && Boolean(mode || showLimit);
   const line = (u1:number,v1:number,u2:number,v2:number,key:string) => {
     const a=project(points,u1,v1),b=project(points,u2,v2);
     return <line key={key} x1={a[0]*width} y1={a[1]*height} x2={b[0]*width} y2={b[1]*height}
@@ -167,7 +177,11 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
         if(e.button!==0 || !mode || saving) return;
         const p=point(e); const target=e.target as SVGElement;
         const corner=target.dataset.corner == null ? undefined : +target.dataset.corner;
-        if(corner!=null || mode==="rectangle") { e.currentTarget.setPointerCapture(e.pointerId); drag.current={start:p,corner,original:draft}; }
+        e.preventDefault();
+        if(corner!=null || mode==="rectangle") {
+          try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* A cancelled touch can lose capture on iOS. */ }
+          drag.current={start:p,corner,original:draft};
+        }
         else if(draft.length<(editingFloor ? 6 : 4)) setDraft([...draft,p]);
       }} onPointerMove={move}
       onPointerUp={e => {move(e);drag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
@@ -207,12 +221,21 @@ export function CaptureArea({ status, cameraId, width, height, onEditing, contro
     </svg>
     {controlsMount && createPortal(<div className={`capture-area-controls surface-tools ${mode ? "is-editing" : ""}`}>
       {mode ? <>
-        <strong>{editingFloor ? "Separar chão da parede" : mode === "court" ? "Modelo da quadra" : wall ? "Parede" : environment === "court" ? "Quadra" : "Área de rastreamento"} · imagem pausada</strong>
+        <strong>{editingFloor ? "Separar chão da parede" : mode === "court" ? "Modelo da quadra" : wall ? "Parede" : environment === "court" ? "Chão / quadra" : "Área de rastreamento"} · vídeo ao vivo</strong>
+        {!editingFloor && <label className="surface-mode-choice">Onde a bola vai bater?
+          <select aria-label="Superfície para contar impactos" value={environment} disabled={saving}
+            onChange={e=>{setEnvironment(e.target.value as AnalysisMode); if (mode === "court") setMode("corners");}}>
+            <option value="court">No chão · contar quicadas</option>
+            <option value="room">Na parede · contar batidas</option>
+            <option value="tracking">Só acompanhar a bola</option>
+          </select></label>}
+        <small className="surface-live-hint">Mantenha o celular apoiado. A imagem continua ao vivo enquanto você marca os limites de IN/OUT.</small>
         <span>{editingFloor ? `${draft.length} pontos · mínimo 2. Clique no rodapé à esquerda e à direita. Se a parede fizer uma esquina, marque também o canto. Arraste os círculos para ajustar; até 6 pontos.` : mode==="rectangle" ? "Clique e arraste para desenhar a área. Depois, ajuste os cantos." : mode==="court" ? "Arraste os quatro círculos para os cantos externos da quadra. As linhas internas acompanham a perspectiva." : draft.length<4 ? `${draft.length}/4 cantos. Comece no alto à esquerda e siga ao redor da superfície.` : "Arraste os quatro círculos até os cantos. Pode incluir a parede atrás de você."}</span>
         {editingFloor && <p className="surface-explanation">O piso fica abaixo desta linha. A bola continua sendo acompanhada no ar; um contato acima da linha não conta como quicada no chão. A área de IN/OUT permanece salva.</p>}
         <div><button className="primary" disabled={!valid||saving} onClick={()=>editingFloor ? saveFloor(draft) : save(draft,mode === "court" ? "court" : environment)}>{saving ? "Salvando…" : editingFloor ? "Salvar limite do piso" : mode === "court" ? "Usar esta quadra" : "Usar esta superfície"}</button>
           {editingFloor && draft.length>0 && <button disabled={saving} onClick={()=>setDraft(draft.slice(0,-1))}>Remover último ponto</button>}
-          <button disabled={saving} onClick={()=>setDraft(mode === "court" ? [[.18,.18],[.82,.18],[.96,.9],[.04,.9]] : [])}>Recomeçar</button><button disabled={saving} onClick={cancel}>Cancelar</button></div>
+          <button disabled={saving} onClick={()=>setDraft(mode === "court" ? [[.18,.18],[.82,.18],[.96,.9],[.04,.9]] : [])}>Recomeçar</button><button onClick={cancel}>Cancelar</button></div>
+        {!editingFloor && points.length === 4 && !valid && <span role="alert">As linhas se cruzaram ou a área ficou muito pequena. Arraste os cantos para contornar a superfície.</span>}
       </> : <>
         <button className={!saved.length ? "selected" : ""} disabled={locked||!status.session||saving} onClick={()=>save(null,environment,"full")}>Imagem inteira</button>
         {environment === "court" ? <button disabled={locked||!status.session||status.stale||saving} onClick={()=>start("court")}>{saved.length ? "Ajustar modelo da quadra" : "Encaixar modelo da quadra"}</button> :

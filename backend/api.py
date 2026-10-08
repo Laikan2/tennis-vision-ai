@@ -58,7 +58,7 @@ recordings=Recordings(app,store,pipeline,learning,DATA/'recordings',control_lock
 learning.is_running=lambda:pipeline.session is not None or recordings.busy
 ANDROID_APP_VERSION='0.5.6'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
-IOS_APP_VERSION='0.2.0'
+IOS_APP_VERSION='0.2.1'
 IOS_PROJECT_ZIP=Path(os.getenv('TV_IOS_PROJECT_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-Projeto.zip')))
 IOS_IPA=Path(os.getenv('TV_IOS_IPA_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-AltStore.ipa')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
@@ -546,7 +546,10 @@ async def preview(request:Request,cameraId:str|None=None):
 
     async def frames():
         previous=None
-        while worker.session and not await request.is_disconnected():
+        # StreamingResponse owns the disconnect listener. Polling receive()
+        # here as well repeatedly cancels an overlapping read on Windows and
+        # can keep the IO completion loop busy, starving ball analysis.
+        while worker.session:
             jpeg,current=capture.latest_preview()
             if (jpeg and current is not None and current.sequence!=previous and
                     time.time()-current.timestamp<=2):

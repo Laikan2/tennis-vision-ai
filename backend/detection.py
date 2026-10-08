@@ -605,7 +605,14 @@ class BallDetector:
         if previous is None or previous.shape != gray.shape:
             self.motion_mask = None
             return []
-        changed = cv2.inRange(cv2.absdiff(gray, previous), 12, 255)
+        # Phone auto-exposure and indoor flicker shift most pixels together.
+        # Subtract a robust global brightness offset before measuring motion;
+        # otherwise every exposure step masquerades as a camera pan and drops
+        # the complete ball trajectory, including the contact and rebound.
+        sample_delta=gray[::8,::8].astype(np.int16)-previous[::8,::8].astype(np.int16)
+        exposure_shift=float(np.median(sample_delta))
+        reference=(cv2.add(previous,exposure_shift) if 4 <= abs(exposure_shift) <= 64 else previous)
+        changed = cv2.inRange(cv2.absdiff(gray, reference), 12, 255)
         # A fixed viewpoint is required to distinguish a flying 40 mm ball
         # from the whole room moving across the image. During a pan or phone
         # rotation, suppress heuristic proposals instead of turning lamps,

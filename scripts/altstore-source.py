@@ -31,7 +31,7 @@ def source(ipa, tag, previous=None):
         date=datetime.now(timezone.utc).isoformat(timespec='seconds'),
         downloadURL=f"https://github.com/{REPO}/releases/download/{tag}/{metadata['filename']}",
         size=metadata['bytes'],minOSVersion=metadata['minimumIOS'],
-        localizedDescription='Painel do treino no iPhone, seleção de área por toque, IN/OUT e som com análise no PC. Perfil automático conforme a câmera e taxas medidas. Interface reorganizada.')
+        localizedDescription='Correções na orientação da câmera, recuperação do vídeo H.264 após perda de quadros e reabertura do painel. Atualize também o Windows para 0.6.9: seleção de área com vídeo ao vivo e melhoria na detecção da bola verde sob variações de iluminação.')
     versions=[release]+[v for v in old.get('versions',[]) if v['version']!=metadata['version']]
     app=dict(name='Tennis Vision Camera',bundleIdentifier=bundle,developerName='Tennis Vision',
         subtitle='Sua câmera. Seu treino. Seu estúdio.',category='photo-video',iconURL=ICON_URL,tintColor='C7F56B',
