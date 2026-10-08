@@ -62,6 +62,11 @@ jobs:
           grep 'stream is available and online.*H264' /tmp/ios-receiver.log
           grep "is publishing to path 'ios-ci'" /tmp/ios-receiver.log
       - name: Simulator launch and screenshot
+        # The hosted CoreSimulator may hang during boot. Compilation, protocol
+        # tests and decoded receiver video above are mandatory; this screenshot
+        # is a bounded diagnostic and must not prevent uploading the device IPA.
+        timeout-minutes: 2
+        continue-on-error: true
         run: |
           set -euo pipefail
           DEVICE=$(xcrun simctl list devices available --json | python3 -c 'import json,sys; print(next(d["udid"] for devices in json.load(sys.stdin)["devices"].values() for d in devices if d["name"].startswith("iPhone")))')
