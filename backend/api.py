@@ -58,6 +58,9 @@ recordings=Recordings(app,store,pipeline,learning,DATA/'recordings',control_lock
 learning.is_running=lambda:pipeline.session is not None or recordings.busy
 ANDROID_APP_VERSION='0.5.6'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
+IOS_APP_VERSION='0.1.0'
+IOS_PROJECT_ZIP=Path(os.getenv('TV_IOS_PROJECT_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-Projeto.zip')))
+IOS_IPA=Path(os.getenv('TV_IOS_IPA_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-AltStore.ipa')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}
 desktop_origin=os.getenv('TV_DESKTOP_ORIGIN','')
 if re.fullmatch(r'http://127\.0\.0\.1:[0-9]{1,5}',desktop_origin) and 1<=int(desktop_origin.rsplit(':',1)[1])<=65535:
@@ -192,13 +195,13 @@ def _local_ipv4():
 
 
 @app.get('/api/mobile-camera')
-def mobile_camera():
+def mobile_camera(platform:Literal['android','ios']='android'):
     """Return native and browser pairing information for the local receiver."""
     address=_local_ipv4()
     display_host=address or 'IP-DO-COMPUTADOR'
     # Keep this path separate from the iPhone/Larix preset so both phones can
     # publish at the same time and be selected as camera 1 and camera 2.
-    path='galaxy'
+    path='iphone' if platform=='ios' else 'galaxy'
     common=dict(**{
         'video-framerate':'60','video-width':'1920','video-height':'1080',
         'video-bitrate':'12000','audio-device':'none',
@@ -206,11 +209,12 @@ def mobile_camera():
     moq=urlencode(common | {'video-codec':'avc3.640028','video-keyframe-interval':'30'})
     webrtc=urlencode(common | {'video-codec':'h264/90000','audio-bitrate':'32'})
     app_pairing=urlencode({
-        'host':display_host,'port':'8890','path':path,'transport':'srt',
+        'host':display_host,'port':'8554' if platform=='ios' else '8890','path':path,
+        'transport':'rtsp' if platform=='ios' else 'srt',
         'fps':'60','width':'1920','height':'1080','bitrate':'12000000','latency':'40',
     })
     return dict(
-        available=bool(address),localIp=address,path=path,
+        platform=platform,available=bool(address),localIp=address,path=path,
         androidUrl=f'https://{display_host}:8892/{path}/publish?{moq}',
         webRtcUrl=f'http://{display_host}:8889/{path}/publish?{webrtc}',
         appPairingUri=f'tennisvision://pair?{app_pairing}',
@@ -218,28 +222,42 @@ def mobile_camera():
         androidApp=dict(version=ANDROID_APP_VERSION,available=ANDROID_APK.is_file(),
                         downloadUrl='/api/mobile-camera/android.apk',
                         sizeBytes=ANDROID_APK.stat().st_size if ANDROID_APK.is_file() else None),
+        iosApp=_ios_app_info(),
         receiverUrl=f'rtsp://127.0.0.1:8554/{path}',
-        cameraPreset=_phone_camera_preset(),
+        cameraPreset=_phone_camera_preset(platform),
     )
 
 
-def _phone_camera_preset():
-    return dict(name='Galaxy S25 Ultra · Tennis Vision',host='127.0.0.1',port=8554,
-                path='/galaxy',requestedFps=60,codec='H.264',ballDiameterMm=67,
+def _ios_app_info():
+    invitation=os.getenv('TV_IOS_TESTFLIGHT_URL','').strip()
+    if not re.fullmatch(r'https://testflight\.apple\.com/join/[A-Za-z0-9]{8}',invitation):
+        invitation=None
+    return dict(version=IOS_APP_VERSION,minimumIOS='17.4',testFlightUrl=invitation,
+                sourceAvailable=IOS_PROJECT_ZIP.is_file(),sourceDownloadUrl='/api/mobile-camera/ios-project.zip',
+                ipaAvailable=IOS_IPA.is_file(),ipaDownloadUrl='/api/mobile-camera/ios.ipa',
+                ipaSizeBytes=IOS_IPA.stat().st_size if IOS_IPA.is_file() else None,
+                distribution='testflight' if invitation else 'altstore' if IOS_IPA.is_file() else 'xcode',
+                sizeBytes=IOS_PROJECT_ZIP.stat().st_size if IOS_PROJECT_ZIP.is_file() else None)
+
+
+def _phone_camera_preset(platform='android'):
+    return dict(name='iPhone · Tennis Vision' if platform=='ios' else 'Galaxy S25 Ultra · Tennis Vision',
+                host='127.0.0.1',port=8554,path='/iphone' if platform=='ios' else '/galaxy',
+                requestedFps=60,codec='H.264',ballDiameterMm=67,
                 dominantHand='right',courtOrientation='normal')
 
 
 @app.get('/api/mobile-camera/status')
-def phone_receiver_status():
-    return receiver_status()
+def phone_receiver_status(platform:Literal['android','ios']='android'):
+    return receiver_status(path='iphone') if platform=='ios' else receiver_status()
 
 
 @app.post('/api/mobile-camera/connect')
-def connect_phone():
+def connect_phone(platform:Literal['android','ios']='android'):
     # Connecting the publisher to SRT is only the first half of the connection.
     # Reuse the saved camera and start analysis explicitly in one UI action.
     with control_lock:
-        preset=_phone_camera_preset()
+        preset=_phone_camera_preset(platform)
         camera=next((c for c in store.all('camera') if
                      (c.get('host'),c.get('port'),c.get('path'))==
                      (preset['host'],preset['port'],preset['path'])),None)
@@ -248,11 +266,11 @@ def connect_phone():
             if camera and camera['id'] in ids:
                 return dict(camera=public_camera(camera),session=pipeline.session,alreadyRunning=True)
             raise HTTPException(409,'Há outra sessão ativa. Encerre-a ou adicione o celular ao iniciar a próxima sessão.')
-        if not receiver_status()['streamReady']:
+        if not phone_receiver_status(platform)['streamReady']:
             raise HTTPException(409,'O PC ainda não recebeu vídeo. Toque em Transmitir para o PC no celular e confira o pareamento.')
         if camera is None:
             camera=add_camera(CameraInput(**preset))
-        session=_start(SessionInput(name='Treino · Galaxy',cameraId=camera['id']))
+        session=_start(SessionInput(name='Treino · iPhone' if platform=='ios' else 'Treino · Galaxy',cameraId=camera['id']))
         return dict(camera=public_camera(camera),session=session,alreadyRunning=False)
 
 
@@ -262,6 +280,20 @@ def download_android_app():
         raise HTTPException(404,'O APK Android ainda não foi gerado neste computador.')
     return FileResponse(ANDROID_APK,media_type='application/vnd.android.package-archive',
                         filename=ANDROID_APK.name)
+
+
+@app.get('/api/mobile-camera/ios-project.zip')
+def download_ios_project():
+    if not IOS_PROJECT_ZIP.is_file():
+        raise HTTPException(404,'O projeto iOS ainda não foi empacotado nesta cópia. Ele precisa do Xcode no Mac para instalação.')
+    return FileResponse(IOS_PROJECT_ZIP,media_type='application/zip',filename=IOS_PROJECT_ZIP.name)
+
+
+@app.get('/api/mobile-camera/ios.ipa')
+def download_ios_app():
+    if not IOS_IPA.is_file():
+        raise HTTPException(404,'O app iOS ainda não foi empacotado nesta cópia. A instalação pelo Windows usa AltStore Classic.')
+    return FileResponse(IOS_IPA,media_type='application/octet-stream',filename=IOS_IPA.name)
 
 
 @app.post('/api/cameras')

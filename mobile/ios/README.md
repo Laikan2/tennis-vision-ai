@@ -6,6 +6,18 @@ Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. A câmera traseira transmi
 
 Este pacote é um **projeto Xcode**, não um instalador de iPhone. O GitHub compila para iPhone sem assinatura, executa os testes de protocolo, verifica o transporte contra MediaMTX e compila/abre o simulador. Uma compilação sem assinatura não pode ser instalada diretamente no iPhone.
 
+### Tenho somente Windows
+
+Use o arquivo separado **Tennis-Vision-Camera-iOS-v0.1.0-AltStore.ipa**, disponível no painel Windows em **Conectar celular → iPhone / iOS** e na página de versões do projeto. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic.
+
+1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Você informa sua conta Apple diretamente no AltServer.
+2. Coloque o `.ipa` no app Arquivos do iPhone. Com o AltServer aberto no PC e o iPhone conectado, use **AltStore Classic → My Apps → +** para selecionar o arquivo.
+3. Use **My Apps → Refresh All** antes de 7 dias. Uma conta Apple gratuita permite esse teste, com renovação semanal; não é preciso comprar um Mac nem uma assinatura Apple Developer.
+
+O IPA não instala apenas tocando nele no Safari. AltStore Classic e TestFlight são caminhos diferentes. O aplicativo ainda não está publicado no TestFlight ou App Store. A instalação pessoal e a câmera ainda precisam ser conferidas no seu aparelho.
+
+### Instalar pelo Xcode no Mac
+
 Para instalar no seu próprio iPhone:
 
 1. No Mac, instale o Xcode e descompacte este projeto.

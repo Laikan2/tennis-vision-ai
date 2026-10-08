@@ -52,6 +52,10 @@ def prepare_state(state, resources, project=None):
     # let directory enumeration silently offer an older mobile application.
     apk = max((Path(resources) / 'android').glob('*.apk'), key=apk_version, default=None)
     if apk: os.environ['TV_ANDROID_APK_PATH'] = str(apk)
+    ios_project=next((Path(resources)/'ios').glob('*iOS*Projeto.zip'),None)
+    if ios_project: os.environ['TV_IOS_PROJECT_PATH']=str(ios_project)
+    ios_ipa=next((Path(resources)/'ios').glob('*iOS*AltStore.ipa'),None)
+    if ios_ipa: os.environ['TV_IOS_IPA_PATH']=str(ios_ipa)
     return data
 
 

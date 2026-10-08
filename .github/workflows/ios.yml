@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'mobile/ios/**'
+      - 'scripts/package-ios-ipa.py'
       - '.github/workflows/ios.yml'
   workflow_dispatch:
 permissions:
@@ -28,6 +29,8 @@ jobs:
         run: xcodebuild -project mobile/ios/TennisVisionCamera.xcodeproj -scheme TennisVisionCamera -configuration Release -destination 'generic/platform=iOS' -derivedDataPath mobile/ios/DerivedData/device CODE_SIGNING_ALLOWED=NO build | tee /tmp/ios-device-build.log
       - name: Build for simulator
         run: xcodebuild -project mobile/ios/TennisVisionCamera.xcodeproj -scheme TennisVisionCamera -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath mobile/ios/DerivedData/simulator CODE_SIGNING_ALLOWED=NO build | tee /tmp/ios-simulator-build.log
+      - name: Package IPA for personal signing on Windows
+        run: python3 scripts/package-ios-ipa.py --app mobile/ios/DerivedData/device/Build/Products/Release-iphoneos/TennisVisionCamera.app
       - name: Receiver integration
         run: |
           set -euo pipefail
@@ -78,4 +81,6 @@ jobs:
           path: |
             /tmp/ios-*.log
             /tmp/ios-simulator.png
+            mobile/releases/*iOS*.ipa
+            mobile/releases/*iOS*.json
             mobile/ios/DerivedData/device/Build/Products/Release-iphoneos/TennisVisionCamera.app

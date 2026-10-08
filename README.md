@@ -4,7 +4,9 @@ MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.j
 
 ## Aplicativos prontos
 
-Windows **0.6.6** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.6). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md), a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md) e os [testes e correções de IN/OUT](docs/inout-testes-2026-10-06.md).
+Windows **0.6.7** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.7). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md), a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md) e os [testes e correções de IN/OUT](docs/inout-testes-2026-10-06.md).
+
+O aplicativo nativo para **iPhone, versão 0.1.0**, está compilado para instalação pessoal pelo **AltStore Classic no Windows**, usando sua conta Apple gratuita e renovação a cada 7 dias. **Conectar celular → iPhone / iOS** oferece o `.ipa`, QR de pareamento e instruções. O projeto Xcode também está disponível em `mobile/ios`. Ainda não há distribuição pelo TestFlight ou App Store. Consulte [instalação, custos e validação iOS](docs/iphone.md).
 
 ## Executar no Windows
 

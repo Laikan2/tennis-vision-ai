@@ -24,6 +24,8 @@ mobile/ios/DerivedData/
 mobile/ios/**/xcuserdata/
 mobile/ios/*.xcarchive/
 mobile/releases/*iOS*.zip
+mobile/releases/*iOS*.ipa
+mobile/releases/*iOS*.json
 work-rootencoder/
 frontend/out/
 desktop/build/

@@ -1,0 +1,68 @@
+# Tennis Vision Camera no iPhone
+
+O aplicativo iOS 0.1.0 usa SwiftUI, AVFoundation e H.264 por hardware para enviar a câmera traseira ao Tennis Vision Studio 0.6.7 no Windows. A análise da bola verde, impactos, IN/OUT e estatísticas continua no computador. O aplicativo nativo dispensa Larix e certificados HTTPS locais.
+
+## Como instalar agora
+
+**Ainda não existe um link TestFlight ou App Store.** Há duas opções: o `.ipa` compilado para assinatura pessoal pelo AltStore Classic no Windows, ou o projeto Xcode para Mac.
+
+### Somente Windows e iPhone
+
+1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Conecte o iPhone por USB. Você informa sua conta Apple diretamente no AltServer.
+2. No Studio, escolha **Conectar celular → iPhone / iOS → Baixar app para AltStore (.ipa)**. Também há download na [versão 0.6.7](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.7).
+3. Coloque o arquivo `Tennis-Vision-Camera-iOS-v0.1.0-AltStore.ipa` no app **Arquivos** do iPhone. Com AltServer aberto no PC, use **AltStore Classic → My Apps → +** e selecione o arquivo.
+4. Renove em **My Apps → Refresh All** antes de 7 dias. Mantenha AltServer disponível no PC. Sem renovação, o app para de abrir até ser assinado novamente.
+
+Não é necessário comprar um Mac ou uma conta de desenvolvedor paga. O arquivo é uma compilação sem assinatura, preparada para esse processo; tocá-lo no Safari não instala. O pacote não contém sua conta Apple, certificados pessoais ou pareamento. A instalação no iPhone físico ainda depende de você concluir a assinatura no AltStore.
+
+### Com Mac e Xcode
+
+O ZIP `Tennis-Vision-Camera-iOS-v0.1.0-Projeto.zip` contém o código e o projeto, não um instalador de iPhone. Está disponível nas instruções de instalação do painel.
+
+1. Em um Mac, instale o Xcode e descompacte o ZIP.
+2. Abra `TennisVisionCamera.xcodeproj`.
+3. Em **Xcode → Settings → Accounts**, adicione sua conta Apple.
+4. Em **TennisVisionCamera → Signing & Capabilities**, selecione sua equipe e mantenha **Automatically manage signing**. Use um Bundle Identifier próprio se necessário.
+5. Conecte o iPhone por USB, confie no Mac e ative o Modo de Desenvolvedor quando solicitado.
+6. Selecione o iPhone como destino e clique em **Run**.
+
+Requer iOS 17.4 ou posterior. O Windows não oferece o Xcode; AltStore Classic permite assinatura pessoal no Windows.
+
+## Preciso pagar?
+
+Baixar um app gratuito ou receber um teste gratuito pelo TestFlight não exige que você compre uma assinatura de desenvolvedor. Para testar este projeto no seu próprio iPhone pelo Xcode, uma conta Apple gratuita permite instalação pessoal; os perfis expiram após **7 dias**, exigindo recompilar e reinstalar.
+
+No AltStore Classic, uma conta gratuita também exige renovação a cada 7 dias. Consulte os [limites do AltStore](https://faq.altstore.io/altstore-classic/your-altstore).
+
+Para publicar pelo TestFlight ou App Store, o responsável pelo aplicativo precisa do **Apple Developer Program: US$ 99 por ano, ou valor local onde disponível**, além de configurar assinatura e distribuição. A conta gratuita não permite essa distribuição. [Comparação oficial de contas Apple](https://developer.apple.com/support/compare-memberships/).
+
+## Parear com o Windows
+
+1. No PC, abra **Conectar celular → iPhone / iOS**.
+2. Mantenha ambos na mesma rede Wi-Fi. Use **Preparar rede do PC** caso o firewall bloqueie o receptor local.
+3. No iPhone, permita **Câmera** e **Rede local**.
+4. Leia o QR iPhone. Ele informa o IP do PC, transporte RTSP, porta **8554** e caminho **iphone**.
+5. Toque em **Transmitir ao Windows**. No PC, espere **Vídeo recebido** e clique em **Conectar e iniciar vídeo**.
+
+O QR Android usa SRT e caminho `galaxy`. O app iPhone explica quando um QR de outra plataforma é lido. Para duas câmeras, cadastre ambas e selecione as duas na nova sessão. Câmeras, áreas e credenciais salvas são reutilizadas.
+
+## Captura e controles
+
+- Padrão solicitado: **1080p, 60 FPS e 12 Mbps**, sem áudio. O microfone não é acessado.
+- Resolução e 30/60/120/240 FPS são oferecidos conforme os formatos realmente anunciados pela câmera. A câmera e o codificador precisam suportar juntos o perfil escolhido. Uma falha não muda silenciosamente o perfil para 60 FPS.
+- O app mostra FPS de captura, codificação e envio, bitrate, descartes e temperatura. Taxa enviada não mede a taxa de análise no PC.
+- Foco por toque/trava, exposição curta quando suportada, lanterna, grade e tela cheia ajudam a enquadrar a bola e reduzir borrão.
+- A fila de rede é limitada a 8 quadros, 2 MB e 80 ms. Após descarte, o envio aguarda um quadro-chave. Escrita parada por um segundo aciona reconexão; as tentativas são limitadas.
+- O leitor QR para a prévia antes de usar a câmera. A transmissão e a câmera param em segundo plano.
+
+## Validação realizada em 08/10/2026
+
+- **23 testes do núcleo iOS** passaram, incluindo pareamento, protocolo RTSP, fragmentação H.264/RTP, descarte e taxas.
+- **7 testes do empacotamento IPA** verificam o binário arm64 para iPhone, permissões, versão, integridade e ausência de perfis pessoais. Rejeitam compilação de simulador, executável criptografado e caminhos fora do pacote.
+- O GitHub compilou o aplicativo para iPhone **sem assinatura** e para simulador. O simulador abriu a interface; ele não fornece uma câmera física.
+- Um teste sintético no Mac publicou **300 quadros** H.264 no MediaMTX local. O FFmpeg recebeu e decodificou **60 quadros sem erro**. O teste de transporte admite codificação por software; o app exige hardware.
+- A execução completa está no [GitHub Actions](https://github.com/Laikan2/tennis-vision-ai/actions/runs/37809459809), no repositório privado.
+- Os testes do backend, programa Windows e painel passaram. O Windows 0.6.7 compilado abriu com motor e receptor integrados, decodificação de vídeo habilitada e ponte do painel pronta. Neste teste, a inicialização até o relatório levou **7,8 s**; isso não é latência da câmera.
+- O download do projeto pela API do programa compilado correspondeu ao ZIP testado, por SHA-256. Os caminhos Android/iPhone foram conferidos separadamente. O teste do Windows usou dados isolados e não executou o instalador sobre os dados existentes.
+
+**Ainda depende de teste físico:** instalação pelo AltStore, câmera do iPhone 15 Pro, leitura do QR por câmera, foco/exposição, H.264 sustentado em 120/240 FPS, rede, temperatura e latência do sensor até a tela. A assinatura pessoal é feita no AltStore; a distribuição pelo TestFlight continua pendente. A validação de transporte não comprova a precisão física de impactos, velocidade ou decisões IN/OUT.

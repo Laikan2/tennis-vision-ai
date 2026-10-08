@@ -2,6 +2,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
 $mediaPath = (Resolve-Path (Join-Path $projectRoot 'tools\mediamtx\mediamtx.exe')).Path
 $rules = @(
+    @{ Name = 'Tennis Vision Camera - iOS RTSP'; Protocol = 'TCP'; Ports = '8554' },
     @{ Name = 'Tennis Vision Camera - WebRTC'; Protocol = 'TCP'; Ports = '8889' },
     @{ Name = 'Tennis Vision Camera - WebRTC Media'; Protocol = 'UDP'; Ports = '8189' },
     @{ Name = 'Tennis Vision Camera - MoQ HTTPS'; Protocol = 'TCP'; Ports = '8892' },

@@ -49,6 +49,9 @@ Câmeras, áreas, sessões e credenciais locais são preservadas. O instalador i
     $releaseAssets = @($releaseFiles.files)
     $android = Join-Path $studioRoot "mobile\releases\Tennis-Vision-Camera-Android-v$androidVersion.apk"
     if (Test-Path -LiteralPath $android) { $releaseAssets += $android }
+    $iosVersion = [regex]::Match((Get-Content -LiteralPath (Join-Path $studioRoot 'mobile\ios\project.py') -Raw), '"MARKETING_VERSION": "([0-9.]+)"').Groups[1].Value
+    $iosIpa = Join-Path $studioRoot "mobile\releases\Tennis-Vision-Camera-iOS-v$iosVersion-AltStore.ipa"
+    if (Test-Path -LiteralPath $iosIpa) { $releaseAssets += $iosIpa }
     & $releaseGh release upload $releaseTag --repo $releaseRepo @releaseAssets
     if ($LASTEXITCODE) { throw 'O envio falhou. A versão permanece em rascunho e não será oferecida aos programas instalados.' }
     $remote = & $releaseGh release view $releaseTag --repo $releaseRepo --json assets

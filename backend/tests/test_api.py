@@ -202,16 +202,21 @@ def test_room_calibration_accepts_two_known_points(client):
     assert response.json()['mode'] == 'room'
 
 
-def test_synchronized_preview_keeps_encoded_frame_resolution_after_camera_reconnect(client):
+def test_synchronized_preview_keeps_encoded_frame_resolution_after_camera_reconnect(client, monkeypatch):
     import time
     import cv2
     import numpy as np
     from types import SimpleNamespace
     from backend import api
+    # This test concerns resolution after reconnect, not wall-clock freshness.
+    # Keep the frame fresh even if the first JPEG encode or a busy CI host takes
+    # more than two seconds. Freshness rejection has separate regression tests.
+    frame_time = time.time()
+    monkeypatch.setattr(api, 'time', SimpleNamespace(time=lambda: frame_time))
     worker = api.pipeline
     worker.session = dict(id='resolution-test', name='test')
     worker.capture = SimpleNamespace(resolution=[1920,1080], stop=lambda: None)
-    worker.state = worker.frame_state = dict(timestamp=time.time(), sequence=1, resolution=[640,480])
+    worker.state = worker.frame_state = dict(timestamp=frame_time, sequence=1, resolution=[640,480])
     ok, encoded = cv2.imencode('.jpg', np.zeros((480,640,3), np.uint8))
     assert ok
     worker.jpeg = encoded.tobytes()

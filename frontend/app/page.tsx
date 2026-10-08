@@ -59,6 +59,7 @@ type PhoneReceiverStatus = {
   message: string;
 };
 type PhoneCameraInfo = {
+  platform: "android" | "ios";
   available: boolean;
   localIp: string | null;
   path: string;
@@ -71,6 +72,18 @@ type PhoneCameraInfo = {
     version: string;
     downloadUrl: string;
     sizeBytes: number | null;
+  };
+  iosApp: {
+    version: string;
+    minimumIOS: string;
+    distribution: "xcode" | "testflight" | "altstore";
+    testFlightUrl: string | null;
+    sourceAvailable: boolean;
+    sourceDownloadUrl: string;
+    sizeBytes: number | null;
+    ipaAvailable: boolean;
+    ipaDownloadUrl: string;
+    ipaSizeBytes: number | null;
   };
   receiverUrl: string;
   cameraPreset: {
@@ -163,13 +176,13 @@ export default function Page() {
   const [reviewRevision,setReviewRevision]=useState(0);
   const [phoneReceiver, setPhoneReceiver] = useState<PhoneReceiverStatus | null>(null);
   useEffect(() => {
-    if (modal !== "phone") return;
+    if (modal !== "phone" || !phoneInfo) return;
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;
     setPhoneReceiver(null);
     const check = async () => {
       try {
-        const result = await api<PhoneReceiverStatus>("/mobile-camera/status");
+        const result = await api<PhoneReceiverStatus>("/mobile-camera/status?platform=" + phoneInfo.platform);
         if (alive) setPhoneReceiver(result);
       } catch {
         if (alive) setPhoneReceiver({ receiverAvailable: false, streamReady: false, announcedFps: null,
@@ -180,7 +193,7 @@ export default function Page() {
     };
     void check();
     return () => { alive = false; clearTimeout(timer); };
-  }, [modal]);
+  }, [modal, phoneInfo?.platform]);
   const [preferencesReady, setPreferencesReady] = useState(false);
   const refreshing = useRef(false);
   const [selectedCameraIds, setSelectedCameraIds] = useState<string[]>([]);
@@ -306,10 +319,10 @@ export default function Page() {
       setBusy(false);
     }
   }
-  async function openPhoneSetup() {
+  async function openPhoneSetup(platform: "android" | "ios" = phoneInfo?.platform ?? "android") {
     setBusy(true);
     try {
-      const info = await api<PhoneCameraInfo>("/mobile-camera");
+      const info = await api<PhoneCameraInfo>("/mobile-camera?platform=" + platform);
       setPhoneInfo(info);
       setModal("phone");
     } catch (error) {
@@ -347,8 +360,9 @@ export default function Page() {
     }, "Câmera do celular adicionada. Abra a transmissão e inicie a sessão.");
   }
   async function connectPhoneCamera() {
+    if (!phoneInfo) return;
     await act(async () => {
-      const result = await api<{ camera: Camera; session: Session }>("/mobile-camera/connect", {});
+      const result = await api<{ camera: Camera; session: Session }>("/mobile-camera/connect?platform=" + phoneInfo.platform, {});
       setCameraId(result.camera.id);
       setSelectedCameraIds(result.session.cameraIds ?? [result.camera.id]);
       setModal(null);
@@ -1414,7 +1428,7 @@ export default function Page() {
                     <strong>Câmera Tennis Vision</strong>
                     <p>Use o aplicativo Android e leia o QR para transmitir ao PC.</p>
                   </div>
-                  <button type="button" onClick={openPhoneSetup} disabled={busy}>
+                  <button type="button" onClick={() => void openPhoneSetup()} disabled={busy}>
                     Preparar <ChevronRight size={15} />
                   </button>
                 </div>
@@ -1505,7 +1519,7 @@ export default function Page() {
                   Credenciais são enviadas apenas ao backend local e
                   criptografadas. Deixe em branco se a câmera não exigir
                   autenticação; elas não são retornadas na configuração. Para
-                  o iPhone, use H.264, 1080p, 60 fps e 10–16 Mbps no Larix.
+                  o iPhone, escolha Conectar celular → iPhone / iOS para parear o aplicativo nativo.
                 </p>
                 <button className="primary" disabled={busy}>
                   {busy ? "Salvando…" : "Salvar câmera"}
@@ -1514,11 +1528,17 @@ export default function Page() {
             )}
             {modal === "phone" && phoneInfo && (
               <section className="phone-camera-setup">
+                <div className="phone-platform-switch" role="group" aria-label="Sistema do celular">
+                  <button type="button" aria-pressed={phoneInfo.platform === "android"} disabled={busy}
+                    onClick={() => void openPhoneSetup("android")}><Smartphone size={16} /> Android</button>
+                  <button type="button" aria-pressed={phoneInfo.platform === "ios"} disabled={busy}
+                    onClick={() => void openPhoneSetup("ios")}><Smartphone size={16} /> iPhone / iOS</button>
+                </div>
                 <div className="phone-camera-lead phone-camera-lead--native">
                   <div>
-                    <span className="eyebrow"><Smartphone size={13} /> APLICATIVO ANDROID</span>
+                    <span className="eyebrow"><Smartphone size={13} /> {phoneInfo.platform === "ios" ? "APLICATIVO PARA IPHONE" : "APLICATIVO ANDROID"}</span>
                     <h3>Aponte, leia o QR e comece a transmitir.</h3>
-                    <p>O app Tennis Vision Camera envia H.264 por SRT direto ao computador. Não precisa de conta, Larix ou nuvem.</p>
+                    <p>O app Tennis Vision Camera envia H.264 por {phoneInfo.platform === "ios" ? "RTSP / TCP" : "SRT"} direto ao computador. A câmera nativa dispensa Larix e transmissão pela nuvem.</p>
                   </div>
                   <div className="phone-camera-qr" aria-label="QR code de pareamento do aplicativo">
                     {phoneInfo.available ? (
@@ -1533,7 +1553,31 @@ export default function Page() {
                   <p className="error">Não encontrei o IP da rede. Conecte o computador ao Wi-Fi ou configure TV_LAN_IP no arquivo .env.</p>
                 )}
 
-                <div className="phone-app-download">
+                {phoneInfo.platform === "ios" ? (
+                  <div className="phone-app-download phone-app-download--ios">
+                    <div>
+                      <b>Tennis Vision Camera · iOS {phoneInfo.iosApp.version}</b>
+                      <p>{phoneInfo.iosApp.testFlightUrl
+                        ? "Instale pelo TestFlight no iPhone. Requer iOS " + phoneInfo.iosApp.minimumIOS + " ou posterior."
+                        : phoneInfo.iosApp.ipaAvailable
+                          ? "Instale pelo Windows com AltStore Classic e sua conta Apple gratuita. O arquivo .ipa precisa dessa assinatura; baixar no Safari sozinho não instala. Renove a cada 7 dias. Requer iOS " + phoneInfo.iosApp.minimumIOS + "+."
+                          : "Versão nativa preparada para iOS " + phoneInfo.iosApp.minimumIOS + "+. Esta cópia oferece o projeto para Xcode no Mac. Ainda não há TestFlight ou App Store."}</p>
+                    </div>
+                    {phoneInfo.iosApp.testFlightUrl ? (
+                      <a className="phone-download-button" href={phoneInfo.iosApp.testFlightUrl} target="_blank" rel="noreferrer">
+                        <ArrowUpRight size={16} /> Abrir TestFlight
+                      </a>
+                    ) : phoneInfo.iosApp.ipaAvailable ? (
+                      <a className="phone-download-button" href={phoneInfo.iosApp.ipaDownloadUrl} download>
+                        <ArrowDownToLine size={16} /> Baixar app para AltStore (.ipa)
+                      </a>
+                    ) : phoneInfo.iosApp.sourceAvailable ? (
+                      <a className="phone-download-button" href={phoneInfo.iosApp.sourceDownloadUrl} download>
+                        <ArrowDownToLine size={16} /> Projeto para Xcode
+                      </a>
+                    ) : <span className="inline-note">Projeto iOS indisponível nesta cópia.</span>}
+                  </div>
+                ) : <div className="phone-app-download">
                   <div>
                     <b>Tennis Vision Camera · Android {phoneInfo.androidApp.version}</b>
                     <p>Baixe no PC e envie o APK ao Galaxy por USB ou Quick Share. Abra o arquivo no celular para instalar.</p>
@@ -1545,12 +1589,34 @@ export default function Page() {
                   ) : (
                     <span className="inline-note">APK indisponível nesta cópia do projeto.</span>
                   )}
-                </div>
+                </div>}
+
+                {phoneInfo.platform === "ios" && !phoneInfo.iosApp.testFlightUrl && (
+                  <details className="phone-browser-fallback">
+                    <summary>Como instalar a versão nativa no iPhone</summary>
+                    {phoneInfo.iosApp.ipaAvailable && <>
+                      <p>No Windows, instale <a href="https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows" target="_blank" rel="noreferrer">AltServer e AltStore Classic seguindo o guia oficial</a>. Conecte o iPhone por USB. Você informa sua conta Apple diretamente no AltServer.</p>
+                      <ol className="phone-steps">
+                        <li>Baixe o <b>.ipa</b> acima e coloque o arquivo no app <b>Arquivos</b> do iPhone.</li>
+                        <li>Com o AltServer aberto no PC, use <b>AltStore Classic → My Apps → +</b> para selecionar o arquivo.</li>
+                        <li>Renove em <b>My Apps → Refresh All</b> antes de 7 dias. Sem renovação, o app para de abrir até ser assinado novamente.</li>
+                      </ol>
+                    </>}
+                    <p><b>Alternativa com Mac:</b> compilar o projeto no Xcode.</p>
+                    <ol className="phone-steps">
+                      <li>No Mac, instale o Xcode e extraia o projeto. Abra <b>TennisVisionCamera.xcodeproj</b>.</li>
+                      <li>Em <b>Signing &amp; Capabilities</b>, escolha sua conta Apple e mantenha a assinatura automática.</li>
+                      <li>Conecte o iPhone por USB, ative o Modo de Desenvolvedor quando solicitado, selecione o aparelho no Xcode e clique em <b>Run</b>.</li>
+                      <li>Para instalar pelo TestFlight, a distribuição ainda precisa de assinatura e configuração na sua conta Apple Developer.</li>
+                    </ol>
+                    {phoneInfo.iosApp.sourceAvailable && <a href={phoneInfo.iosApp.sourceDownloadUrl} download>Baixar projeto para Xcode</a>}
+                  </details>
+                )}
 
                 <ol className="phone-steps">
-                  <li><b>Uma vez:</b> instale o Tennis Vision Camera no Galaxy. Mantenha o PC e o celular na mesma rede. <DesktopNetworkSetup browserInstructions /></li>
-                  <li>Abra o app, toque em <b>Ler QR do computador</b> e leia o código acima.</li>
-                  <li>Em <b>Captura</b>, escolha a qualidade. Em <b>Rede</b>, comece com <b>Mínimo atraso</b>. Toque em <b>Transmitir para o PC</b>.</li>
+                  <li><b>Uma vez:</b> instale o Tennis Vision Camera no {phoneInfo.platform === "ios" ? "iPhone" : "Galaxy"}. Mantenha o PC e o celular na mesma rede. <DesktopNetworkSetup browserInstructions /></li>
+                  <li>Abra o app, toque em <b>{phoneInfo.platform === "ios" ? "Ler QR do Windows" : "Ler QR do computador"}</b> e leia o código acima. {phoneInfo.platform === "ios" && "Permita Câmera e Rede local no iPhone."}</li>
+                  <li>Em <b>Captura</b>, escolha a qualidade. {phoneInfo.platform === "android" && <>Em <b>Rede</b>, comece com <b>Mínimo atraso</b>. </>}Toque em <b>{phoneInfo.platform === "ios" ? "Transmitir ao Windows" : "Transmitir para o PC"}</b>.</li>
                   <li>Quando o estado abaixo mostrar <b>Vídeo recebido</b>, clique em <b>Conectar e iniciar vídeo</b>. O painel abre a imagem e inicia a sessão.</li>
                 </ol>
 
@@ -1582,23 +1648,27 @@ export default function Page() {
                 </div>
 
                 <div className="phone-app-tuning">
-                  <div><Gauge size={18} /><span><b>Bolas rápidas</b><small>Em Captura, ative “Congelar bola” e teste 1/1000 s com boa luz. Há zoom, foco e grade para enquadrar.</small></span></div>
-                  <div><Wifi size={18} /><span><b>Vídeo mais próximo do ao vivo</b><small>Em Rede, escolha Mínimo atraso. Se houver perdas no Wi-Fi, teste Equilibrado ou reduza a resolução.</small></span></div>
+                  <div><Gauge size={18} /><span><b>Bolas rápidas</b><small>{phoneInfo.platform === "ios"
+                    ? "Em Captura, teste a exposição 1/1000 s com boa luz. Toque na prévia para focar e use a grade para enquadrar."
+                    : "Em Captura, ative “Congelar bola” e teste 1/1000 s com boa luz. Há zoom, foco e grade para enquadrar."}</small></span></div>
+                  <div><Wifi size={18} /><span><b>Vídeo mais próximo do ao vivo</b><small>{phoneInfo.platform === "ios"
+                    ? "O envio mantém uma fila curta e descarta vídeo antigo. Prefira Wi-Fi 5/6 GHz e confira os FPS e descartes na aba Rede."
+                    : "Em Rede, escolha Mínimo atraso. Se houver perdas no Wi-Fi, teste Equilibrado ou reduza a resolução."}</small></span></div>
                 </div>
 
-                <p className="inline-note">120/240 fps aparecem somente com suporte da câmera e do H.264; nesses modos, foco e exposição são automáticos. Confira os FPS reais de captura, codificação e envio no app. O PC recebe a taxa enviada; a análise tem uma taxa própria. Mantenha o aplicativo aberto.</p>
+                <p className="inline-note">120/240 fps dependem do suporte da câmera e do H.264. {phoneInfo.platform === "android" && "No Android, nesses modos, foco e exposição são automáticos. "}Confira os FPS reais de captura, codificação e envio no app. O PC recebe a taxa enviada; a análise tem uma taxa própria. Mantenha o aplicativo aberto.</p>
 
                 <div className="phone-pipeline" aria-label="Caminho do vídeo até a análise">
-                  <span><Smartphone size={15} /><b>Galaxy</b><small>captura</small></span>
+                  <span><Smartphone size={15} /><b>{phoneInfo.platform === "ios" ? "iPhone" : "Galaxy"}</b><small>captura</small></span>
                   <i>→</i>
-                  <span><Wifi size={15} /><b>PC local</b><small>recebe SRT</small></span>
+                  <span><Wifi size={15} /><b>PC local</b><small>recebe {phoneInfo.platform === "ios" ? "RTSP" : "SRT"}</small></span>
                   <i>→</i>
                   <span><ScanLine size={15} /><b>IA</b><small>bola e impacto</small></span>
                   <i>→</i>
                   <span><Activity size={15} /><b>Painel</b><small>vídeo e dados</small></span>
                 </div>
 
-                <details className="phone-browser-fallback">
+                {phoneInfo.platform === "android" && <details className="phone-browser-fallback">
                   <summary>Usar pelo Chrome enquanto o aplicativo não estiver instalado</summary>
                   <div>
                     <div className="phone-camera-qr phone-camera-qr--small" aria-label="QR code do modo navegador">
@@ -1608,7 +1678,7 @@ export default function Page() {
                       Leia este QR no Galaxy, permita a câmera e toque em <b>publish</b>. O navegador pode entregar menos FPS e mais atraso que o aplicativo.
                     </p>
                   </div>
-                </details>
+                </details>}
 
                 <div className="phone-actions">
                   <button type="button" className="secondary" onClick={() => setModal("camera")}>Voltar</button>

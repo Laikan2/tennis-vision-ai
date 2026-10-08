@@ -46,3 +46,13 @@ android.mkdir(exist_ok=True)
 mobile_gradle = (ROOT / 'mobile/android/app/build.gradle.kts').read_text(encoding='utf-8')
 mobile_version = re.search(r'versionName\s*=\s*"(\d+\.\d+\.\d+)"', mobile_gradle).group(1)
 shutil.copy2(ROOT / 'mobile' / 'releases' / f'Tennis-Vision-Camera-Android-v{mobile_version}.apk', android)
+import runpy
+ios_project=runpy.run_path(str(ROOT/'scripts/package-ios.py'))['package_ios']()
+ios_bundle=ROOT/'desktop/build/ios'
+ios_bundle.mkdir(exist_ok=True)
+shutil.copy2(ios_project,ios_bundle/ios_project.name)
+ios_version=re.search(r'"MARKETING_VERSION": "([0-9.]+)"',(ROOT/'mobile/ios/project.py').read_text(encoding='utf-8')).group(1)
+ios_ipa=ROOT/'mobile/releases'/f'Tennis-Vision-Camera-iOS-v{ios_version}-AltStore.ipa'
+if ios_ipa.is_file():
+    runpy.run_path(str(ROOT/'scripts/package-ios-ipa.py'))['verify_ipa'](ios_ipa)
+    shutil.copy2(ios_ipa,ios_bundle/ios_ipa.name)

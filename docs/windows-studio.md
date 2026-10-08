@@ -1,22 +1,22 @@
-# Tennis Vision Studio · Windows 0.6.6
+# Tennis Vision Studio · Windows 0.6.7
 
-O instalador inclui o painel, Python, bibliotecas de visão, modelos, receptor MediaMTX e o aplicativo Android 0.5.6. No computador que recebe o instalador, não é necessário instalar Node ou Python para usar o programa.
+O instalador inclui o painel, Python, bibliotecas de visão, modelos, receptor MediaMTX, o aplicativo Android 0.5.6, o IPA para AltStore e o projeto Xcode do aplicativo iPhone 0.1.0. No computador que recebe o instalador, não é necessário instalar Node ou Python para usar o programa.
 
 Instale `Tennis-Vision-Camera-Android-v0.5.6.apk` sobre a versão anterior para manter o pareamento e ativar as atualizações do celular. Depois, o app Android consulta e baixa novas versões pelo GitHub; a instalação é confirmada no próprio celular em **Rede → Atualizações do aplicativo**. Consulte [android-updates.md](android-updates.md).
 
 ## Começar
 
-1. Instale `Tennis-Vision-Studio-0.6.6-Windows-x64.exe` e abra **Tennis Vision Studio** pelo atalho.
-2. Clique em **Conectar celular**. Baixe o aplicativo Android e instale no Galaxy.
+1. Instale `Tennis-Vision-Studio-0.6.7-Windows-x64.exe` e abra **Tennis Vision Studio** pelo atalho.
+2. Clique em **Conectar celular** e escolha **Android** ou **iPhone / iOS**. No Galaxy, baixe e instale o APK. No iPhone, baixe o `.ipa` e use AltStore Classic no Windows conforme [estas instruções](iphone.md).
 3. Clique em **Preparar rede do PC** uma vez, se necessário. O Windows solicita autorização; a regra permite o receptor apenas na rede privada local. PC e celular devem estar na mesma rede.
-4. No aplicativo Android, leia o QR, escolha a captura e toque em **Transmitir para o PC**.
+4. No aplicativo do celular, leia o QR correspondente à plataforma, escolha a captura e toque em **Transmitir para o PC** ou **Transmitir ao Windows**.
 5. Aguarde **Vídeo recebido** e clique em **Conectar e iniciar vídeo**. A câmera salva é reutilizada e a sessão começa. Para usar duas câmeras, use **Nova sessão** e selecione ambas. **Cadastrar para usar depois** somente salva a câmera.
 
-Para o iPhone, mantenha o transmissor compatível com RTSP/SRT já configurado. O APK é exclusivo do Android.
+O aplicativo nativo iPhone publica por RTSP/TCP em `/iphone`, porta 8554. O Android publica por SRT em `/galaxy`, porta 8890. Os caminhos são independentes, e a área continua salva em cada câmera. Um Larix já configurado em `/iphone` também continua compatível, mas só um aplicativo pode publicar nesse caminho por vez. O APK é exclusivo do Android. O IPA oferecido para iPhone precisa de assinatura pelo AltStore Classic; baixar no Safari sozinho não instala. Uma conta Apple gratuita exige renovação a cada 7 dias. O ZIP contém o projeto Xcode. Ainda não há link TestFlight ou App Store.
 
 ## Atualizações pelo GitHub
 
-Se a instalação for anterior a 0.6.0, instale o novo 0.6.6 uma vez para ativar esse recurso. Depois, o programa consulta as versões estáveis publicadas no repositório de instaladores ao abrir e a cada quatro horas. Ele baixa a atualização automaticamente quando não há sessão, análise de arquivo ou treinamento ativo, verifica o SHA-512 e instala silenciosamente ao fechar o programa. Sem internet, você pode continuar usando a análise local.
+Se a instalação for anterior a 0.6.0, instale o novo 0.6.7 uma vez para ativar esse recurso. Depois, o programa consulta as versões estáveis publicadas no repositório de instaladores ao abrir e a cada quatro horas. Ele baixa a atualização automaticamente quando não há sessão, análise de arquivo ou treinamento ativo, verifica o SHA-512 e instala silenciosamente ao fechar o programa. Sem internet, você pode continuar usando a análise local.
 
 Em **Configurações → Programa para Windows → Atualizações pelo GitHub**, acompanhe o download ou clique em **Buscar atualização**. Quando o arquivo estiver pronto, **Reiniciar para atualizar** instala e reabre; encerre a sessão antes de usar esse botão. Fechar normalmente instala sem reabrir.
 
