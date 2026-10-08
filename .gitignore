@@ -18,6 +18,12 @@ mobile/android/.kotlin/
 mobile/android/.idea/
 mobile/android/local.properties
 mobile/android/**/build/
+mobile/ios/.build/
+mobile/ios/.swiftpm/
+mobile/ios/DerivedData/
+mobile/ios/**/xcuserdata/
+mobile/ios/*.xcarchive/
+mobile/releases/*iOS*.zip
 work-rootencoder/
 frontend/out/
 desktop/build/
