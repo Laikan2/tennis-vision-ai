@@ -39,6 +39,8 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
     private var notifications=[NSObjectProtocol]()
     private var automatic=false
     private var profileHealth=ProfileHealth()
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var captureRotation=0
 
     override init() {
         super.init()
@@ -92,10 +94,17 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
                     throw CameraError.invalid("A câmera não oferece \(configuration.profile.label). Escolha um perfil detectado; a taxa não foi alterada.")
                 }
                 try self.applyProfile(configuration.profile)
-                let codec=try H264Encoder(profile:configuration.profile)
+                // Resolve gravity before starting the encoder. Never rotate a
+                // running stream: that would invalidate the PC's saved area.
+                let angle=CaptureGeometry.rightAngle(Double(self.rotationCoordinator?.videoRotationAngleForHorizonLevelCapture ?? 0))
+                if let connection=self.output.connection(with:.video), connection.isVideoRotationAngleSupported(CGFloat(angle)) {
+                    connection.videoRotationAngle=CGFloat(angle); self.captureRotation=angle
+                }
+                let codec=try H264Encoder(profile:configuration.profile,rotation:self.captureRotation)
                 let stream=RTSPPublisher()
                 let current=UUID(); self.generation=current
                 self.encoder=codec; self.publisher=stream; self.configuration=configuration
+                codec.onDiscontinuity = { [weak stream] in stream?.outbox.reset() }
                 self.captureMeter=FrameRateMeter(); self.encodeMeter=FrameRateMeter(); self.sentMeter=FrameRateMeter()
                 self.startedAt=ProcessInfo.processInfo.systemUptime; self.lastCaptured=0; self.lastEncoded=0
                 self.lastReport=self.startedAt; self.bytesSinceReport=0
@@ -235,6 +244,7 @@ final class CameraController: NSObject, AVCaptureVideoDataOutputSampleBufferDele
             connection.automaticallyAdjustsVideoMirroring=false; connection.isVideoMirrored=false
         }
         device=camera
+        rotationCoordinator=AVCaptureDevice.RotationCoordinator(device:camera,previewLayer:nil)
         snapshot.cameraName=camera.localizedName
         snapshot.profiles=profiles.sorted { $0.fps == $1.fps ? $0.height > $1.height : $0.fps < $1.fps }
         snapshot.torchAvailable=camera.hasTorch; snapshot.thermal=thermalText()

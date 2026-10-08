@@ -118,7 +118,7 @@ struct ContentView: View {
                 Text("SEU ESTÚDIO EM MOVIMENTO").font(.subheadline).foregroundStyle(Palette.muted)
             }
             Spacer()
-            Text(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.0")
+            Text(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.1")
                 .font(.caption.monospaced()).foregroundStyle(Palette.muted)
         }
     }

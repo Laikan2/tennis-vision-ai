@@ -29,7 +29,12 @@ import WebKit
         request.timeoutInterval=12
         webView.load(request)
     }
+    func disconnect() {
+        identity=""; origin=nil; loading=true; error=nil
+        webView.stopLoading(); webView.loadHTMLString("",baseURL:nil)
+    }
     func webView(_ view: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy)->Void) {
+        if identity.isEmpty && action.request.url?.absoluteString == "about:blank" { decisionHandler(.allow); return }
         guard let url=action.request.url, let origin,
               url.scheme == origin.scheme, url.host == origin.host, url.port == origin.port else {
             decisionHandler(.cancel); return
@@ -59,10 +64,11 @@ private struct PanelWebView: UIViewRepresentable {
     let state: PanelState
     let configuration: PairingConfiguration
     let revision: Int
+    func makeCoordinator() -> PanelState { state }
     func makeUIView(context: Context) -> WKWebView { state.webView }
     func updateUIView(_ view: WKWebView, context: Context) { state.connect(configuration,revision:revision) }
-    static func dismantleUIView(_ view: WKWebView, coordinator: ()) {
-        view.stopLoading(); view.loadHTMLString("",baseURL:nil)
+    static func dismantleUIView(_ view: WKWebView, coordinator: PanelState) {
+        coordinator.disconnect()
     }
 }
 struct DashboardView: View {

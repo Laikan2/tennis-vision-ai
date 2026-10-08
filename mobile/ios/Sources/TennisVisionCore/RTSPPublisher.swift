@@ -150,7 +150,9 @@ public final class RTSPPublisher {
         let stamp: UInt32
         do { stamp=try RTPPacketizer.timestamp(pts:frame.pts,origin:origin!) }
         catch { fail(error.localizedDescription); return }
-        let headers = frame.keyframe ? [sps,pps] : []
+        // VideoToolbox may refresh parameter sets. A recovered IDR must carry
+        // the sets from that access unit, not the first frame of the session.
+        let headers = frame.keyframe ? [frame.sps.isEmpty ? sps : frame.sps, frame.pps.isEmpty ? pps : frame.pps] : []
         let data=RTPPacketizer.interleave(packetizer.packets(nals:headers+frame.nals,timestamp:stamp))
         sending=true; sendStarted=ProcessInfo.processInfo.systemUptime
         let current=generation

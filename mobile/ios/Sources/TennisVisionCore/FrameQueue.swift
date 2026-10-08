@@ -12,6 +12,7 @@ public final class FrameQueue {
     private var waiting = true
     private var dropped = 0
     private var byteCount = 0
+    private var lastPTS: Double?
     public let maxFrames: Int
     public let maxAge: Double
     public let maxBytes: Int
@@ -22,11 +23,12 @@ public final class FrameQueue {
     public var count: Int { lock.lock(); defer{lock.unlock()}; return frames.count }
     public var needsKeyframe: Bool { lock.lock(); defer{lock.unlock()}; return waiting }
     public func reset() {
-        lock.lock(); defer{lock.unlock()}; frames.removeAll(); byteCount=0; waiting=true
+        lock.lock(); defer{lock.unlock()}; frames.removeAll(); byteCount=0; waiting=true; lastPTS=nil
     }
     public func offer(_ frame: EncodedFrame) -> QueueOffer {
         lock.lock(); defer{lock.unlock()}
-        guard frame.pts.isFinite, frame.createdAt.isFinite, !frame.nals.isEmpty, frame.bytes <= maxBytes else {
+        guard frame.pts.isFinite, frame.createdAt.isFinite, !frame.nals.isEmpty, frame.bytes <= maxBytes,
+              lastPTS.map({frame.pts > $0}) ?? true else {
             dropped += frames.count+1; frames.removeAll(); byteCount=0; waiting=true
             return QueueOffer(accepted:false,needsKeyframe:true)
         }
@@ -35,7 +37,7 @@ public final class FrameQueue {
             dropped += frames.count; frames.removeAll(); byteCount=0; waiting=true
         }
         if waiting && !frame.keyframe { dropped += 1; return QueueOffer(accepted:false,needsKeyframe:true) }
-        waiting=false; frames.append(frame); byteCount+=frame.bytes
+        waiting=false; lastPTS=frame.pts; frames.append(frame); byteCount+=frame.bytes
         return QueueOffer(accepted:true,needsKeyframe:false)
     }
     public func take(now: Double) -> EncodedFrame? {

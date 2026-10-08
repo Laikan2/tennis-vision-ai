@@ -154,6 +154,36 @@ final class QueueTests: XCTestCase {
         XCTAssertTrue(queue.needsKeyframe)
         XCTAssertFalse(queue.offer(frame(1.1)).accepted)
     }
+    func testOutOfOrderEncodedFrameCannotCorruptReferenceChain() {
+        let queue=FrameQueue()
+        _=queue.offer(frame(1,key:true)); _=queue.take(now:1.01)
+        XCTAssertTrue(queue.offer(frame(1.04)).accepted)
+        XCTAssertFalse(queue.offer(frame(1.02)).accepted)
+        XCTAssertNil(queue.take(now:1.05))
+        XCTAssertFalse(queue.offer(frame(1.06)).accepted)
+        XCTAssertTrue(queue.offer(frame(1.08,key:true)).accepted)
+        XCTAssertEqual(queue.take(now:1.09)?.pts,1.08)
+    }
+    func testSustainedHighRateAndStallsResumeOnlyWithIDR() {
+        for fps in [60,120,240] {
+            let queue=FrameQueue()
+            var needsIDR=true,received=0
+            for index in 0..<(fps*3) {
+                let now=Double(index)/Double(fps)
+                let result=queue.offer(frame(now,key:needsIDR))
+                needsIDR=result.needsKeyframe
+                if index%fps < fps/3 { continue } // Repeated Wi-Fi back-pressure.
+                if let item=queue.take(now:now) {
+                    if received == 0 { XCTAssertTrue(item.keyframe) }
+                    received+=1
+                }
+                needsIDR = needsIDR || queue.needsKeyframe
+            }
+            XCTAssertGreaterThan(received,fps)
+            XCTAssertGreaterThan(queue.droppedFrames,0)
+            XCTAssertLessThanOrEqual(queue.count,8)
+        }
+    }
     func testBytesAndInvalidTimestampsAreBounded() {
         let queue=FrameQueue(maxBytes:1024)
         XCTAssertFalse(queue.offer(frame(1,key:true,size:1025)).accepted)
@@ -171,6 +201,15 @@ final class QueueTests: XCTestCase {
 }
 
 final class MobileExperienceTests: XCTestCase {
+    func testPortraitCaptureUsesRotatedEncoderDimensions() {
+        for (angle,expected) in [(0.0,0),(89.0,90),(180.0,180),(271.0,270),(-90.0,270),(360.0,0)] {
+            let rotation=CaptureGeometry.rightAngle(angle)
+            XCTAssertEqual(rotation,expected)
+            let size=CaptureGeometry.dimensions(width:1920,height:1080,rotation:rotation)
+            XCTAssertEqual(size.width,[90,270].contains(rotation) ? 1080 : 1920)
+            XCTAssertEqual(size.height,[90,270].contains(rotation) ? 1920 : 1080)
+        }
+    }
     func testAutomaticUsesRealFormatsAndPrefersResolutionAtSameRate() {
         let p60=CaptureProfile.standard
         let p120=CaptureProfile(width:1280,height:720,fps:120,bitrate:20_000_000)

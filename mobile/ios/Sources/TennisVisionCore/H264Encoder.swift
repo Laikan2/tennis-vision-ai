@@ -7,15 +7,17 @@ public final class H264Encoder {
     public var onFrame: ((EncodedFrame) -> Void)?
     public var onError: ((String) -> Void)?
     public var onDrop: (() -> Void)?
+    public var onDiscontinuity: (() -> Void)?
     private var session: VTCompressionSession?
     private let queue = DispatchQueue(label:"ai.tennisvision.ios.encoder",qos:.userInitiated)
     private let lock = NSLock()
     private var pending=0
     private var needsKeyframe=true
     private var stopped=false
-    public init(profile: CaptureProfile, requireHardware: Bool = true) throws {
+    public init(profile: CaptureProfile, requireHardware: Bool = true, rotation: Int = 0) throws {
+        let dimensions=CaptureGeometry.dimensions(width:profile.width,height:profile.height,rotation:rotation)
         let specification = [kVTVideoEncoderSpecification_RequireHardwareAcceleratedVideoEncoder:requireHardware] as CFDictionary
-        let code=VTCompressionSessionCreate(allocator:kCFAllocatorDefault,width:Int32(profile.width),height:Int32(profile.height),
+        let code=VTCompressionSessionCreate(allocator:kCFAllocatorDefault,width:Int32(dimensions.width),height:Int32(dimensions.height),
             codecType:kCMVideoCodecType_H264,encoderSpecification:specification,imageBufferAttributes:nil,
             compressedDataAllocator:nil,outputCallback:{ context,_,status,flags,sample in
                 guard let context else{return}
@@ -75,9 +77,12 @@ public final class H264Encoder {
         defer{releaseSlot()}
         lock.lock(); let isStopped=stopped; lock.unlock()
         guard !isStopped else{return}
-        guard status == noErr, !flags.contains(.frameDropped), let sample,
+        guard status == noErr else {
+            onError?("O codificador H.264 retornou um erro (\(status)). Reinicie a transmissão."); return
+        }
+        guard !flags.contains(.frameDropped), let sample,
               CMSampleBufferDataIsReady(sample), let block=CMSampleBufferGetDataBuffer(sample),
-              let format=CMSampleBufferGetFormatDescription(sample) else { onDrop?(); return }
+              let format=CMSampleBufferGetFormatDescription(sample) else { outputLost(); return }
         var lengthSize: Int32=0
         var sps=Data(), pps=Data()
         for index in 0..<2 {
@@ -90,18 +95,23 @@ public final class H264Encoder {
             if index == 0 { sps=Data(bytes:address,count:size) } else { pps=Data(bytes:address,count:size) }
         }
         let dataLength=CMBlockBufferGetDataLength(block)
-        guard dataLength > 0, dataLength <= 16_777_216 else { onDrop?(); return }
+        guard dataLength > 0, dataLength <= 16_777_216 else { outputLost(); return }
         var data=Data(count:dataLength)
         let result=data.withUnsafeMutableBytes { bytes in
             CMBlockBufferCopyDataBytes(block,atOffset:0,dataLength:dataLength,destination:bytes.baseAddress!)
         }
-        guard result == noErr else { onDrop?(); return }
+        guard result == noErr else { outputLost(); return }
         do {
             let nals=try AVCC.nals(data,lengthSize:Int(lengthSize))
             let keyframe=nals.contains{$0.first.map{$0 & 31 == 5} ?? false}
             onFrame?(EncodedFrame(nals:nals,pts:CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sample)),
                 keyframe:keyframe,sps:sps,pps:pps))
         } catch { onError?(error.localizedDescription) }
+    }
+    private func outputLost() {
+        // Losing an already encoded reference differs from skipping a raw
+        // capture. Resume only at an IDR, or subsequent pictures can be blocks.
+        forceKeyframe(); onDiscontinuity?(); onDrop?()
     }
 }
 #endif

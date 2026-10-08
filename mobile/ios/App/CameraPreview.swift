@@ -5,6 +5,21 @@ final class PreviewSurface: UIView {
     override class var layerClass: AnyClass { AVCaptureVideoPreviewLayer.self }
     var previewLayer: AVCaptureVideoPreviewLayer { layer as! AVCaptureVideoPreviewLayer }
     var onFocus: ((CGPoint)->Void)?
+    private var rotationCoordinator: AVCaptureDevice.RotationCoordinator?
+    private var rotationObservation: NSKeyValueObservation?
+    func coordinateRotation() {
+        guard let device=(previewLayer.session?.inputs.first as? AVCaptureDeviceInput)?.device else { return }
+        guard rotationCoordinator == nil else { return }
+        let coordinator=AVCaptureDevice.RotationCoordinator(device:device,previewLayer:previewLayer)
+        rotationCoordinator=coordinator
+        rotationObservation=coordinator.observe(\.videoRotationAngleForHorizonLevelPreview,options:[.initial,.new]) { [weak self] value,_ in
+            DispatchQueue.main.async {
+                guard let connection=self?.previewLayer.connection else{return}
+                let angle=value.videoRotationAngleForHorizonLevelPreview
+                if connection.isVideoRotationAngleSupported(angle) { connection.videoRotationAngle=angle }
+            }
+        }
+    }
     override init(frame: CGRect) {
         super.init(frame:frame)
         backgroundColor = .black
@@ -25,10 +40,8 @@ struct CameraPreview: UIViewRepresentable {
         view.previewLayer.session=session
         view.previewLayer.videoGravity = .resizeAspect
         view.onFocus=onFocus
-        if let connection=view.previewLayer.connection, connection.isVideoRotationAngleSupported(0) {
-            connection.videoRotationAngle=0
-        }
+        view.coordinateRotation()
         return view
     }
-    func updateUIView(_ view: PreviewSurface,context: Context) { view.onFocus=onFocus }
+    func updateUIView(_ view: PreviewSurface,context: Context) { view.onFocus=onFocus; view.coordinateRotation() }
 }

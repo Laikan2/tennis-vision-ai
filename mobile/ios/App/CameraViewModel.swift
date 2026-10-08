@@ -25,7 +25,7 @@ import AVFoundation
     private var permissionRequestInFlight=false
     private let settingsKey="tennisvision.ios.pairing.v1"
     private var paired: PairingConfiguration?
-    var appVersion: String { Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.0" }
+    var appVersion: String { Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.1" }
 
     init() {
         if let data=PairingStore.read() ?? UserDefaults.standard.data(forKey:settingsKey),
