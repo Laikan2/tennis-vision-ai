@@ -2397,5 +2397,3 @@ function CalibrationForm({
     </>
   );
 }
-
-

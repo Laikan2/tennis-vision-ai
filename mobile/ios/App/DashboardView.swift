@@ -109,4 +109,3 @@ struct DashboardView: View {
         }.background(Palette.background)
     }
 }
-

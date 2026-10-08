@@ -70,4 +70,3 @@ test('an unauthenticated websocket is closed before upgrading',async t=>{
   });
   assert.equal(outcome,'denied');
 });
-

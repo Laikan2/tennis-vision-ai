@@ -214,4 +214,3 @@ final class MobileExperienceTests: XCTestCase {
         XCTAssertThrowsError(try UpdateSource.latest(foreign,os:"18.0"))
     }
 }
-

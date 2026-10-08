@@ -31,8 +31,8 @@ struct ContentView: View {
                                 HStack(spacing:14) {
                                     Image(systemName:"bolt.shield.fill").font(.title2).foregroundStyle(Palette.lime)
                                     VStack(alignment:.leading,spacing:5) {
-                                        Text(model.automatic ? "Melhor perfil automÃ¡tico" : "Perfil escolhido por vocÃª").font(.subheadline.weight(.semibold))
-                                        Text(model.deviceLabel + " Â· " + (model.snapshot.activeProfile?.label ?? "Verificando cÃ¢mera"))
+                                        Text(model.automatic ? "Melhor perfil automático" : "Perfil escolhido por você").font(.subheadline.weight(.semibold))
+                                        Text(model.deviceLabel + " · " + (model.snapshot.activeProfile?.label ?? "Verificando câmera"))
                                             .font(.footnote).foregroundStyle(Palette.muted)
                                     }
                                     Spacer()
@@ -42,7 +42,7 @@ struct ContentView: View {
                                 if let error=model.snapshot.error { notice(error,icon:"exclamationmark.triangle") }
                                 if let message=model.message { notice(message,icon:"info.circle") }
                                 Button { model.page = model.panelConfiguration == nil ? 2 : 1 } label: {
-                                    HStack { Label(model.panelConfiguration == nil ? "Parear com seu computador" : "Abrir Ã¡reas, impactos e IN/OUT",systemImage:model.panelConfiguration == nil ? "qrcode" : "scope"); Spacer(); Image(systemName:"arrow.up.right") }
+                                    HStack { Label(model.panelConfiguration == nil ? "Parear com seu computador" : "Abrir áreas, impactos e IN/OUT",systemImage:model.panelConfiguration == nil ? "qrcode" : "scope"); Spacer(); Image(systemName:"arrow.up.right") }
                                         .font(.subheadline.weight(.medium)).padding(18).frame(maxWidth:.infinity)
                                 }.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:18))
                             } else if model.page == 2 { controls }
@@ -56,10 +56,10 @@ struct ContentView: View {
             VStack(spacing:0) {
                 if model.page == 0 { primaryAction.padding(.horizontal,20).padding(.top,12).padding(.bottom,10) }
                 HStack(spacing:0) {
-                    navigation("CÃ¢mera","camera.fill",0)
+                    navigation("Câmera","camera.fill",0)
                     navigation("Treino","scope",1)
                     navigation("Ajustes","slider.horizontal.3",2)
-                    navigation("AtualizaÃ§Ãµes","arrow.down.circle",3)
+                    navigation("Atualizações","arrow.down.circle",3)
                 }.padding(.vertical,10)
             }.background(Palette.background.opacity(0.98)).overlay(alignment:.top) { Rectangle().fill(Palette.line).frame(height:1) }
         }
@@ -87,7 +87,7 @@ struct ContentView: View {
         VStack(alignment:.leading,spacing:22) {
             Image(systemName:"arrow.down.circle.fill").font(.system(size:44)).foregroundStyle(Palette.lime)
             Text("Seu app, evoluindo.").font(.largeTitle.weight(.semibold))
-            Text("Novas versÃµes no mesmo lugar, sem procurar arquivos para instalar.")
+            Text("Novas versões no mesmo lugar, sem procurar arquivos para instalar.")
                 .font(.subheadline).foregroundStyle(Palette.muted)
             VStack(alignment:.leading,spacing:16) {
                 networkRow("Instalado","iOS " + model.appVersion)
@@ -97,14 +97,14 @@ struct ContentView: View {
                         .frame(maxWidth:.infinity).padding(12)
                 }.buttonStyle(.borderedProminent).foregroundStyle(Palette.background)
                 Button { Task { await model.checkUpdates() } } label: {
-                    Label(model.checkingUpdate ? "Verificandoâ€¦" : "Verificar atualizaÃ§Ã£o",systemImage:"arrow.clockwise")
+                    Label(model.checkingUpdate ? "Verificando…" : "Verificar atualização",systemImage:"arrow.clockwise")
                 }.disabled(model.checkingUpdate)
             }.padding(22).background(Palette.panel,in:RoundedRectangle(cornerRadius:22))
-            Text("Adicione a fonte uma vez. O AltStore avisa quando houver uma nova versÃ£o; toque em Update para instalar. A assinatura e a renovaÃ§Ã£o continuam pelo AltStore e AltServer.")
+            Text("Adicione a fonte uma vez. O AltStore avisa quando houver uma nova versão; toque em Update para instalar. A assinatura e a renovação continuam pelo AltStore e AltServer.")
                 .font(.footnote).foregroundStyle(Palette.muted)
-            Text("Suas cÃ¢meras e Ã¡reas continuam no PC. O pareamento fica salvo no iPhone ao atualizar.")
+            Text("Suas câmeras e áreas continuam no PC. O pareamento fica salvo no iPhone ao atualizar.")
                 .font(.footnote).foregroundStyle(Palette.muted)
-            Button { UIPasteboard.general.string=UpdateSource.url.absoluteString; model.updateMessage="URL copiada. No AltStore, abra Sources â†’ + e cole." } label: {
+            Button { UIPasteboard.general.string=UpdateSource.url.absoluteString; model.updateMessage="URL copiada. No AltStore, abra Sources → + e cole." } label: {
                 Label("Copiar URL da fonte",systemImage:"doc.on.doc")
             }
         }
@@ -115,7 +115,7 @@ struct ContentView: View {
                 .frame(width:52,height:52).background(Palette.panel,in:RoundedRectangle(cornerRadius:16))
             VStack(alignment:.leading,spacing:3) {
                 Text("TENNIS VISION").font(.headline).tracking(1.3)
-                Text("SEU ESTÃšDIO EM MOVIMENTO").font(.subheadline).foregroundStyle(Palette.muted)
+                Text("SEU ESTÚDIO EM MOVIMENTO").font(.subheadline).foregroundStyle(Palette.muted)
             }
             Spacer()
             Text(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.0")
@@ -129,7 +129,7 @@ struct ContentView: View {
                     .font(.subheadline.weight(.medium)).foregroundStyle(model.snapshot.transmitting ? Palette.lime : Palette.muted)
                 Spacer()
                 Button { model.fullscreen=true } label: { Image(systemName:"arrow.up.left.and.arrow.down.right").padding(10) }
-                    .accessibilityLabel("Abrir cÃ¢mera em tela cheia")
+                    .accessibilityLabel("Abrir câmera em tela cheia")
             }
             ZStack {
                 CameraPreview(session:model.controller.session) { model.controller.focus(at:$0,lockFocus:false) }
@@ -137,7 +137,7 @@ struct ContentView: View {
                 if !model.snapshot.previewReady {
                     VStack(spacing:12) {
                         Image(systemName:model.denied ? "camera.fill.badge.ellipsis" : "camera").font(.largeTitle)
-                        Text(model.denied ? "Permita o acesso Ã  cÃ¢mera" : model.snapshot.error != nil ? "CÃ¢mera indisponÃ­vel" : "Preparando sua cÃ¢mera").font(.headline)
+                        Text(model.denied ? "Permita o acesso à câmera" : model.snapshot.error != nil ? "Câmera indisponível" : "Preparando sua câmera").font(.headline)
                         if model.denied {
                             Button("Abrir Ajustes") { if let url=URL(string:UIApplication.openSettingsURLString) { UIApplication.shared.open(url) } }
                         } else if model.snapshot.error != nil {
@@ -148,7 +148,7 @@ struct ContentView: View {
             }.aspectRatio(16/9,contentMode:.fit).background(.black).clipShape(RoundedRectangle(cornerRadius:20))
                 .overlay(RoundedRectangle(cornerRadius:20).stroke(Palette.line))
             HStack {
-                Text(model.snapshot.activeProfile?.label ?? "Perfil indisponÃ­vel").font(.caption.monospaced())
+                Text(model.snapshot.activeProfile?.label ?? "Perfil indisponível").font(.caption.monospaced())
                 Spacer()
                 Text("Toque na imagem para focar").font(.caption)
             }.foregroundStyle(Palette.muted)
@@ -165,14 +165,14 @@ struct ContentView: View {
     private func metric(_ name: String,_ value: Double,unit: String) -> some View {
         VStack(alignment:.leading,spacing:8) {
             Text(name).font(.system(size:10,weight:.semibold)).tracking(1).foregroundStyle(Palette.muted)
-            Text(model.snapshot.transmitting ? String(format:"%.0f",value) : "â€”").font(.title2.monospacedDigit().weight(.medium))
+            Text(model.snapshot.transmitting ? String(format:"%.0f",value) : "—").font(.title2.monospacedDigit().weight(.medium))
                 + Text(" \(unit)").font(.caption).foregroundColor(Palette.muted)
         }.frame(maxWidth:.infinity,alignment:.leading).padding(14).background(Palette.panel,in:RoundedRectangle(cornerRadius:14))
     }
     private var controls: some View {
         VStack(alignment:.leading,spacing:20) {
-            Picker("ConfiguraÃ§Ã£o",selection:$tab) {
-                Text("ConexÃ£o").tag(0); Text("Captura").tag(1); Text("Rede").tag(2)
+            Picker("Configuração",selection:$tab) {
+                Text("Conexão").tag(0); Text("Captura").tag(1); Text("Rede").tag(2)
             }.pickerStyle(.segmented)
             switch tab {
             case 0: connection
@@ -186,7 +186,7 @@ struct ContentView: View {
             if let message=model.message {
                 Text(message).font(.subheadline).foregroundStyle(Palette.muted)
             }
-            Text("O envio mede os quadros entregues Ã  rede local. A recepÃ§Ã£o e a anÃ¡lise sÃ£o medidas no PC.")
+            Text("O envio mede os quadros entregues à rede local. A recepção e a análise são medidas no PC.")
                 .font(.caption).foregroundStyle(Palette.muted)
         }.padding(22).background(Palette.panel,in:RoundedRectangle(cornerRadius:24)).overlay(RoundedRectangle(cornerRadius:24).stroke(Palette.line))
     }
@@ -196,7 +196,7 @@ struct ContentView: View {
         } label: {
             HStack(spacing:10) {
                 Image(systemName:model.snapshot.transmitting ? "stop.fill" : "play.fill")
-                Text(model.snapshot.transmitting ? "Parar transmissÃ£o" : "Transmitir ao Windows")
+                Text(model.snapshot.transmitting ? "Parar transmissão" : "Transmitir ao Windows")
             }.font(.headline).frame(maxWidth:.infinity).padding(.vertical,18)
         }.buttonStyle(.plain).foregroundStyle(Palette.background)
             .background(model.snapshot.transmitting ? Color(red:1,green:0.43,blue:0.4) : Palette.lime,in:RoundedRectangle(cornerRadius:16))
@@ -206,7 +206,7 @@ struct ContentView: View {
     private var connection: some View {
         VStack(alignment:.leading,spacing:16) {
             Text("Seu PC, conectado.").font(.title2.weight(.semibold))
-            Text("No Windows, abra Conectar celular e escolha iPhone / iOS. Leia o QR ou preencha o endereÃ§o.")
+            Text("No Windows, abra Conectar celular e escolha iPhone / iOS. Leia o QR ou preencha o endereço.")
                 .font(.subheadline).foregroundStyle(Palette.muted)
             Button { model.openScanner() } label: {
                 Label("Ler QR do Windows",systemImage:"qrcode.viewfinder").frame(maxWidth:.infinity).padding(15)
@@ -217,8 +217,8 @@ struct ContentView: View {
                 field("Porta RTSP",placeholder:"8554",value:$model.port,number:true)
                 field("Caminho",placeholder:"iphone",value:$model.path)
             }
-            Button("Salvar endereÃ§o") { model.save() }.disabled(model.snapshot.transmitting)
-            Label("Mesma rede Wi-Fi. No PC, use Preparar rede do PC para liberar a conexÃ£o local.",systemImage:"wifi")
+            Button("Salvar endereço") { model.save() }.disabled(model.snapshot.transmitting)
+            Label("Mesma rede Wi-Fi. No PC, use Preparar rede do PC para liberar a conexão local.",systemImage:"wifi")
                 .font(.footnote).foregroundStyle(Palette.muted)
         }
     }
@@ -234,26 +234,26 @@ struct ContentView: View {
     private var capture: some View {
         VStack(alignment:.leading,spacing:16) {
             Text("Nitidez em movimento.").font(.title2.weight(.semibold))
-            Toggle("Melhor perfil automÃ¡tico",isOn:Binding(get:{model.automatic},set:{model.chooseAutomatic($0)}))
+            Toggle("Melhor perfil automático",isOn:Binding(get:{model.automatic},set:{model.chooseAutomatic($0)}))
                 .disabled(model.snapshot.transmitting)
-            Text("Usa a maior taxa real disponÃ­vel na cÃ¢mera traseira, preferindo 1080p quando possÃ­vel. Se a captura ou o H.264 nÃ£o sustentarem o perfil, o app avisa e ajusta. O modo manual mantÃ©m sua escolha.")
+            Text("Usa a maior taxa real disponível na câmera traseira, preferindo 1080p quando possível. Se a captura ou o H.264 não sustentarem o perfil, o app avisa e ajusta. O modo manual mantém sua escolha.")
                 .font(.footnote).foregroundStyle(Palette.muted)
-            Label(model.deviceLabel + " Â· " + model.snapshot.cameraName,systemImage:"iphone").font(.footnote)
+            Label(model.deviceLabel + " · " + model.snapshot.cameraName,systemImage:"iphone").font(.footnote)
             if let best=CameraPolicy.best(model.profiles) {
                 Text("Capacidade detectada: " + best.label).font(.footnote).foregroundStyle(Palette.lime)
             }
-            Picker("Perfil de cÃ¢mera",selection:Binding(get:{model.profile.id},set:{ id in
+            Picker("Perfil de câmera",selection:Binding(get:{model.profile.id},set:{ id in
                 if let profile=model.profiles.first(where:{$0.id == id}) { model.chooseProfile(profile) }
             })) {
-                if !model.selectedSupported { Text("\(model.profile.label) Â· indisponÃ­vel").tag(model.profile.id) }
+                if !model.selectedSupported { Text("\(model.profile.label) · indisponível").tag(model.profile.id) }
                 ForEach(model.profiles) { Text($0.label).tag($0.id) }
             }.disabled(model.snapshot.transmitting)
-            Text("SÃ³ aparecem taxas informadas pela cÃ¢mera. O H.264 e o desempenho sustentado tambÃ©m precisam suportar o perfil.")
+            Text("Só aparecem taxas informadas pela câmera. O H.264 e o desempenho sustentado também precisam suportar o perfil.")
                 .font(.footnote).foregroundStyle(Palette.muted)
-            Picker("ExposiÃ§Ã£o",selection:Binding(get:{model.exposure},set:{model.changeExposure($0)})) {
-                Text("AutomÃ¡tica").tag(0); Text("1/500 s").tag(500); Text("1/1000 s").tag(1000); Text("1/2000 s").tag(2000)
+            Picker("Exposição",selection:Binding(get:{model.exposure},set:{model.changeExposure($0)})) {
+                Text("Automática").tag(0); Text("1/500 s").tag(500); Text("1/1000 s").tag(1000); Text("1/2000 s").tag(2000)
             }
-            Text("Mais luz e uma exposiÃ§Ã£o curta ajudam a reduzir o borrÃ£o da bola. ExposiÃ§Ã£o curta pode escurecer a imagem.")
+            Text("Mais luz e uma exposição curta ajudam a reduzir o borrão da bola. Exposição curta pode escurecer a imagem.")
                 .font(.footnote).foregroundStyle(Palette.muted)
             Toggle("Linhas de enquadramento",isOn:$model.grid)
             Toggle("Travar foco atual",isOn:Binding(get:{model.snapshot.focusLocked},set:{
@@ -262,21 +262,21 @@ struct ContentView: View {
             if model.snapshot.torchAvailable {
                 Toggle("Lanterna",isOn:Binding(get:{model.snapshot.torchOn},set:{model.controller.setTorch($0)}))
             }
-            Label("Temperatura Â· \(model.snapshot.thermal)",systemImage:"thermometer.medium")
+            Label("Temperatura · \(model.snapshot.thermal)",systemImage:"thermometer.medium")
                 .font(.footnote).foregroundStyle(Palette.muted)
         }
     }
     private var network: some View {
         VStack(alignment:.leading,spacing:16) {
-            Text("VÃ­deo direto ao PC.").font(.title2.weight(.semibold))
+            Text("Vídeo direto ao PC.").font(.title2.weight(.semibold))
             Text(model.destination).font(.footnote.monospaced()).textSelection(.enabled).foregroundStyle(Palette.lime)
-            networkRow("Transporte","RTSP / TCP Â· H.264")
-            networkRow("VÃ­deo enviado",String(format:"%.1f Mbps",model.snapshot.mbps))
+            networkRow("Transporte","RTSP / TCP · H.264")
+            networkRow("Vídeo enviado",String(format:"%.1f Mbps",model.snapshot.mbps))
             networkRow("Descartes de captura / H.264",String(model.snapshot.encoderDrops))
             networkRow("Descartes de rede",String(model.snapshot.networkDrops))
-            Text("A fila de envio descarta vÃ­deo antigo e pede um novo quadro completo. Assim, uma rede lenta nÃ£o acumula segundos de atraso.")
+            Text("A fila de envio descarta vídeo antigo e pede um novo quadro completo. Assim, uma rede lenta não acumula segundos de atraso.")
                 .font(.footnote).foregroundStyle(Palette.muted)
-            Text("Mantenha este aplicativo aberto durante a transmissÃ£o. Ao ir para o segundo plano, a cÃ¢mera Ã© parada.")
+            Text("Mantenha este aplicativo aberto durante a transmissão. Ao ir para o segundo plano, a câmera é parada.")
                 .font(.footnote).foregroundStyle(Palette.muted)
         }
     }

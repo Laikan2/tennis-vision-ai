@@ -10,8 +10,8 @@
   <key>CFBundleShortVersionString</key><string>$(MARKETING_VERSION)</string>
   <key>CFBundleVersion</key><string>$(CURRENT_PROJECT_VERSION)</string>
   <key>LSRequiresIPhoneOS</key><true/>
-  <key>NSCameraUsageDescription</key><string>A cÃ¢mera transmite seu treino ao Tennis Vision Studio no PC para acompanhar a bola e analisar impactos.</string>
-  <key>NSLocalNetworkUsageDescription</key><string>Conectamos o iPhone ao seu computador na rede local para enviar o vÃ­deo da cÃ¢mera.</string>
+  <key>NSCameraUsageDescription</key><string>A câmera transmite seu treino ao Tennis Vision Studio no PC para acompanhar a bola e analisar impactos.</string>
+  <key>NSLocalNetworkUsageDescription</key><string>Conectamos o iPhone ao seu computador na rede local para enviar o vídeo da câmera.</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsLocalNetworking</key><true/><key>NSAllowsArbitraryLoadsInWebContent</key><true/></dict>
   <key>CFBundleURLTypes</key><array><dict><key>CFBundleURLName</key><string>ai.tennisvision.camera.pairing</string><key>CFBundleURLSchemes</key><array><string>tennisvision</string></array></dict></array>
   <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>

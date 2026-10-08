@@ -132,4 +132,3 @@ def test_missing_or_invalid_panel_does_not_offer_broken_control_link(client,monk
     value=client.get('/api/mobile-camera?platform=ios').json()
     assert not value['panelAvailable']
     assert 'panelToken' not in value['appPairingUri']
-

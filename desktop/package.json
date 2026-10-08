@@ -2,7 +2,7 @@
   "name": "tennis-vision-studio",
   "productName": "Tennis Vision Studio",
   "version": "0.6.8",
-  "description": "Est\u00c3\u00badio local de an\u00c3\u00a1lise de t\u00c3\u00aanis e c\u00c3\u00a2meras de alta velocidade",
+  "description": "Estúdio local de análise de tênis e câmeras de alta velocidade",
   "author": "Tennis Vision",
   "private": true,
   "main": "main.cjs",
