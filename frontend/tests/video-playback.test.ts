@@ -22,6 +22,11 @@ test("a LAN viewer receives video from the PC rather than its own localhost", ()
   assert.equal(media.directUrl, "http://192.168.15.2:8889/camera%20b/whep");
 });
 
+test("opening the Windows panel in a browser preserves its bundled video route", () => {
+  const media = videoEndpoints("http://127.0.0.1:51346/", false, "/iphone");
+  assert.equal(media.previewOrigin, "http://127.0.0.1:51346");
+});
+
 test("HTTPS preview keeps its trusted origin instead of using mixed HTTP content", () => {
   const media = videoEndpoints("https://tennis.example/", false, "galaxy");
   assert.equal(media.previewOrigin, "https://tennis.example");

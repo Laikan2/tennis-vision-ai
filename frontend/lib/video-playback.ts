@@ -3,7 +3,10 @@ export function videoEndpoints(pageUrl: string, native: boolean, path?: string, 
   const page = new URL(pageUrl);
   const phone = phonePanel || page.searchParams.get("phone") === "1";
   const preview = new URL(page.origin);
-  if (!native && !phone && page.protocol === "http:") preview.port = "8000";
+  // Only the standalone Next server uses the separate development backend.
+  // A browser opened on Studio's random port must use the same relay as the
+  // Electron window; it has no native preload flag, but the route is valid.
+  if (!native && !phone && page.protocol === "http:" && page.port === "3000") preview.port = "8000";
   const encodedPath = path?.split("/").filter(Boolean).map(encodeURIComponent).join("/");
   const receiver = new URL(page.origin);
   receiver.port = "8889";
