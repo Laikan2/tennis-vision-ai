@@ -63,6 +63,7 @@ final class LocalTrainingStore {
     @Published var draft=[VisionPoint]()
     @Published var detail=LocalDetail(rawValue:UserDefaults.standard.string(forKey:"local.detail") ?? "fluid") ?? .fluid
     @Published var lensID=UserDefaults.standard.string(forKey:"local.lens") ?? ""
+    @Published var rate=UserDefaults.standard.object(forKey:"local.rate") as? Int ?? 60
     @Published var metrics="Aguardando imagens reais"
     @Published var confirmArea=false
     @Published var confirmed=false
@@ -75,6 +76,7 @@ final class LocalTrainingStore {
     @Published var checkingUpdate=false
     @Published var updateMessage=""
     @Published var newVersion: String?
+    @Published var updateDownloadURL: URL?
     private var foreground=true,permissionPending=false,key="",savingError=false,lastInfo=0.0,currentGeneration: UUID?
     private var player: AVAudioPlayer?,soundCount=0,editingCourt: VisionCourt?
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
@@ -87,7 +89,10 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(Int((Double(insideCount)/Double(n)*100).rounded()))%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.3.0"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.4"}
+    var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
+    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Área livre") · salva para esta lente" : "Área ainda não marcada"}
+    var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
     init(){
         let store=store;camera.settingsForKey={store.settings($0)}
         camera.onFrame={[weak self] frame,events in Task{@MainActor in self?.receive(frame,events:events)}}
@@ -106,7 +111,7 @@ final class LocalTrainingStore {
             diagnosticLaunched=true;diagnostics();return
         }
         switch AVCaptureDevice.authorizationStatus(for:.video){
-        case .authorized:denied=false;ready=false;cameraUnavailable=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID)
+        case .authorized:denied=false;ready=false;cameraUnavailable=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID,rate:rate)
         case .notDetermined:
             permissionPending=true
             AVCaptureDevice.requestAccess(for:.video){[weak self] allowed in Task{@MainActor in
@@ -196,14 +201,15 @@ final class LocalTrainingStore {
     func edit(_ mode: Int,court: VisionCourt?=nil){
         guard ready,frame != nil,!testing else{return};pause();frozen=frame;editing=mode
         editingCourt=court
-        draft=mode==2 ? config.floorLine:mode==3 ? config.polygon:[]
+        let reference=frame?.result.area ?? config
+        draft=mode==2 ? reference.floorLine:mode==3 ? reference.polygon:[]
         status=mode==2 ? "Toque nos dois extremos do limite parede/chão":mode==1 ? "Arraste para criar a área":draft.count==4 ? "Arraste os cantos para ajustar":"Toque nos quatro cantos ao redor do piso"
     }
     func cancelEdit(){editing=0;draft=[];frozen=nil;editingCourt=nil;status="Edição cancelada · área anterior mantida"}
     func redraw(){draft=[]}
     var canSaveArea: Bool{editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft)}
     func saveArea(){
-        guard canSaveArea else{return};var value=config
+        guard canSaveArea else{return};var value=frozen?.result.area ?? config
         value.court=editingCourt ?? value.court
         if editing==2{value.floorLine=draft;value.court = .custom}else{value.polygon=draft}
         persist(value){[weak self] in self?.editing=0;self?.frozen=nil;self?.draft=[];self?.editingCourt=nil;self?.confirmed=true;self?.status="Área salva para esta câmera, lente e resolução"}
@@ -217,6 +223,7 @@ final class LocalTrainingStore {
     }
     func changeDetail(_ value: LocalDetail){guard editing==0 else{return};pause();detail=value;UserDefaults.standard.set(value.rawValue,forKey:"local.detail");prepare()}
     func changeLens(_ value: String){guard editing==0 else{return};pause();lensID=value;UserDefaults.standard.set(value,forKey:"local.lens");prepare()}
+    func changeRate(_ value: Int){guard editing==0,[0,30,60,120,240].contains(value) else{return};pause();rate=value;UserDefaults.standard.set(value,forKey:"local.rate");prepare()}
     func newSession(){pause();session=LocalTrainingSession(key:key);store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message};history=store.history()}
     func review(_ event: VisionImpact){pause();reviewing=event;reviewImage=nil;let url=store.evidenceURL(session.id,event.id)
         DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id{self?.reviewImage=image}}}
@@ -259,7 +266,8 @@ final class LocalTrainingStore {
             guard (response as? HTTPURLResponse)?.statusCode==200 else{throw CameraError.invalid("Fonte indisponível")}
             let release=try UpdateSource.latest(data,os:UIDevice.current.systemVersion)
             newVersion=release.newer(than:appVersion) ? release.version:nil
-            updateMessage=newVersion.map{"iOS \($0) disponível no AltStore"} ?? "Versão mais recente da fonte oficial"
+            updateDownloadURL=newVersion==nil ? nil:release.downloadURL
+            updateMessage=newVersion.map{"Versão mobile \($0) disponível no AltStore"} ?? "Nenhuma atualização compatível disponível"
         }catch{updateMessage="Sem consulta agora. O treino local continua disponível."}
     }
 }

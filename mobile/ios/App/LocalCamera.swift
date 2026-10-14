@@ -47,7 +47,18 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
             return LocalLensChoice(id:d.uniqueID,name:label,device:d)
         }
     }
-    func start(detail: LocalDetail,lensID: String?) {
+    static func rates(detail: LocalDetail,lensID: String?) -> [Int] {
+        let choices=lenses()
+        guard let lens=choices.first(where:{$0.id==lensID}) ?? choices.first(where:{$0.device.deviceType == .builtInWideAngleCamera}) ?? choices.first else{return []}
+        let height=detail == .detail ? 1080:720
+        return [30,60,120,240].filter{fps in
+            (detail != .economy || fps==30) && lens.device.formats.contains{f in
+                let d=CMVideoFormatDescriptionGetDimensions(f.formatDescription)
+                return [720,1080].contains(Int(d.height)) && Int(d.height)<=height && f.videoSupportedFrameRateRanges.contains{$0.minFrameRate<=Double(fps) && $0.maxFrameRate>=Double(fps)}
+            }
+        }
+    }
+    func start(detail: LocalDetail,lensID: String?,rate: Int=60) {
         queue.async{[weak self] in
             guard let self else{return};self.closeHardware();self.generation=UUID();self.core.reset();self.evidence=[]
             self.statusWasStale=false;self.rotation=0
@@ -56,17 +67,17 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
                 guard AVCaptureDevice.authorizationStatus(for:.video) == .authorized else{throw CameraError.invalid("Permita a câmera nos Ajustes do iPhone.")}
                 let choices=Self.lenses()
                 guard let lens=choices.first(where:{$0.id==lensID}) ?? choices.first(where:{$0.device.deviceType == .builtInWideAngleCamera}) ?? choices.first else{throw CameraError.invalid("Nenhuma câmera traseira disponível.")}
-                let device=lens.device,preferred=detail == .detail ? 1080:720,limit=detail == .economy ? 30:60
+                let device=lens.device,preferred=detail == .detail ? 1080:720,limit=detail == .economy ? 30:240
                 var options=[(AVCaptureDevice.Format,CaptureProfile)]()
                 for format in device.formats {
                     let d=CMVideoFormatDescriptionGetDimensions(format.formatDescription)
                     guard [720,1080].contains(Int(d.height)),Int(d.height)<=preferred else{continue}
-                    for fps in [60,30] where fps<=limit && format.videoSupportedFrameRateRanges.contains(where:{$0.minFrameRate<=Double(fps) && $0.maxFrameRate>=Double(fps)}) {
+                    for fps in [240,120,60,30] where fps<=limit && format.videoSupportedFrameRateRanges.contains(where:{$0.minFrameRate<=Double(fps) && $0.maxFrameRate>=Double(fps)}) {
                         options.append((format,CaptureProfile(width:Int(d.width),height:Int(d.height),fps:fps,bitrate:8_000_000)))
                     }
                 }
-                options.sort{$0.1.height == $1.1.height ? $0.1.fps>$1.1.fps:$0.1.height>$1.1.height}
-                guard let selected=options.first else{throw CameraError.invalid("Esta lente não oferece um perfil regular compatível. Escolha outra lente.")}
+                let desired=detail == .economy ? 30:rate
+                guard let profile=LocalCapturePolicy.select(options.map{$0.1},height:preferred,rate:desired),let selected=options.first(where:{$0.1==profile}) else{throw CameraError.invalid("Esta lente/resolução não oferece a taxa escolhida. Selecione uma taxa disponível ou Até 60 FPS.")}
                 self.session.beginConfiguration();self.session.sessionPreset = .inputPriority
                 defer{self.session.commitConfiguration()}
                 let input=try AVCaptureDeviceInput(device:device)
