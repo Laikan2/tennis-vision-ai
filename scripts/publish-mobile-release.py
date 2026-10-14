@@ -3,7 +3,7 @@
 Both real installable formats and a successful native iOS CI run are required.
 The iPhone remains unsigned for personal AltStore signing. No signing secrets.
 """
-import argparse,hashlib,json,plistlib,runpy,subprocess,tempfile,time,urllib.request
+import argparse,hashlib,json,plistlib,runpy,shutil,subprocess,tempfile,time,urllib.request
 from pathlib import Path
 from zipfile import ZipFile
 
@@ -44,13 +44,16 @@ def publish(args):
     if run['status']!='completed' or run['conclusion']!='success' or any(steps.get(s)!='success' for s in required):
         raise ValueError('A successful native build, tests and decoded-video integration are required')
     with tempfile.TemporaryDirectory(prefix='tennis-mobile-ci-') as folder:
+        if not Path(folder).resolve().is_relative_to(Path(tempfile.gettempdir()).resolve()):raise ValueError('Unexpected temporary artifact path')
         gh('run','download',args.run,'--repo','Laikan2/tennis-vision-ai','--name','ios-validation-unsigned','--dir',folder)
         built=list(Path(folder).rglob(args.ipa.name))
         if len(built)!=1 or hashlib.sha256(built[0].read_bytes()).hexdigest()!=metadata['ios']['sha256']:
             raise ValueError('IPA does not match the successful CI artifact')
     metadata['sourceCommit']=run['headSha'];metadata['validationRun']=f'https://github.com/Laikan2/tennis-vision-ai/actions/runs/{args.run}'
     # Verify actual Android package, manifest and certificate using the local SDK.
-    r=subprocess.run(['powershell','-NoProfile','-File',str(ROOT/'scripts/publish-android-release.ps1'),'-Version',version,'-VerifyOnly'],capture_output=True,text=True,encoding='utf-8')
+    shell=shutil.which('pwsh') or shutil.which('powershell')
+    if not shell:raise RuntimeError('PowerShell is required to verify the Android package')
+    r=subprocess.run([shell,'-NoProfile','-File',str(ROOT/'scripts/publish-android-release.ps1'),'-Version',version,'-VerifyOnly'],capture_output=True,text=True,encoding='utf-8')
     if r.returncode:raise RuntimeError(r.stderr)
     latest=api(f'repos/{REPO}/releases/latest')['tag_name']
     meta_path=ROOT/f'mobile/releases/{tag}.json'

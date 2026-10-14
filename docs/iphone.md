@@ -1,16 +1,18 @@
 # Tennis Vision Camera no iPhone
 
-O aplicativo iOS **0.3.0** tem treino no próprio iPhone: câmera, bola verde, rastro, áreas, impactos candidatos, IN/OUT com revisão, som OUT e histórico local. Não exige Windows, servidor ou internet para analisar. A câmera H.264 e o painel do Windows continuam opcionais. Consulte o [guia do modo local](../mobile/ios/README.md) e o [relatório de validação atual](validation/ios-local-2026-10-14/report.txt).
+O aplicativo iOS **0.6.4** tem treino no próprio iPhone: câmera, bola verde, rastro, áreas, impactos candidatos, IN/OUT com revisão, som OUT e histórico local. Não exige Windows, servidor ou internet para analisar. A câmera H.264 e o painel do Windows continuam opcionais. Consulte o [guia do modo local](../mobile/ios/README.md) e o [relatório de validação atual](validation/mobile-parity-2026-10-14/report.txt).
 
 ## Atualizar a versão já instalada
 
-A [0.3.0 foi publicada](https://github.com/Laikan2/tennis-vision-releases/releases/tag/ios-v0.3.0) e o download público foi conferido em 14/10/2026. Adicione uma vez a fonte oficial ao AltStore Classic:
+A [0.6.4 foi publicada](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.4) e o download público foi conferido em 14/10/2026. Adicione uma vez a fonte oficial ao AltStore Classic:
 
     https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json
 
 Abra **My Apps → Update**. Se a instalação antiga aparecer apenas como Sideloaded e não oferecer Update, abra a ficha Tennis Vision da fonte ou selecione o novo IPA pelo botão **+** de My Apps. Atualize sobre o app existente; não desinstale. Mantenha AltServer disponível para a assinatura pessoal. A fonte não substitui silenciosamente o executável e a renovação continua necessária.
 
-O treino local usa 720p/1080p regulares de até 60 FPS e mostra taxas medidas. Bola minúscula ou borrada, oclusão, contato e linha incertos exigem revisão. Velocidade é lateral e estimada, não radar. Não foi comprovada precisão em partidas ou saques a 200 km/h. O relatório distingue compilação/simulador dos testes físicos realmente concluídos.
+O treino local usa 720p/1080p. O padrão é Até 60 FPS; 120/240 só são oferecidos quando anunciados pela lente/resolução, com taxas recebidas medidas. Bola minúscula ou borrada, oclusão, contato e linha incertos exigem revisão. Velocidade é lateral e estimada, não radar. Não foi comprovada precisão em partidas ou saques a 200 km/h. O relatório distingue compilação/simulador dos testes físicos realmente concluídos.
+
+Na versão 0.6.4, Atualizações → Instalar atualização pelo AltStore abre o importador diretamente com o IPA oficial do GitHub. O botão aparece quando há uma versão nova compatível; a confirmação e a assinatura continuam no AltStore. A entrega acompanha os recursos do Android 0.6.4, com cenários sintéticos comuns aos dois motores.
 
 ## Como instalar agora
 
@@ -19,15 +21,15 @@ O treino local usa 720p/1080p regulares de até 60 FPS e mostra taxas medidas. B
 ### Somente Windows e iPhone
 
 1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Conecte o iPhone por USB. Você informa sua conta Apple diretamente no AltServer.
-2. Baixe o IPA da [versão iOS 0.3.0](https://github.com/Laikan2/tennis-vision-releases/releases/tag/ios-v0.3.0). Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
-3. Coloque o arquivo `Tennis-Vision-Camera-iOS-v0.3.0-AltStore.ipa` no app **Arquivos** do iPhone. Com AltServer aberto no PC, use **AltStore Classic → My Apps → +** e selecione o arquivo.
+2. Baixe o IPA da [versão iOS 0.6.4](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.4). Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
+3. Coloque o arquivo `Tennis-Vision-Camera-iOS-v0.6.4-AltStore.ipa` no app **Arquivos** do iPhone. Com AltServer aberto no PC, use **AltStore Classic → My Apps → +** e selecione o arquivo.
 4. Renove em **My Apps → Refresh All** antes de 7 dias. Mantenha AltServer disponível no PC. Sem renovação, o app para de abrir até ser assinado novamente.
 
 Não é necessário comprar um Mac ou uma conta de desenvolvedor paga. O arquivo é uma compilação sem assinatura, preparada para esse processo; tocá-lo no Safari não instala. O pacote não contém sua conta Apple, certificados pessoais ou pareamento. A instalação no iPhone físico ainda depende de você concluir a assinatura no AltStore.
 
 ### Com Mac e Xcode
 
-O ZIP `Tennis-Vision-Camera-iOS-v0.3.0-Projeto.zip` contém o código e o projeto, não um instalador de iPhone. Está disponível na página de versões.
+O ZIP `Tennis-Vision-Camera-iOS-v0.6.4-Projeto.zip` contém o código e o projeto, não um instalador de iPhone. Está disponível na página de versões.
 
 1. Em um Mac, instale o Xcode e descompacte o ZIP.
 2. Abra `TennisVisionCamera.xcodeproj`.

@@ -41,11 +41,12 @@ def test_native_ios_tag_and_description_do_not_claim_local_240_fps(tmp_path):
     assert 'até 60 FPS' in app['localizedDescription']
     assert 'revisão' in app['versions'][0]['localizedDescription']
 
-def test_common_mobile_release_preserves_old_versions_and_platform_installation(tmp_path):
-    path=ipa(tmp_path,'0.6.4');value=SOURCE(path,'mobile-v0.6.4')
+@pytest.mark.parametrize('version',['0.6.4','0.6.5'])
+def test_common_mobile_release_preserves_old_versions_and_platform_installation(tmp_path,version):
+    path=ipa(tmp_path,version);value=SOURCE(path,'mobile-v'+version)
     app=value['apps'][0]
-    assert '/mobile-v0.6.4/' in app['versions'][0]['downloadURL']
-    assert 'Android 0.6.4' in app['versions'][0]['localizedDescription']
+    assert '/mobile-v'+version+'/' in app['versions'][0]['downloadURL']
+    assert 'Android '+version in app['versions'][0]['localizedDescription']
     assert 'AltStore' in app['localizedDescription'] and '41 cenários' in app['versions'][0]['localizedDescription']
 
 @pytest.mark.parametrize('tag',['main','ios-v0.3.0/extra','android-v0.6.4','v0.3.0-beta'])

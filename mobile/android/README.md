@@ -4,6 +4,8 @@ O aplicativo agora abre no **treino local**. Câmera, detecção da bola verde, 
 
 ## Começar no celular
 
+O iPhone passa a acompanhar esta entrega de funcionalidades na versão **0.6.4**. O release conjunto `mobile-v0.6.4` oferece APK e IPA separados. O Android mantém o mesmo APK já publicado, sem trocar certificado ou dados. Os motores Kotlin e Swift são avaliados pelos mesmos 41 cenários sintéticos; formatos de instalação, taxas da câmera e desempenho continuam próprios de cada plataforma. Consulte `mobile/shared/release.json` e as notas `docs/releases/mobile-v0.6.4.md`.
+
 1. Instale `mobile/releases/Tennis-Vision-Camera-Android-v0.6.4.apk` sobre a versão anterior, preservando os dados. Não desinstale para atualizar.
 2. Abra o app, toque em **Permitir câmera** e aguarde **Câmera pronta**.
 3. Fixe o celular na horizontal, recuado e elevado fora da área de jogo, com margem além das linhas. Em **Enquadramento e detalhe**, escolha a lente antes de marcar. **Ampla**, quando disponível, mostra mais, mas deixa a bola menor. **Bola distante · até 1080p** preserva mais detalhe; confira os FPS recebidos. Se a imagem engasgar, use **Fluidez**. Não é possível recuperar por software partes da quadra fora da imagem.

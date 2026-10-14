@@ -1,0 +1,96 @@
+TENNIS VISION MOBILE 0.6.4 — ANDROID E IPHONE — 14/10/2026
+
+OBJETIVO
+Levar as melhorias Android 0.6.4 para o iPhone e coordenar as atualizações.
+Versão de funcionalidades comum: 0.6.4. APK Android e IPA iPhone são formatos
+distintos. A interface, a câmera, os FPS e a assinatura dependem da plataforma.
+
+O QUE FOI PORTADO/ALINHADO
+- Detector local da bola verde pequena, bordas misturadas e sinal incerto.
+- Bola na mão, oclusão por dedos, soltura e recuperação de rastreamento.
+- Rastro observado, previsão breve identificada e sem criar impactos.
+- Contatos candidatos no chão/parede, IN/OUT, revisão e som OUT incluído.
+- Velocidade lateral estimada quando as observações permitem, não radar 3D.
+- Quadra inteira/metade por quatro cantos, área livre por arraste e limite
+  do piso do quarto separado. Lupa e editor em tela cheia no iPhone.
+- Toque nas marcas para revisar, com a posição marcada na imagem de evidência.
+- Áreas salvas por lente/resolução/rotação; sessões, histórico e exportação.
+- Contagens e acerto inteiro iguais ao Android; casos para revisar ficam fora
+  do denominador de IN/OUT; registros descartados não somam contatos válidos.
+- Enquadramento, lente, detalhe 720p/1080p e taxas realmente anunciadas.
+- Padrão iPhone até 60 FPS; opções 120/240 e maior taxa apenas se a câmera
+  anunciar suporte. Taxa solicitada não comprova análise sustentada nessa taxa.
+- Tela de atualização, aviso e botão que abre o importador do AltStore com o
+  IPA oficial. Há fonte e download como alternativas; a confirmação é humana.
+
+CORREÇÕES ENCONTRADAS AO COMPARAR
+- A área livre do iPhone não deve assumir que é uma quadra calibrada.
+- O limite inclinado do piso usa a mesma margem vertical do Android.
+- Área/marcas não perdem a compensação ao pausar. Editar parte da referência
+  congelada correta; salvar não grava cantos de uma posição anterior.
+- Arraste da área tem prioridade sobre a rolagem da página, com lupa e
+  limitação aos extremos da imagem. Tela cheia tem revisão/alertas próprios.
+- Ajustes ficam bloqueados durante a edição, evitando mudar câmera/superfície
+  enquanto os cantos ainda são um rascunho.
+- A câmera só é declarada pronta após receber uma imagem real.
+- Permissão concedida em segundo plano não inicia captura escondida.
+- Atualização valida endereço oficial e abre diretamente o importador do
+  AltStore; não confunde adicionar uma fonte com instalar uma atualização.
+
+TESTES
+41 cenários de pixels conhecidos em mobile/shared/vision-cases.json,
+consumidos pelos testes Kotlin e Swift: mãos claras/médias/escuras, dedos,
+bola carregada, soltura IN/OUT a timestamps 30/60/120, piso verde/madeira,
+queda sem retorno, bola escondida, mão vazia, alvos 3/6/12 pixels com passos
+de 20/40/80 pixels por quadro, borrão 2/4/6, contato entre quadros, contato
+oculto, voo sem contato e sequência a timestamps 30 FPS.
+
+Android: MobileParityTest passou, 41 cenários, zero posições erradas nos
+cenários, decisões esperadas e erro da marca dentro de 3 px quando há contato.
+Esse é um teste JVM/Robolectric, não um aparelho físico. O Android APK 0.6.4
+é o mesmo já publicado; pacote, versão, certificado e SHA-256 foram conferidos.
+Não se recompilou/substituiu o APK imutável só para trocar seu número.
+
+Swift: 51 XCTest do núcleo, incluindo a execução dos mesmos 41 cenários,
+política de taxas e links de atualização. Resultado final e etapas de build
+estão em ios-ci.json. O rodapé Swift Testing com zero testes é outra biblioteca;
+os XCTest são enumerados antes dele. Pixels sintéticos não são partidas reais.
+
+39 testes Python de empacotamento, fonte AltStore, pareamento/painel e
+publicação conjunta passaram. Rejeitam IPA antigo, contrato desatualizado,
+versões diferentes, APK corrompido e mudança de certificado. O publicador
+também compara o IPA local com o artefato do CI aprovado e confere downloads.
+
+ATUALIZAÇÕES COORDENADAS
+mobile/shared/release.json define a versão comum. A geração Xcode confere a
+versão Android e embute o contrato. O publicador exige os dois arquivos reais,
+testes/build nativo aprovados, integridade e identidade Android preservadas.
+Ele publica mobile-v0.6.4 com APK e IPA, atualiza a fonte oficial e preserva
+latest Windows 0.6.9. O contrato não traduz código Kotlin para Swift: mudanças
+futuras de comportamento precisam ser portadas e passar nos cenários comuns.
+
+Instalação iOS continua exigindo assinatura/confirmação no AltStore e pode
+precisar do AltServer para instalar/renovar. O treino local não exige PC.
+Não há uma instalação silenciosa de novo executável por dentro do iPhone.
+
+PENDÊNCIAS E LIMITES
+O iPhone não apareceu na última consulta USB desta rodada. Não foi instalada
+nem testada fisicamente a 0.6.4 no iPhone. A última consulta de instalação
+registrou 0.2.0 no iPhone 15 Pro/iOS 27.2. Compilar/simular não é testar o celular.
+Permanecem sem confirmação: gestos/edição reais, câmera e orientação reais,
+áudio audível, atualização pelo botão com AltStore instalado, alta taxa
+120/240 sustentada, temperatura, latência sensor→tela e quicadas reais.
+
+Não houve treinamento de rede neural. A leitura local usa cor, forma,
+movimento e continuidade. Bola fora da imagem, minúscula, borrada ou oculta
+não pode ser inventada. Uma câmera não comprova todos os contatos 3D.
+Não foi comprovada arbitragem de partidas nem detecção de saques a 200 km/h.
+As funcionalidades foram alinhadas; FPS/precisão não serão necessariamente
+iguais em sensores/lentes diferentes. A análise de duas câmeras e o modelo
+de esqueleto do Windows não fazem parte do treino local Android 0.6.4 e não
+foram anunciados como disponíveis no iPhone local.
+
+EVIDÊNCIAS
+android-parity.json, ios-ci.json e as provas de download em
+mobile/releases/verification/mobile-v0.6.4/published.json.
+Dados pessoais, perfis de assinatura e gravações não foram incluídos.
