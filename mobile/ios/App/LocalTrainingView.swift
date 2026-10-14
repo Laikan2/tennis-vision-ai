@@ -110,8 +110,8 @@ struct LocalTrainingView: View {
                 VStack(alignment:.leading,spacing:12){
                     HStack{Label(model.active ? "TREINO ATIVO":model.editing>0 ? "EDITANDO ÁREA":"CÂMERA LOCAL",systemImage:"camera.fill").font(.caption.weight(.semibold));Spacer();Text("SEM COMPUTADOR").font(.system(size:10,weight:.semibold)).foregroundStyle(Palette.lime)}
                     ZStack{
-                        LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:16))
-                        if model.visibleFrame==nil{VStack(spacing:12){Image(systemName:"camera").font(.largeTitle);Text(model.denied ? "Permita a câmera":"Preparando sua câmera");if model.denied{Button("Abrir Ajustes"){UIApplication.shared.open(URL(string:UIApplication.openSettingsURLString)!)}}}.padding(20)}
+                        LocalCourtCanvas(model:model).aspectRatio(max(ratio,0.85),contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:16))
+                        if model.visibleFrame==nil{VStack(spacing:12){Image(systemName:"camera").font(.largeTitle);Text(model.denied ? "Permita a câmera":model.cameraUnavailable ? "Câmera indisponível":"Preparando sua câmera");if model.denied{Button("Abrir Ajustes"){UIApplication.shared.open(URL(string:UIApplication.openSettingsURLString)!)}}}.padding(20)}
                     }.background(.black,in:RoundedRectangle(cornerRadius:16))
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     if model.editing>0 {
@@ -131,7 +131,7 @@ struct LocalTrainingView: View {
         }.background(Palette.background).preferredColorScheme(.dark).tint(Palette.lime)
         .safeAreaInset(edge:.bottom){
             Button{model.ready ? model.begin():model.prepare()}label:{Label(model.active ? "Pausar treino":model.ready ? "Iniciar treino":"Reabrir câmera",systemImage:model.active ? "pause.fill":"play.fill").font(.headline).frame(maxWidth:.infinity).padding(.vertical,17)}
-                .buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(model.denied || model.editing>0 || model.testing).padding(16).background(Palette.background).accessibilityIdentifier("local.start")
+                .buttonStyle(.borderedProminent).tint(Palette.lime).foregroundStyle(Palette.background).disabled(model.denied || model.editing>0 || model.testing).padding(16).background(Palette.background).accessibilityIdentifier("local.start")
         }
         .task{model.prepare();await model.checkUpdate()}
         .onChange(of:phase){_,phase in if phase == .active{model.prepare()}else if phase == .background{model.suspend()}}

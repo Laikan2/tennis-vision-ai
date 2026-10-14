@@ -1,32 +1,32 @@
 import Foundation
 
 // Local green-tennis-ball analysis. No network, model download or PC dependency.
-public struct VisionPoint: Codable, Equatable {
+public struct VisionPoint: Codable, Equatable, Sendable {
     public var x: Double; public var y: Double
     public init(_ x: Double,_ y: Double) { self.x=x;self.y=y }
 }
-public enum VisionSurface: String, Codable, CaseIterable { case floor, wall, track }
-public enum VisionCourt: String, Codable, CaseIterable { case custom, full, half }
-public enum VisionCall: String, Codable { case inside, outside, review, unmarked, rejected }
-public struct VisionSettings: Codable, Equatable {
+public enum VisionSurface: String, Codable, CaseIterable, Sendable { case floor, wall, track }
+public enum VisionCourt: String, Codable, CaseIterable, Sendable { case custom, full, half }
+public enum VisionCall: String, Codable, Sendable { case inside, outside, review, unmarked, rejected }
+public struct VisionSettings: Codable, Equatable, Sendable {
     public var polygon=[VisionPoint](), floorLine=[VisionPoint]()
     public var surface=VisionSurface.floor, court=VisionCourt.full
     public var sound=true, marks=true
     public init() {}
 }
-public struct VisionBall {
+public struct VisionBall: Sendable {
     public var x: Double,y: Double,radius: Double,time: Double,confidence: Double
     public var nearHand=false, blurred=false, luminance=0.0, motionSupport=1.0, occluded=false, colorUncertain=false
     public var resolved: Bool { !occluded && !colorUncertain && radius>=2.5 && confidence>=0.5 }
 }
-public struct VisionImpact: Codable, Identifiable {
+public struct VisionImpact: Codable, Identifiable, Sendable {
     public var id: Int,time: Double,point: VisionPoint,radius: Double,call: VisionCall
     public var speed: Double?,uncertainty: Double,reason: String,surface: VisionSurface
     public var reviewed: VisionCall?
     public var cameraOffset=VisionPoint(0,0),evidenceOffset=VisionPoint(0,0)
     public var decision: VisionCall { reviewed ?? call }
 }
-public struct VisionResult {
+public struct VisionResult: Sendable {
     public var observed: VisionBall?,predicted: VisionPoint?,trail=[VisionPoint](),impact: VisionImpact?
     public var movingCamera=false,speed: Double?,message="Bola não localizada"
     public var area=VisionSettings(),cameraOffset=VisionPoint(0,0)

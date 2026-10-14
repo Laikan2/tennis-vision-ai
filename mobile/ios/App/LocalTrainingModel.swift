@@ -1,7 +1,7 @@
 import SwiftUI
 import AVFoundation
 
-struct LocalTrainingSession: Codable,Identifiable {
+struct LocalTrainingSession: Codable,Identifiable,Sendable {
     var id=UUID().uuidString,started=Date(),key="",events=[VisionImpact]()
 }
 private struct LocalArchive: Codable {var settings=[String:VisionSettings](),sessions=[LocalTrainingSession]()}
@@ -57,6 +57,7 @@ final class LocalTrainingStore {
     @Published var ready=false
     @Published var active=false
     @Published var denied=false
+    @Published var cameraUnavailable=false
     @Published var error: String?
     @Published var editing=0
     @Published var draft=[VisionPoint]()
@@ -78,6 +79,7 @@ final class LocalTrainingStore {
     private var player: AVAudioPlayer?,soundCount=0,editingCourt: VisionCourt?
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
+    private var acceptedContacts=Set<String>()
     private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
     var visibleResult: VisionResult?{editing==0 && active ? frame?.result:nil}
@@ -91,6 +93,7 @@ final class LocalTrainingStore {
         camera.onFrame={[weak self] frame,events in Task{@MainActor in self?.receive(frame,events:events)}}
         camera.onState={[weak self] message,ready in Task{@MainActor in
             guard let self,self.foreground else{return};self.ready=ready
+            self.cameraUnavailable = !ready
             if !ready{self.active=false;self.currentGeneration=nil}
             self.status=message;UIApplication.shared.isIdleTimerDisabled=ready
         }}
@@ -103,7 +106,7 @@ final class LocalTrainingStore {
             diagnosticLaunched=true;diagnostics();return
         }
         switch AVCaptureDevice.authorizationStatus(for:.video){
-        case .authorized:denied=false;ready=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID)
+        case .authorized:denied=false;ready=false;cameraUnavailable=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID)
         case .notDetermined:
             permissionPending=true
             AVCaptureDevice.requestAccess(for:.video){[weak self] allowed in Task{@MainActor in
@@ -170,7 +173,9 @@ final class LocalTrainingStore {
         }
     }
     private func accept(_ f: LocalCameraFrame){
-        guard var hit=f.result.impact,!session.events.contains(where:{abs($0.time-hit.time)<0.01}),session.events.count<2000 else{return}
+        guard var hit=f.result.impact,session.events.count<2000 else{return}
+        let contactKey="\(f.generation.uuidString):\(hit.id)"
+        guard acceptedContacts.insert(contactKey).inserted else{return}
         hit.id=(session.events.map{$0.id}.max() ?? 0)+1;hit.evidenceOffset=f.evidenceOffset ?? hit.cameraOffset
         session.events.append(hit)
         store.save(settings:nil,key:key,session:session,evidence:f.evidence.map{(hit.id,$0)}){[weak self] message in
@@ -218,7 +223,12 @@ final class LocalTrainingStore {
     }
     func revise(_ call: VisionCall){
         guard let hit=reviewing,let i=session.events.firstIndex(where:{$0.id==hit.id}) else{return}
-        session.events[i].reviewed=call;store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message};reviewing=nil;reviewImage=nil
+        var next=session;next.events[i].reviewed=call
+        store.save(settings:nil,key:key,session:next,evidence:nil){[weak self] message in
+            guard let self else{return}
+            if let message{self.error=message;return}
+            self.session=next;self.reviewing=nil;self.reviewImage=nil
+        }
     }
     func exportSession(){pause();let snapshot=session
         DispatchQueue.global(qos:.utility).async{[weak self] in
