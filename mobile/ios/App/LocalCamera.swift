@@ -105,7 +105,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
                 // Commit before startRunning, which must never run inside configuration.
                 self.queue.async{[weak self] in
                     guard let self,self.running,self.generation==requestedGeneration else{return}
-                    self.session.startRunning();self.state("Câmera pronta · confira a área",true)
+                    self.session.startRunning()
                     let timer=DispatchSource.makeTimerSource(queue:self.queue);timer.schedule(deadline:.now()+0.5,repeating:0.5)
                     timer.setEventHandler{[weak self] in self?.watchdog()};self.timer=timer;timer.resume()
                 }

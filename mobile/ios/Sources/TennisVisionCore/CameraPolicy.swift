@@ -41,6 +41,14 @@ public enum UpdateSource {
         value.queryItems=[URLQueryItem(name:"url",value:url.absoluteString)]
         return value.url!
     }
+    public static func installURL(for download: URL) -> URL? {
+        guard let source=URLComponents(url:download,resolvingAgainstBaseURL:false),source.scheme=="https",source.host=="github.com",source.user==nil,source.password==nil,source.port==nil,source.query==nil,source.fragment==nil else{return nil}
+        let prefix="/Laikan2/tennis-vision-releases/releases/download/"
+        guard download.path.hasPrefix(prefix),download.pathExtension=="ipa",download.path.dropFirst(prefix.count).split(separator:"/").count==2 else{return nil}
+        var destination=URLComponents(string:"altstore://install")!
+        destination.queryItems=[URLQueryItem(name:"url",value:download.absoluteString)]
+        return destination.url
+    }
     public static func latest(_ data: Data, os: String) throws -> SourceRelease {
         struct App: Decodable { let bundleIdentifier: String; let versions: [SourceRelease] }
         struct Feed: Decodable { let apps: [App] }
@@ -49,8 +57,7 @@ public enum UpdateSource {
         guard let app=feed.apps.first(where:{$0.bundleIdentifier == "ai.tennisvision.camera.ios"}),
               let version=app.versions.first(where:{ ($0.minOSVersion ?? "0").compare(os,options:.numeric) != .orderedDescending }),
               version.version.range(of:#"^\d+\.\d+\.\d+$"#,options:.regularExpression) != nil,
-              version.downloadURL.absoluteString.hasPrefix("https://github.com/Laikan2/tennis-vision-releases/releases/download/"),
-              version.downloadURL.pathExtension == "ipa", version.size > 0 else {
+              installURL(for:version.downloadURL) != nil, version.size > 0 else {
             throw CameraError.invalid("Nenhuma versão compatível encontrada na fonte oficial.")
         }
         return version

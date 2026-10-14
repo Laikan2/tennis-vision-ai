@@ -111,11 +111,13 @@ final class LocalTrainingStore {
             diagnosticLaunched=true;diagnostics();return
         }
         switch AVCaptureDevice.authorizationStatus(for:.video){
-        case .authorized:denied=false;ready=false;cameraUnavailable=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID,rate:rate)
+        case .authorized:denied=false;ready=false;cameraUnavailable=false;status="Abrindo câmera · aguarde a imagem";currentGeneration=nil;camera.start(detail:detail,lensID:lensID,rate:rate)
         case .notDetermined:
             permissionPending=true
             AVCaptureDevice.requestAccess(for:.video){[weak self] allowed in Task{@MainActor in
-                guard let self else{return};self.permissionPending=false;if allowed{self.prepare()}else{self.denied=true;self.status="Permita a câmera para começar"}
+                guard let self else{return};self.permissionPending=false
+                guard self.foreground else{return}
+                if allowed{self.prepare()}else{self.denied=true;self.status="Permita a câmera para começar"}
             }}
         default:denied=true;ready=false;status="Acesso à câmera negado"
         }
@@ -135,13 +137,15 @@ final class LocalTrainingStore {
     }
     func receive(_ frame: LocalCameraFrame,events: [LocalCameraFrame]){
         guard foreground,!testing else{return}
+        let firstRealImage = !ready
         if key != frame.key {
             pause();key=frame.key;config=store.settings(key);confirmed=false;currentGeneration=frame.generation
             session=store.history().first(where:{$0.key==key}) ?? LocalTrainingSession(key:key)
         }
         if let generation=currentGeneration,generation != frame.generation{active=false;confirmed=false};currentGeneration=frame.generation
         if editing==0{self.frame=frame}
-        ready=true
+        ready=true;cameraUnavailable=false
+        if firstRealImage{status="Câmera pronta · confira a área";UIApplication.shared.isIdleTimerDisabled=true}
         // Explicit developer launch only: live pixels go through the same engine,
         // but no probe event, image or sound is added to the user's session.
         if cameraProbe {
@@ -269,5 +273,12 @@ final class LocalTrainingStore {
             updateDownloadURL=newVersion==nil ? nil:release.downloadURL
             updateMessage=newVersion.map{"Versão mobile \($0) disponível no AltStore"} ?? "Nenhuma atualização compatível disponível"
         }catch{updateMessage="Sem consulta agora. O treino local continua disponível."}
+    }
+    func installUpdate(){
+        guard newVersion != nil,let download=updateDownloadURL,let url=UpdateSource.installURL(for:download) else{return}
+        pause()
+        UIApplication.shared.open(url){[weak self] opened in Task{@MainActor in
+            if !opened{self?.error="Não foi possível abrir o AltStore. Instale/abra o AltStore Classic e use a fonte oficial ou o IPA do GitHub."}
+        }}
     }
 }

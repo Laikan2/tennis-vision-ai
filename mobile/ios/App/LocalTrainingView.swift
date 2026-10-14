@@ -229,6 +229,7 @@ struct LocalTrainingView: View {
                 Text("iOS \(model.appVersion) · recursos mobile 0.6.4")
                 Text(model.updateMessage).font(.footnote)
                 Button("Buscar atualização"){Task{await model.checkUpdate()}}.disabled(model.checkingUpdate)
+                if model.newVersion != nil{Button("Instalar atualização"){model.installUpdate()}}
                 Button("Abrir fonte no AltStore"){UIApplication.shared.open(UpdateSource.addURL)}
                 Button("Câmera e painel do Windows · opcional"){settings=false;model.suspend(completion:openStudio)}
             }
@@ -262,7 +263,8 @@ struct LocalTrainingView: View {
             Section("Atualização pelo GitHub"){
                 Text(model.updateMessage.isEmpty ? "Consultando fonte oficial…":model.updateMessage)
                 Button(model.checkingUpdate ? "Consultando…":"Buscar atualização"){Task{await model.checkUpdate()}}.disabled(model.checkingUpdate)
-                Button("Atualizar pelo AltStore"){UIApplication.shared.open(UpdateSource.addURL)}
+                Button("Instalar atualização pelo AltStore"){model.installUpdate()}.disabled(model.newVersion==nil)
+                Button("Abrir fonte no AltStore"){UIApplication.shared.open(UpdateSource.addURL)}
                 if let url=model.updateDownloadURL{Link("Baixar IPA oficial pelo GitHub",destination:url)}
                 Button("Copiar endereço da fonte"){UIPasteboard.general.string=UpdateSource.url.absoluteString}
                 Text("No AltStore, use My Apps → Update. Se o app antigo aparece como Sideloaded, abra Tennis Vision na fonte ou selecione o IPA pelo botão +. Instale sobre o aplicativo existente.").font(.footnote)
