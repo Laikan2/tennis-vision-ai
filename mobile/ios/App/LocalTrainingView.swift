@@ -226,7 +226,7 @@ struct LocalTrainingView: View {
                 Text("Os testes usam imagens com posições conhecidas. São separados do treino e não comprovam precisão em partidas reais.").font(.footnote)
             }
             Section("Aplicativo"){
-                Text("iOS \(model.appVersion) · recursos mobile 0.6.4")
+                Text("iOS \(model.appVersion) · recursos mobile \(model.appVersion)")
                 Text(model.updateMessage).font(.footnote)
                 Button("Buscar atualização"){Task{await model.checkUpdate()}}.disabled(model.checkingUpdate)
                 if model.newVersion != nil{Button("Instalar atualização"){model.installUpdate()}}
@@ -258,7 +258,7 @@ struct LocalTrainingView: View {
         NavigationStack{Form{
             Section("Versão de funcionalidades"){
                 Text("Tennis Vision mobile \(model.appVersion)").font(.headline)
-                Text("Esta entrega acompanha os recursos do Android 0.6.4: treino local, bola verde, áreas, revisão, som e histórico.").font(.footnote)
+                Text("Esta entrega acompanha os recursos do Android \(model.appVersion): treino local, bola verde, áreas, revisão, som e histórico.").font(.footnote)
             }
             Section("Atualização pelo GitHub"){
                 Text(model.updateMessage.isEmpty ? "Consultando fonte oficial…":model.updateMessage)
