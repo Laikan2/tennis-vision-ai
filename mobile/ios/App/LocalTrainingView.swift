@@ -22,7 +22,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     override func didMoveToSuperview(){super.didMoveToSuperview();attachScrollGesture()}
     override func didMoveToWindow(){super.didMoveToWindow();attachScrollGesture()}
     private func attachScrollGesture(){var parent=superview;while let p=parent{if let scroll=p as? UIScrollView{scroll.panGestureRecognizer.require(toFail:pan);break};parent=p.superview}}
-    func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer)->Bool{
+    override func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer)->Bool{
         if recognizer === pan{let p=pan.location(in:self),d=pan.translation(in:self);return editing>0 && point(CGPoint(x:p.x-d.x,y:p.y-d.y)) != nil};return true
     }
     func refreshGestures(){pan.isEnabled=editing>0;if editing==0{touchPoint=nil;movingCorner=nil;anchor=nil}}

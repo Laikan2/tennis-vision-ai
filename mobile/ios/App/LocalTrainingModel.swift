@@ -88,7 +88,7 @@ final class LocalTrainingStore {
     var insideCount: Int{session.events.filter{$0.decision == .inside}.count}
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
-    var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(Int((Double(insideCount)/Double(n)*100).rounded()))%":"—"}
+    var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
     var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.4"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Área livre") · salva para esta lente" : "Área ainda não marcada"}
