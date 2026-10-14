@@ -11,6 +11,6 @@ let package = Package(
     targets: [
         .target(name: "TennisVisionCore"),
         .executableTarget(name: "TransportSmoke", dependencies: ["TennisVisionCore"], path: "Smoke"),
-        .testTarget(name: "TennisVisionCoreTests", dependencies: ["TennisVisionCore"]),
+        .testTarget(name: "TennisVisionCoreTests", dependencies: ["TennisVisionCore"],resources:[.copy("Fixtures")]),
     ]
 )

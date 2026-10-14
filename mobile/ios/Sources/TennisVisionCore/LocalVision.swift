@@ -10,7 +10,7 @@ public enum VisionCourt: String, Codable, CaseIterable, Sendable { case custom, 
 public enum VisionCall: String, Codable, Sendable { case inside, outside, review, unmarked, rejected }
 public struct VisionSettings: Codable, Equatable, Sendable {
     public var polygon=[VisionPoint](), floorLine=[VisionPoint]()
-    public var surface=VisionSurface.floor, court=VisionCourt.full
+    public var surface=VisionSurface.floor, court=VisionCourt.custom
     public var sound=true, marks=true
     public init() {}
 }
@@ -49,6 +49,11 @@ public enum VisionGeometry {
         guard validLine(line) else{return nil};let a=line[0],b=line[1],w=Double(width),h=Double(height)
         let slope=(b.y-a.y)*h/((b.x-a.x)*w),y=(a.y+(p.x-a.x)*(b.y-a.y)/(b.x-a.x))*h
         return (p.y*h-y)/sqrt(1+slope*slope)
+    }
+    public static func onFloor(_ p: VisionPoint,_ line: [VisionPoint]) -> Bool {
+        guard validLine(line) else{return false}
+        let a=line[0],b=line[1],y=a.y+(p.x-a.x)*(b.y-a.y)/(b.x-a.x)
+        return p.y>y+0.01
     }
     public static func classify(_ p: VisionPoint,radius: Double,uncertainty: Double,polygon: [VisionPoint],width: Int,height: Int) -> VisionCall {
         guard valid(polygon) else{return .unmarked}
@@ -226,8 +231,9 @@ public final class LocalVision {
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
     public func reset(){clearTrack();detector.reset();lastFrame = -1;unstableUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
-        guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite,time>lastFrame else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
+        guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
+        guard time>lastFrame else{return VisionResult(message:"Timestamp repetido · quadro descartado")}
         if lastFrame>=0 && time-lastFrame>0.25{path=[]};lastFrame=time
         let (candidates,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
         let motion=detector.alignment
@@ -319,7 +325,7 @@ public final class LocalVision {
         if let dist=floorDistance,dist+uncertainty<0{return nil}
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
         let courtKnown=settings.court != .custom && VisionGeometry.valid(area.polygon)
-        let floorKnown=settings.surface != .floor || courtKnown || (floorDistance.map{$0>0.01*Double(height)} ?? false)
+        let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
         if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || p.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
         let reason: String
         if settings.surface == .wall{reason="Retorno lateral observado; confirme contato com a parede."}

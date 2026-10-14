@@ -1,0 +1,424 @@
+{
+  "schema": 1,
+  "kind": "synthetic-known-pixels-not-real-tennis",
+  "cases": [
+    {
+      "name": "hold_light",
+      "family": "hand",
+      "action": "hold",
+      "skin": "ffe2b49a",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 20
+    },
+    {
+      "name": "carry_light",
+      "family": "hand",
+      "action": "carry",
+      "skin": "ffe2b49a",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 14
+    },
+    {
+      "name": "fingers_light",
+      "family": "hand",
+      "action": "fingers",
+      "skin": "ffe2b49a",
+      "radius": 9,
+      "calls": [],
+      "minLocated": 19
+    },
+    {
+      "name": "hold_medium",
+      "family": "hand",
+      "action": "hold",
+      "skin": "ffbc8062",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 20
+    },
+    {
+      "name": "carry_medium",
+      "family": "hand",
+      "action": "carry",
+      "skin": "ffbc8062",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 14
+    },
+    {
+      "name": "fingers_medium",
+      "family": "hand",
+      "action": "fingers",
+      "skin": "ffbc8062",
+      "radius": 9,
+      "calls": [],
+      "minLocated": 19
+    },
+    {
+      "name": "hold_dim",
+      "family": "hand",
+      "action": "hold",
+      "skin": "ff3b2921",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 20
+    },
+    {
+      "name": "carry_dim",
+      "family": "hand",
+      "action": "carry",
+      "skin": "ff3b2921",
+      "radius": 6,
+      "calls": [],
+      "minLocated": 14
+    },
+    {
+      "name": "fingers_dim",
+      "family": "hand",
+      "action": "fingers",
+      "skin": "ff3b2921",
+      "radius": 9,
+      "calls": [],
+      "minLocated": 19
+    },
+    {
+      "name": "release_in_30",
+      "family": "hand",
+      "action": "release",
+      "fps": 30,
+      "outside": false,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_out_30",
+      "family": "hand",
+      "action": "release",
+      "fps": 30,
+      "outside": true,
+      "calls": [
+        "outside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_in_60",
+      "family": "hand",
+      "action": "release",
+      "fps": 60,
+      "outside": false,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_out_60",
+      "family": "hand",
+      "action": "release",
+      "fps": 60,
+      "outside": true,
+      "calls": [
+        "outside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_in_120",
+      "family": "hand",
+      "action": "release",
+      "fps": 120,
+      "outside": false,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_out_120",
+      "family": "hand",
+      "action": "release",
+      "fps": 120,
+      "outside": true,
+      "calls": [
+        "outside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_green",
+      "family": "hand",
+      "action": "release",
+      "background": "ff73943e",
+      "radius": 6,
+      "fingers": false,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_wood",
+      "family": "hand",
+      "action": "release",
+      "background": "ffbc9062",
+      "radius": 6,
+      "fingers": false,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_fingers",
+      "family": "hand",
+      "action": "release",
+      "background": "ff315372",
+      "radius": 9,
+      "fingers": true,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "release_fingers_green",
+      "family": "hand",
+      "action": "release",
+      "background": "ff73943e",
+      "radius": 9,
+      "fingers": true,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 24
+    },
+    {
+      "name": "fall",
+      "family": "hand",
+      "action": "fall",
+      "outside": true,
+      "calls": [],
+      "minLocated": 19
+    },
+    {
+      "name": "hidden",
+      "family": "hand",
+      "action": "hidden",
+      "outside": true,
+      "calls": [],
+      "minLocated": 0
+    },
+    {
+      "name": "no_ball",
+      "family": "hand",
+      "action": "no_ball",
+      "outside": true,
+      "calls": [],
+      "minLocated": 0
+    },
+    {
+      "name": "fast_3px_20",
+      "family": "fast",
+      "diameter": 3,
+      "dx": 20,
+      "calls": [
+        "review"
+      ],
+      "minLocated": 11
+    },
+    {
+      "name": "fast_3px_40",
+      "family": "fast",
+      "diameter": 3,
+      "dx": 40,
+      "calls": [
+        "review"
+      ],
+      "minLocated": 11
+    },
+    {
+      "name": "fast_3px_80",
+      "family": "fast",
+      "diameter": 3,
+      "dx": 80,
+      "calls": [
+        "review"
+      ],
+      "minLocated": 11
+    },
+    {
+      "name": "fast_6px_20",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 20,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "fast_6px_40",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "fast_6px_80",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 80,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "fast_12px_20",
+      "family": "fast",
+      "diameter": 12,
+      "dx": 20,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "fast_12px_40",
+      "family": "fast",
+      "diameter": 12,
+      "dx": 40,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "fast_12px_80",
+      "family": "fast",
+      "diameter": 12,
+      "dx": 80,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "blur_2",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "blur": 2,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "blur_4",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "blur": 4,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "blur_6",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "blur": 6,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 11
+    },
+    {
+      "name": "phase_0.25",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "phase": 0.25,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "phase_0.5",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "phase": 0.5,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "phase_0.75",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 40,
+      "phase": 0.75,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "out_fast",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 30,
+      "outside": true,
+      "calls": [
+        "outside"
+      ],
+      "minLocated": 12
+    },
+    {
+      "name": "hidden_contact",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 30,
+      "outside": true,
+      "hideContact": true,
+      "calls": [
+        "review"
+      ],
+      "minLocated": 11
+    },
+    {
+      "name": "air_crossing",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 60,
+      "bounce": false,
+      "calls": [],
+      "minLocated": 12
+    },
+    {
+      "name": "30fps_fast",
+      "family": "fast",
+      "diameter": 6,
+      "dx": 80,
+      "fps": 30,
+      "calls": [
+        "inside"
+      ],
+      "minLocated": 12
+    }
+  ]
+}

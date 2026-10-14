@@ -1,0 +1,39 @@
+{
+  "version": "0.6.4",
+  "baseline": "green-ball-local-0.6.4",
+  "platforms": [
+    "android",
+    "ios"
+  ],
+  "features": [
+    "offline-training",
+    "green-ball-small-signal",
+    "hand-occlusion",
+    "observed-trail",
+    "limited-labelled-prediction",
+    "floor-wall-track",
+    "in-out-review",
+    "impact-audio",
+    "estimated-lateral-speed",
+    "full-half-court",
+    "drag-area",
+    "corner-magnifier",
+    "impact-tap-review",
+    "per-lens-area",
+    "local-history",
+    "atomic-storage",
+    "json-export",
+    "capture-profiles",
+    "measured-fps",
+    "github-updates"
+  ],
+  "installation": {
+    "android": "apk-confirmation",
+    "ios": "altstore-personal-signing-confirmation"
+  },
+  "limits": [
+    "camera-dependent-fps",
+    "monocular-contact-estimate",
+    "real-match-accuracy-unverified"
+  ]
+}

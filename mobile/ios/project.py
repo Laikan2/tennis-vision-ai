@@ -2,6 +2,7 @@
 from pathlib import Path
 import hashlib
 import json
+import re
 
 ROOT = Path(__file__).resolve().parent
 APP_NAME = "TennisVisionCamera"
@@ -10,6 +11,21 @@ def identifier(value):
     return hashlib.sha256(value.encode()).hexdigest()[:24].upper()
 
 def generate():
+    shared = ROOT.parent/'shared/release.json'
+    resource = ROOT/'App/Resources/MobileRelease.json'
+    contract = json.loads((shared if shared.is_file() else resource).read_text(encoding='utf-8'))
+    if contract['version'] != '0.6.4' or set(contract['platforms']) != {'android','ios'}:
+        raise ValueError('Android/iOS feature release must be coordinated')
+    android = ROOT.parent/'android/app/build.gradle.kts'
+    if android.is_file() and re.search(r'versionName\s*=\s*"([0-9.]+)"',android.read_text(encoding='utf-8')).group(1) != contract['version']:
+        raise ValueError('Port and validate both apps before changing the shared feature release')
+    resource.parent.mkdir(parents=True,exist_ok=True)
+    resource.write_text(json.dumps(contract,ensure_ascii=False,indent=2)+'\n',encoding='utf-8',newline='\n')
+    fixtures=ROOT.parent/'shared/vision-cases.json'
+    if fixtures.is_file():
+        testFixtures=ROOT/'Tests/TennisVisionCoreTests/Fixtures/vision-cases.json'
+        testFixtures.parent.mkdir(parents=True,exist_ok=True)
+        testFixtures.write_bytes(fixtures.read_bytes())
     sources = sorted(ROOT.glob("App/*.swift")) + sorted(ROOT.glob("Sources/TennisVisionCore/*.swift"))
     resources = [ROOT/"App/Assets.xcassets", ROOT/"App/PrivacyInfo.xcprivacy"] + sorted(ROOT.glob("App/Resources/*"))
     objects = []
@@ -26,7 +42,7 @@ def generate():
                                       (resources, resource_refs, resource_builds, None)]:
         for path in files:
             relative = path.relative_to(ROOT).as_posix()
-            file_kind = kind or ("folder.assetcatalog" if path.suffix == ".xcassets" else "audio.mp3" if path.suffix == ".mp3" else "text.xml")
+            file_kind = kind or ("folder.assetcatalog" if path.suffix == ".xcassets" else "audio.mp3" if path.suffix == ".mp3" else "text.json" if path.suffix == ".json" else "text.xml")
             ref = add(relative, f"isa = PBXFileReference; lastKnownFileType = {file_kind}; path = {q(relative)}; sourceTree = \"<group>\";")
             refs.append(ref)
             builds.append(add("build:"+relative, f"isa = PBXBuildFile; fileRef = {ref};"))
@@ -47,7 +63,7 @@ def generate():
         }
         target_settings = {
             "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "ai.tennisvision.camera.ios",
-            "MARKETING_VERSION": "0.3.0", "CURRENT_PROJECT_VERSION": "4",
+            "MARKETING_VERSION": "0.6.4", "CURRENT_PROJECT_VERSION": "5",
             "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "App/Info.plist",
             "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "CODE_SIGN_STYLE": "Automatic",
             "TARGETED_DEVICE_FAMILY": "1,2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",

@@ -33,7 +33,7 @@ final class LocalVisionTests: XCTestCase {
     }
     func testKnownInOutContactsAndNoDuplicates() {
         for (x,call) in [(280,VisionCall.inside),(580,.outside)] {
-            var settings=VisionSettings();settings.polygon=area
+            var settings=VisionSettings();settings.polygon=area;settings.court = .full
             let core=LocalVision(settings:settings);var hits=[VisionImpact]()
             for (i,y) in [140,160,185,215,245,280,245,215,185,160].enumerated(){if let event=core.process(pixels(x,y),width:w,height:h,time:Double(i)/60).impact{hits.append(event)}}
             XCTAssertEqual(hits.count,1);XCTAssertEqual(hits.first?.call,call)

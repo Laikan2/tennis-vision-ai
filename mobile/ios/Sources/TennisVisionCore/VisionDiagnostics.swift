@@ -13,7 +13,7 @@ public enum VisionDiagnostics {
         public var name: String,frames: Int,located: Int,wrong: Int,contacts: [VisionCall],maxError: Double,elapsedMs: Double
     }
     public struct Report: Codable {
-        public var version="0.3.0",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
+        public var version="0.6.4",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
         public var results: [Measurement],passed: Bool
     }
     public static var cases: [Case] {
@@ -63,7 +63,7 @@ public enum VisionDiagnostics {
     }
     public static func evaluate(_ c: Case) -> Measurement {
         var settings=VisionSettings();settings.polygon=[VisionPoint(0.15,0.2),VisionPoint(0.75,0.2),VisionPoint(0.75,0.95),VisionPoint(0.15,0.95)]
-        settings.surface=c.bounce ? .floor:.track
+        settings.surface=c.bounce ? .floor:.track;settings.court = .full
         let core=LocalVision(settings:settings);var located=0,wrong=0,maxError=0.0,contacts=[VisionCall](),elapsed=0.0
         for i in 0..<16 {
             let (pixels,known)=frame(c,index:i),started=ProcessInfo.processInfo.systemUptime

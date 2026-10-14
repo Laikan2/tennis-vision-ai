@@ -43,6 +43,7 @@ android {
   buildFeatures { buildConfig = true }
   testOptions { unitTests.isIncludeAndroidResources = true }
   sourceSets.getByName("test").kotlin.srcDir("src/sharedTest/java")
+  sourceSets.getByName("test").resources.srcDir("../../shared")
   sourceSets.getByName("androidTest").kotlin.srcDir("src/sharedTest/java")
   sourceSets.getByName("auditRelease").apply {
     manifest.srcFile("src/audit/AndroidManifest.xml")
