@@ -1,0 +1,11 @@
+{
+  "published": true,
+  "version": "0.3.0",
+  "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/ios-v0.3.0/Tennis-Vision-Camera-iOS-v0.3.0-AltStore.ipa",
+  "publicDownloadBytes": 699898,
+  "sha256": "1a9a198fc53871690202e22444b4e8a25350ba655694a4258b85596af40d6d04",
+  "windowsLatestUnchanged": "v0.6.9",
+  "sourceCommit": "ddd00431571924c8c13b9e4598c9e7acbadb9c03",
+  "validationRun": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/38624720936",
+  "physicalDeviceValidation": "pending-installation"
+}

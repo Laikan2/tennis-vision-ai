@@ -10,13 +10,18 @@ android {
     applicationId = "ai.tennisvision.camera"
     minSdk = 26
     targetSdk = 37
-    versionCode = 12
-    versionName = "0.5.6"
+    versionCode = 17
+    versionName = "0.6.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
   buildTypes {
+    create("audit") {
+      initWith(getByName("debug"))
+      applicationIdSuffix = ".audit"
+      matchingFallbacks += listOf("debug")
+    }
     release {
       // Preserve update compatibility with the APKs already delivered for local use.
       signingConfig = signingConfigs.getByName("debug")
@@ -27,9 +32,22 @@ android {
         "proguard-rules.pro",
       )
     }
+    create("auditRelease") {
+      initWith(getByName("release"))
+      applicationIdSuffix = ".audit"
+      matchingFallbacks += listOf("release")
+    }
   }
+  // Explicit opt-in: device tests get their own app/data and never overwrite a personal session.
+  testBuildType = if (providers.gradleProperty("auditDevice").orNull == "true") "audit" else "debug"
   buildFeatures { buildConfig = true }
   testOptions { unitTests.isIncludeAndroidResources = true }
+  sourceSets.getByName("test").kotlin.srcDir("src/sharedTest/java")
+  sourceSets.getByName("androidTest").kotlin.srcDir("src/sharedTest/java")
+  sourceSets.getByName("auditRelease").apply {
+    manifest.srcFile("src/audit/AndroidManifest.xml")
+    res.srcDir("src/audit/res")
+  }
 
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17

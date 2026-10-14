@@ -1,14 +1,46 @@
-TENNIS VISION CAMERA 0.5.6 — ANDROID
+TENNIS VISION 0.6.4 — ANDROID COM TREINO LOCAL E QUADRA
 
 INSTALAR / ATUALIZAR
-1. Envie Tennis-Vision-Camera-Android-v0.5.6.apk para o Galaxy S25 Ultra.
+1. Envie Tennis-Vision-Camera-Android-v0.6.4.apk para o Galaxy S25 Ultra.
 2. Abra o APK e toque em Atualizar. O arquivo usa o mesmo certificado dos APKs
    anteriores entregues neste PC; a atualização mantém o pareamento.
-3. Abra Tennis Vision Studio no computador.
-4. No PC: Conectar celular. No Galaxy: Conexão > Ler QR do computador.
-5. Use a mesma rede no PC e no celular. Ethernet no PC e Wi-Fi no Galaxy
+3. Abra o app no celular e permita a câmera. Aguarde Câmera pronta.
+4. Fixe o celular na horizontal. Enquadramento e detalhe permite escolher
+   lente e até 1080p. Para bola distante, use Melhorar bola distante > Usar
+   1080p. Confira os FPS recebidos e o tamanho da bola em pixels. Prefira meia
+   quadra quando a bola ficar pequena demais. Mantenha margem para OUT.
+5. Use Marcar quadra > inteira ou metade. Toque nos QUATRO cantos e ajuste
+   com a lupa; salve. A reta Quarto > limite do piso serve só para o quarto.
+6. Toque em Iniciar treino. Não precisa de internet, Windows ou servidor.
+
+IN marca dentro/tocando a linha; OUT marca fora e aciona o som incluído.
+Casos incertos ficam para REVISAR. Toque numa marca para conferir o quadro.
+Áreas, contagens e sessões ficam no celular. Bloquear a tela pausa o treino.
+A velocidade é uma estimativa lateral; não é radar nem medição 3D.
+Pequenas translações com fundo suficiente podem ser compensadas. Mover ou
+girar o celular exige conferir a área; perda de referência pausa a contagem.
+Lente ampla mostra mais, mas diminui a bola. Meia quadra melhora o detalhe.
+A 0.6.4 foi compilada e passou em 172 testes JVM/Robolectric e na revisão
+diagnóstica de um trecho antigo com bola na mão e em voo. O último teste físico
+no S25 Ultra / Android 16 foi da 0.6.1; não comprova a nova versão em quadra.
+Precisão em partida ou saque a 200 km/h ainda não foi comprovada.
+Melhora o sinal da bola pequena e a recuperação perto de objeto verde parado;
+um sinal incerto aparece em amarelo, sem certificar velocidade ou IN/OUT.
+Detalhes: docs/android-distance-audit-2026-10-13.md.
+
+PUBLICAÇÃO DESTA VERSÃO
+O APK 0.6.4 foi publicado em 14/10/2026 e o download público foi conferido.
+No celular, use Atualizações > Buscar atualização > Instalar atualização.
+Release: https://github.com/Laikan2/tennis-vision-releases/releases/tag/android-v0.6.4
+O latest do Windows continua em 0.6.9. A atualização mantém os dados do app.
+
+TRANSMISSÃO PARA WINDOWS (OPCIONAL)
+Os passos seguintes são apenas para Ajustes > Transmitir para PC.
+1. Abra Tennis Vision Studio no computador.
+2. No PC: Conectar celular. No Galaxy: Conexão > Ler QR do computador.
+3. Use a mesma rede no PC e no celular. Ethernet no PC e Wi-Fi no Galaxy
    funcionam quando os dois pertencem à mesma rede.
-6. Toque em Transmitir para o PC. No Windows, abra Conectar celular, aguarde
+4. Toque em Transmitir para o PC. No Windows, abra Conectar celular, aguarde
    Video recebido e toque em Conectar e iniciar video.
 
 ATUALIZAÇÕES PELO GITHUB
@@ -17,7 +49,8 @@ Depois o app consulta novas versões ao abrir e a cada seis horas enquanto
 está aberto. O download automático espera a transmissão parar e uma rede
 sem cobrança por dados. Na rede móvel, toque em Baixar atualização.
 
-Toque na versão no alto da tela ou abra Rede > Atualizações do aplicativo.
+No treino local, role o painel até Atualizações. No modo de transmissão,
+toque na versão ou abra Rede > Atualizações do aplicativo.
 Quando o download terminar, toque em Instalar atualização. Na primeira vez,
 ative Permitir desta fonte, volte ao app e confirme Atualizar no Android.
 As próximas instalações também exigem confirmação no celular.

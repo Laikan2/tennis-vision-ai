@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <!-- The audit runs the production local camera/detector offline in a separate package. -->
+  <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+  <application>
+    <activity android:name=".MainActivity">
+      <intent-filter tools:node="removeAll" />
+    </activity>
+  </application>
+</manifest>

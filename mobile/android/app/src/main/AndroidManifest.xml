@@ -22,7 +22,7 @@
     android:theme="@style/Theme.TennisVisionCamera">
     <provider
       android:name="androidx.core.content.FileProvider"
-      android:authorities="ai.tennisvision.camera.updates"
+      android:authorities="${applicationId}.updates"
       android:exported="false"
       android:grantUriPermissions="true">
       <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
@@ -36,15 +36,21 @@
       android:hardwareAccelerated="true" />
 
     <activity
+      android:name=".LocalTrainingActivity"
+      android:configChanges="keyboardHidden|orientation|screenSize"
+      android:screenOrientation="landscape"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <activity
       android:name=".MainActivity"
       android:launchMode="singleTop"
       android:configChanges="keyboardHidden|orientation|screenSize"
       android:exported="true"
       android:screenOrientation="landscape">
-      <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
       <intent-filter>
         <action android:name="android.intent.action.VIEW" />
         <category android:name="android.intent.category.DEFAULT" />

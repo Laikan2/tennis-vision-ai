@@ -4,9 +4,11 @@ MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.j
 
 ## Aplicativos prontos
 
-Windows **0.6.7** e Android **0.5.6**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.7). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md), a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md) e os [testes e correções de IN/OUT](docs/inout-testes-2026-10-06.md).
+**Android 0.6.4 — treino no próprio celular:** [APK local](mobile/releases/Tennis-Vision-Camera-Android-v0.6.4.apk), [como usar](mobile/android/README.md) e [comparação de bola pequena/distante e limites](docs/android-distance-audit-2026-10-13.md). Câmera, bola verde, contatos, IN/OUT, som e estatísticas executam sem Windows ou internet. Inclui quatro cantos, lentes e até 1080p; melhora o sinal de bolas pequenas, o centro do contorno e a recuperação ao lado de um objeto verde parado. A 0.6.4 passou em 172 testes JVM/Robolectric e preservou a revisão diagnóstica da gravação antiga. O último teste físico no S25/Android 16 foi da [0.6.1](docs/android-fast-ball-audit-2026-10-11.md); precisão em partidas e saques de 200 km/h continua sem validação. [Publicado e download conferido em 14/10/2026](https://github.com/Laikan2/tennis-vision-releases/releases/tag/android-v0.6.4); disponível em Atualizações no Android.
 
-O aplicativo nativo para **iPhone, versão 0.1.0**, está compilado para instalação pessoal pelo **AltStore Classic no Windows**, usando sua conta Apple gratuita e renovação a cada 7 dias. **Conectar celular → iPhone / iOS** oferece o `.ipa`, QR de pareamento e instruções. O projeto Xcode também está disponível em `mobile/ios`. Ainda não há distribuição pelo TestFlight ou App Store. Consulte [instalação, custos e validação iOS](docs/iphone.md).
+Windows **0.6.9**: [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.9). O Windows empacotado inclui o motor, painel e receptor e não exige Node/Python instalados. Consulte [como começar no Windows](docs/windows-studio.md), [atualizações Android](docs/android-updates.md), a [revisão, gravação original e diagnóstico](docs/melhorias-2026-10-06.md) e os [testes e correções de IN/OUT](docs/inout-testes-2026-10-06.md).
+
+**iPhone 0.3.0 — treino local:** [release e IPA](https://github.com/Laikan2/tennis-vision-releases/releases/tag/ios-v0.3.0), [modo local e limites](mobile/ios/README.md). Câmera, bola verde, rastro, áreas, contatos candidatos, IN/OUT com revisão, som e histórico executam no iPhone. A fonte oficial do AltStore oferece a atualização; a instalação mantém a assinatura pessoal e exige confirmação. A câmera e o painel Windows continuam opcionais. Ainda não há distribuição pelo TestFlight ou App Store. Esta versão passou em 45 testes Swift, build de aparelho/simulador e integração RTSP; confira a [validação de entrega](docs/validation/ios-local-2026-10-14/report.txt) para o estado real do teste físico.
 
 ## Executar no Windows
 
@@ -20,9 +22,9 @@ Requisitos: Python 3.12, Node.js 20.9+ e pnpm. A câmera deve estar acessível n
 
 Abra [o dashboard local](http://127.0.0.1:3000). A API fica em [FastAPI /docs](http://127.0.0.1:8000/docs). O script de configuração gera uma chave Fernet no `.env` sem exibi-la. Preserve essa chave para conseguir abrir as credenciais salvas.
 
-### Aplicativo Galaxy S25 Ultra/Android sem Larix
+### Transmissão Android para Windows — modo opcional
 
-O aplicativo nativo já está compilado em `mobile/releases/Tennis-Vision-Camera-Android-v0.5.6.apk` e pode ser baixado também pelo botão **Baixar aplicativo** no painel. Envie o APK ao Galaxy por USB ou Quick Share e instale-o sobre a versão existente. O código-fonte está em `mobile/android`.
+O APK atual deste código é `mobile/releases/Tennis-Vision-Camera-Android-v0.6.4.apk`. Envie ao Galaxy por USB ou Quick Share e instale sobre a versão existente. Para o fluxo descrito abaixo, abra **Ajustes → Transmitir para PC (opcional)**. O treino local da tela inicial não precisa destes passos. Instalações Windows antigas podem ainda oferecer o APK incorporado naquela versão.
 
 Em **Captura**, teste a estabilidade do perfil escolhido, consulte orientações de exposição/foco e grave o MP4 original no celular. No Windows, **Configurações → Analisar gravação original** processa o arquivo completo. **Timeline → Revisar contato** permite corrigir decisões, posições e falsos impactos com as imagens reais. [Uso e resultados medidos](docs/melhorias-2026-10-06.md).
 
@@ -38,7 +40,7 @@ A versão 0.4.1 corrige a exposição/ISO ao trocar o obturador, callbacks antig
 
 A captura e a transmissão em 120/240 fps no S25 Ultra ainda precisam de teste físico: o suporte anunciado pelo hardware não garante taxa sustentada ou atraso total de 40 ms. O aplicativo iOS permanece separado. Consulte `mobile/INSTALAR-APP-ANDROID.txt` e `mobile/android/README.md`.
 
-No computador, nada muda no uso diário: `ABRIR.bat` inicia o receptor, a IA e o painel. O celular fornece os frames; detecção da bola, impacto, velocidade, IN/OUT, replays e estatísticas continuam sendo calculados e exibidos no PC.
+Neste modo opcional, `ABRIR.bat` inicia o receptor, a IA e o painel no PC. O celular fornece os frames e o computador executa a análise. No treino local Android, a análise descrita na auditoria é feita no próprio celular.
 
 ### Alternativa temporária pelo navegador
 

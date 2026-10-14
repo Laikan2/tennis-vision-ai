@@ -77,15 +77,15 @@
         "from": "build/ios",
         "to": "ios",
         "filter": [
-          "Tennis-Vision-Camera-iOS-v0.2.1-Projeto.zip",
-          "Tennis-Vision-Camera-iOS-v0.2.1-AltStore.ipa"
+          "Tennis-Vision-Camera-iOS-v0.3.0-Projeto.zip",
+          "Tennis-Vision-Camera-iOS-v0.3.0-AltStore.ipa"
         ]
       },
       {
         "from": "../mobile/releases",
         "to": "android",
         "filter": [
-          "*v0.5.6.apk"
+          "*v0.6.4.apk"
         ]
       }
     ],

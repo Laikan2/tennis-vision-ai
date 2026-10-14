@@ -113,7 +113,9 @@ class NativeCameraStream(context: Context, private val preview: SurfaceView, pri
   fun setFpsListener(value: ((Double) -> Unit)?) { encodedFpsListener = value }
   fun setCaptureFpsListener(value: ((Double) -> Unit)?) { camera.fpsListener = value }
   fun setCustomOnCaptureCompletedCallback(value: ((TotalCaptureResult) -> Unit)?) { camera.captureListener = value }
-  fun getCameraCharacteristics() = profile?.let { camera.characteristics(it.cameraId) }
+  // Profiles can outlive a disconnected camera or an unavailable encoder. A settings
+  // redraw must not crash the app while the capture path reports that failure.
+  fun getCameraCharacteristics() = profile?.let { runCatching { camera.characteristics(it.cameraId) }.getOrNull() }
 
   fun prepareVideo(config: StreamProfile): Boolean {
     check(!isStreaming && !isOnPreview) { "Pare a prévia e a transmissão antes de trocar o perfil." }

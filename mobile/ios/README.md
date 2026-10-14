@@ -1,8 +1,31 @@
-# Tennis Vision Camera para iPhone — 0.2.0
+# Tennis Vision Camera para iPhone — 0.3.0
 
-Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. A câmera traseira transmite H.264 por RTSP/TCP ao Tennis Vision Studio no Windows. Bola verde, rastro, impactos, IN/OUT e estatísticas são analisados no PC. A câmera nativa não precisa de Larix ou HTTPS.
+Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. **Treino no próprio iPhone** é a tela inicial: câmera, bola verde, rastro, impactos candidatos, IN/OUT, som e histórico executam localmente. Não exige Windows, Larix, servidor, HTTPS, download de modelo ou internet. O modo de câmera/painel do Windows continua disponível em Ajustes como opção separada.
 
-## Câmera e painel no iPhone
+## Treinar no iPhone
+
+1. Abra o app e permita a câmera. Espere a prévia e confira os FPS recebidos.
+2. Fixe o aparelho. Em **Ajustes → Captura e distância**, escolha 720p para fluidez ou 1080p para detalhe; a lista de lentes vem da câmera real. A análise local usa saídas regulares de até 60 FPS. Isso não comprova detecção de saques a 200 km/h.
+3. Use **Marcar área → Quadra inteira / Meia quadra** e toque nos quatro cantos em volta do piso, em ordem. Arraste os cantos para corrigir. **Área livre** cria um retângulo por arraste. A reta **Quarto → limite do piso** é uma referência separada para testes domésticos.
+4. Salve e inicie o treino. A busca continua na imagem inteira para observar também bolas fora. A área é usada para classificação, não como recorte da busca. Deixe margem além das linhas.
+5. **IN**: contato candidato dentro ou tocando a linha. **OUT**: fora com margem suficiente e som incluído. **REVISAR**: detalhe, contato ou linha incertos; não toca OUT automático. **SEM ÁREA**: não há polígono válido para classificar.
+6. Toque em **Último contato** para conferir o quadro mais próximo do instante estimado e confirmar IN/OUT ou descartar. A revisão preserva a decisão original. Ajustes permite esconder as marcas sem apagar o histórico, testar o som e exportar JSON.
+
+Áreas e sessões ficam no aparelho, separadas por lente, resolução e rotação. Ao reabrir, confirme se a área ainda coincide com o piso. Pequenas translações com referências suficientes podem ser compensadas; perda de referência pausa o treino. Girar ou deslocar o iPhone exige conferir os cantos. Bloquear a tela ou ir para segundo plano interrompe a captura; a retomada exige iniciar o treino.
+
+O detector usa cor, forma, movimento e continuidade temporal; não houve treinamento de uma rede neural nesta atualização. Contorno e rastro são desenhados sobre o mesmo quadro analisado. Uma previsão é indicada explicitamente e expira após uma perda curta. Bola parcialmente oculta, na mão, borrada ou minúscula não certifica contato nem velocidade. A velocidade disponível é **lateral e estimada pelo diâmetro aparente da bola de tênis de 67 mm**, não uma medição 3D ou radar.
+
+Uma câmera só não comprova contato real em todas as perspectivas. A área de quadra deve corresponder ao piso; um retorno no ar ainda pode parecer uma quicada. O modo parede mantém contatos para revisão. Boa luz, foco, bola suficientemente grande na imagem e visão do chão são necessários; nenhuma opção recupera detalhe que a câmera não captou.
+
+## Validação
+
+O núcleo Swift tem testes de bola pequena com bordas amostradas e perda de croma, oclusão por dedos, bola carregada, falsos reflexos, timestamps, previsão limitada, quicadas e classificação conhecida IN/OUT. O GitHub compila para aparelho e simulador e testa a transmissão H.264 separadamente.
+
+Em **Ajustes → Testes do detector**, o mesmo núcleo executa imagens sintéticas no iPhone e salva `vision-diagnostics.json`. Esses testes não usam a câmera, não alteram as sessões e não comprovam partidas reais. A compilação ou o screenshot do simulador também não comprovam a câmera física. Confira o relatório de entrega para resultados efetivamente medidos no aparelho.
+
+Para diagnóstico por ferramentas de desenvolvimento, `--vision-diagnostics` executa esses casos, e `--vision-camera-check` analisa pixels reais por 20 segundos e salva apenas métricas em `camera-validation.json`, sem incluir imagens ou eventos na sessão. A medição processamento→tela começa no callback da câmera; não inclui o tempo de exposição/leitura anterior nem comprova a atualização do painel físico.
+
+## Câmera e painel Windows no iPhone — opcional
 
 - **Câmera:** prévia nativa, foco por toque, exposição curta e taxas medidas.
 - **Treino:** a mesma sessão do Windows 0.6.8+, incluindo áreas por arraste ou quatro cantos, calibração, IN/OUT, revisão, som OUT, estatísticas, histórico e duas câmeras. O PC precisa estar ligado e continua executando a IA. A câmera permanece transmitindo nesta aba.
@@ -25,11 +48,11 @@ O publicador Windows executa `scripts/altstore-source.py` após publicar a vers�
 
 ## Distribuição e instalação
 
-Este pacote é um **projeto Xcode**, não um instalador de iPhone. O GitHub compila para iPhone sem assinatura, executa os testes de protocolo, verifica o transporte contra MediaMTX e compila/abre o simulador. Uma compilação sem assinatura não pode ser instalada diretamente no iPhone.
+O projeto Xcode e o instalador `.ipa` são arquivos separados. O GitHub compila para iPhone sem assinatura, executa testes do núcleo/protocolo, verifica o transporte contra MediaMTX e compila/abre o simulador. Uma compilação sem assinatura precisa ser assinada pelo AltStore antes da instalação.
 
 ### Tenho somente Windows
 
-Use o arquivo separado **Tennis-Vision-Camera-iOS-v0.2.0-AltStore.ipa**, disponível no painel Windows em **Conectar celular → iPhone / iOS** e na página de versões do projeto. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic.
+Use **Tennis-Vision-Camera-iOS-v0.3.0-AltStore.ipa** da fonte oficial ou da página de versões. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic. Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
 
 1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Você informa sua conta Apple diretamente no AltServer.
 2. Coloque o `.ipa` no app Arquivos do iPhone. Com o AltServer aberto no PC e o iPhone conectado, use **AltStore Classic → My Apps → +** para selecionar o arquivo.

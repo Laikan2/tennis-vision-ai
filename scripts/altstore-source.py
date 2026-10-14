@@ -13,7 +13,7 @@ ICON_URL=f'https://raw.githubusercontent.com/{REPO}/main/app-icon-ios.png'
 VERIFY=runpy.run_path(str(ROOT/'scripts/package-ios-ipa.py'))['verify_ipa']
 
 def source(ipa, tag, previous=None):
-    if not re.fullmatch(r'v\d+\.\d+\.\d+',tag):
+    if not re.fullmatch(r'(?:ios-)?v\d+\.\d+\.\d+',tag):
         raise ValueError('A stable version tag is required')
     metadata=VERIFY(ipa)
     with ZipFile(ipa) as archive:
@@ -31,11 +31,11 @@ def source(ipa, tag, previous=None):
         date=datetime.now(timezone.utc).isoformat(timespec='seconds'),
         downloadURL=f"https://github.com/{REPO}/releases/download/{tag}/{metadata['filename']}",
         size=metadata['bytes'],minOSVersion=metadata['minimumIOS'],
-        localizedDescription='Correções na orientação da câmera, recuperação do vídeo H.264 após perda de quadros e reabertura do painel. Atualize também o Windows para 0.6.9: seleção de área com vídeo ao vivo e melhoria na detecção da bola verde sob variações de iluminação.')
+        localizedDescription=('Treino no próprio iPhone, sem computador: detector da bola verde, rastro sincronizado com o quadro, área por quatro cantos ou arraste, impactos candidatos, IN/OUT com revisão, som OUT e histórico local. Perfis locais de 720p/1080p até 60 FPS, conforme a câmera. Bolas minúsculas, oclusões e decisões próximas da linha exigem revisão. Transmissão e painel Windows continuam opcionais.' if version_key(metadata['version']) >= (0,3,0) else 'Correções na orientação da câmera, recuperação do vídeo H.264 após perda de quadros e reabertura do painel. Atualize também o Windows para 0.6.9: seleção de área com vídeo ao vivo e melhoria na detecção da bola verde sob variações de iluminação.'))
     versions=[release]+[v for v in old.get('versions',[]) if v['version']!=metadata['version']]
     app=dict(name='Tennis Vision Camera',bundleIdentifier=bundle,developerName='Tennis Vision',
         subtitle='Sua câmera. Seu treino. Seu estúdio.',category='photo-video',iconURL=ICON_URL,tintColor='C7F56B',
-        localizedDescription='Câmera nativa para iPhone conectada ao Tennis Vision Studio no Windows. H.264, perfis de 30 a 240 FPS conforme o suporte real, painel de análise, áreas, impactos e estatísticas. O PC executa a IA e deve estar ligado na mesma rede. Instalação e renovação pelo AltStore Classic.',
+        localizedDescription=('Treine no próprio iPhone: bola de tênis verde, rastro, áreas, impactos candidatos, IN/OUT, revisão e histórico local. O treino não exige Windows nem internet. Use boa iluminação e mantenha a câmera fixa; uma câmera única não garante arbitragem de partidas nem velocidade real de saques. A captura local usa perfis regulares de até 60 FPS, com taxas medidas. A câmera H.264 e o painel do Tennis Vision Studio no Windows permanecem opcionais; nesse modo 120/240 FPS dependem dos formatos e desempenho reais. Instalação e renovação pelo AltStore Classic.' if version_key(metadata['version']) >= (0,3,0) else 'Câmera nativa para iPhone conectada ao Tennis Vision Studio no Windows. H.264, perfis de 30 a 240 FPS conforme o suporte real, painel de análise, áreas, impactos e estatísticas. O PC executa a IA e deve estar ligado na mesma rede. Instalação e renovação pelo AltStore Classic.'),
         versions=versions,appPermissions=dict(entitlements=[],privacy={
             key:value for key,value in info.items() if key.startswith('NS') and key.endswith('UsageDescription')
         }))

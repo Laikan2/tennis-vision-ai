@@ -32,3 +32,15 @@ def test_source_refuses_downgrades_and_changed_existing_versions(tmp_path):
     with pytest.raises(ValueError,match='downgrade'): SOURCE(path,'v0.6.9',previous)
     previous['apps'][0]['versions'][0].update(version='0.2.0',size=1)
     with pytest.raises(ValueError,match='cannot be replaced'): SOURCE(path,'v0.6.9',previous)
+
+def test_native_ios_tag_and_description_do_not_claim_local_240_fps(tmp_path):
+    path=ipa(tmp_path,'0.3.0');value=SOURCE(path,'ios-v0.3.0')
+    app=value['apps'][0]
+    assert '/ios-v0.3.0/' in app['versions'][0]['downloadURL']
+    assert 'não exige Windows nem internet' in app['localizedDescription']
+    assert 'até 60 FPS' in app['localizedDescription']
+    assert 'revisão' in app['versions'][0]['localizedDescription']
+
+@pytest.mark.parametrize('tag',['main','ios-v0.3.0/extra','android-v0.6.4','v0.3.0-beta'])
+def test_source_rejects_unrelated_and_unstable_tags(tmp_path,tag):
+    with pytest.raises(ValueError,match='stable version tag'): SOURCE(ipa(tmp_path),tag)

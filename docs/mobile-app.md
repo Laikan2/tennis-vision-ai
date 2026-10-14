@@ -1,5 +1,9 @@
 # Arquitetura do aplicativo de câmera
 
+## Treino local Android 0.6.1
+
+A tela inicial Android executa captura, detecção da bola verde, contatos estimados, IN/OUT, áudio, revisão e estatísticas sem PC. A versão 0.6.1 melhora a conversão YUV e a localização de contatos entre quadros. Consulte [os testes no S25 físico](android-fast-ball-audit-2026-10-11.md), [a auditoria anterior no emulador](android-offline-audit-2026-10-11.md) e [o guia local](../mobile/android/README.md). Os modelos neurais, a pose e a combinação de duas câmeras do Windows permanecem separados. As seções históricas abaixo descrevem o modo opcional de transmissão para PC.
+
 ## Objetivo
 
 Retirar a dependência do Larix e manter a análise no computador, onde há mais CPU/GPU, armazenamento e espaço para o painel completo. O celular funciona como câmera especializada; o PC recebe, analisa e apresenta os resultados.

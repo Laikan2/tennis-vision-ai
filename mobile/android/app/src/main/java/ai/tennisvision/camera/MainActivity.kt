@@ -545,8 +545,6 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     findViewById<View>(R.id.panelSummary).visibility = if (compact) View.GONE else View.VISIBLE
     findViewById<TextView>(R.id.previewHint).visibility = if (portrait || resources.configuration.screenHeightDp < 400) View.GONE else View.VISIBLE
     findViewById<View>(R.id.previewLogo).visibility = if (portrait || resources.configuration.screenHeightDp < 400) View.GONE else View.VISIBLE
-    findViewById<View>(R.id.controlPanel).visibility = if (fullScreen) View.GONE else View.VISIBLE
-    findViewById<View>(R.id.quickConnect).visibility = if (fullScreen) View.VISIBLE else View.GONE
     set.clear(R.id.previewContainer, ConstraintSet.END)
     set.clear(R.id.previewContainer, ConstraintSet.BOTTOM)
     set.clear(R.id.controlPanel, ConstraintSet.START)
@@ -570,6 +568,10 @@ class MainActivity : AppCompatActivity(), ConnectChecker, SurfaceHolder.Callback
     val profile = currentProfile()
     set.setDimensionRatio(R.id.previewContainer, "${profile.width}:${profile.height}")
     set.applyTo(root)
+    // Applying a cloned ConstraintSet restores the old visibility. Set fullscreen
+    // visibility after applying constraints so the panel really disappears.
+    findViewById<View>(R.id.controlPanel).visibility = if (fullScreen) View.GONE else View.VISIBLE
+    findViewById<View>(R.id.quickConnect).visibility = if (fullScreen) View.VISIBLE else View.GONE
   }
 
   override fun onConfigurationChanged(newConfig: Configuration) {

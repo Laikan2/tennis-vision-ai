@@ -1,0 +1,99 @@
+TENNIS VISION — PUBLICAÇÃO E VALIDAÇÃO iOS — 14/10/2026
+
+ENTREGA
+iPhone 0.3.0, build 4, iOS mínimo 17.4.
+IPA para assinatura pessoal AltStore; não é APK nem app da App Store.
+Release: https://github.com/Laikan2/tennis-vision-releases/releases/tag/ios-v0.3.0
+Fonte: https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json
+Android 0.6.4 publicado separadamente; latest Windows preservado em 0.6.9.
+
+IMPLEMENTAÇÃO
+Modo inicial de treino no próprio iPhone, sem servidor/Windows/internet.
+Detector local da bola verde por cor, forma, movimento e continuidade.
+Não houve treinamento de uma rede neural ou troca de pesos nesta etapa.
+Contorno e rastro no mesmo quadro analisado; previsão curta identificada.
+Áreas de quatro cantos, retângulo por arraste e limite do piso separado.
+Área e histórico por câmera/lente/resolução/rotação; sem apagar pareamentos.
+Impactos candidatos, IN/OUT, incerteza, revisão com quadro próximo do contato,
+som OUT natural incluído, contagens e exportação JSON local.
+Parede fica para revisão. Velocidade lateral estimada pelo diâmetro aparente
+de uma bola de 67 mm; não é radar nem medição 3D de um saque.
+Perfis locais regulares de 720p/1080p até 60 FPS conforme a câmera.
+Modo de transmissão Windows opcional mantém os formatos 120/240 anunciados.
+
+CORREÇÕES
+- Aberturas concorrentes da câmera agora validam a geração antes de iniciar.
+- Retomada de câmera limpa o estado de interrupção anterior.
+- Edição não muda o tipo de área até salvar; cancelar mantém a anterior.
+- Revisão só altera a decisão exibida após salvar com sucesso.
+- Deduplicação usa geração/id do contato, sem comparar timestamps antigos
+  de outras inicializações e descartar um impacto novo por coincidência.
+- Escrita atômica e erro explícito preservam arquivos existentes ilegíveis.
+- Imagem em retrato cabe no painel sem distorção; erro de câmera tem feedback.
+- Pacote e fonte usam versão, permissões, tamanho e hash do IPA real.
+
+TESTES CONCLUÍDOS
+CI: https://github.com/Laikan2/tennis-vision-ai/actions/runs/38624720936
+Código compilado: ddd00431571924c8c13b9e4598c9e7acbadb9c03
+45 XCTest Swift executados em macOS, todos passaram.
+O rodapé '0 tests' do Swift Testing é outra biblioteca: o log registra os
+45 XCTest anteriores, não uma execução vazia.
+Build Release para iPhone físico sem assinatura: passou.
+Build para simulador: passou; app abriu e screenshot foi obtido.
+60 quadros H.264 recebidos e decodificados na integração RTSP: passou.
+33 testes Python de IPA, fonte e pareamento/integração do painel: passaram.
+Restaram avisos de depreciação de dependências do TestClient; não falhas.
+Sem warnings de concorrência Swift no build final; aviso AppIntents sem
+framework é do gerador de metadados do Xcode e não impede o build.
+
+Os testes incluem: bola pequena amostrada em fundos branco/escuro/verde,
+perda de croma 4:2:0, borrão, objeto verde parado concorrente, dedos,
+bola carregada sem pontuar, reflexo imóvel de dois pixels, previsão que
+expira sem criar contato, timestamps inválidos, margem da linha, IN/OUT
+conhecidos e contato minúsculo classificado para revisão.
+São imagens sintéticas conhecidas. Não medem precisão em partidas reais.
+
+PACOTE VERIFICADO
+Tennis-Vision-Camera-iOS-v0.3.0-AltStore.ipa
+699898 bytes
+SHA-256: 1a9a198fc53871690202e22444b4e8a25350ba655694a4258b85596af40d6d04
+ARM64 iPhoneOS, não simulador, sem criptografia de App Store ou dados de
+assinatura pessoal. Áudio OUT e manifesto de privacidade incluídos.
+Upload e download público conferidos; fonte AltStore atualizada para 0.3.0.
+
+APARELHO E PENDÊNCIAS REAIS
+O USB identificou um iPhone 15 Pro (iPhone16,1), iOS 27.2, build 24B5099f.
+Modo de Desenvolvedor já estava ativo; AltServer e serviço Apple estavam
+rodando. A consulta de instalação mostrou Tennis Vision 0.2.0, build 2,
+e AltStore 2.3. Captura/inspeção inicial mostrou tela de bloqueio.
+A imagem de desenvolvimento compatível foi montada com sucesso. Depois,
+o iPhone deixou de aparecer no USB e a lista de aparelhos ficou vazia.
+Foi solicitado ao usuário reconectar e abrir AltStore em My Apps.
+
+Ainda NÃO confirmado: instalação da 0.3.0 no iPhone, prévia/cor/orientação
+da câmera real, FPS sustentados, tempo de análise/renderização no aparelho,
+edição/arraste por toque e persistência após relançar, som audível,
+segundo plano/bloqueio, bola física na mão, quicadas reais e IN/OUT reais.
+Não houve teste físico Android 0.6.4 nesta rodada. A última conferência
+física documentada do S25 foi da 0.6.1; os 172 testes Android da 0.6.4 são
+da validação anterior, não foram repetidos nesta publicação.
+
+O app inclui diagnósticos de imagens simuladas executáveis no iPhone,
+separados das sessões. A ferramenta de desenvolvimento pode iniciar
+--vision-camera-check para coletar 20 segundos de métricas de pixels reais,
+sem gravar imagens/eventos no treino. Nenhum desses relatórios foi ainda
+obtido do iPhone com a 0.3.0. Compilar não é testar o celular.
+
+LIMITES
+Não foi comprovada precisão em quadra, bola distante ou saque a 200 km/h.
+Não foi medida latência ponta a ponta no iPhone. O valor processamento→tela
+começa no callback e não inclui exposição/leitura anterior nem a varredura
+do painel. Uma câmera única não comprova contato 3D; a área precisa
+corresponder ao piso. Boa luz, foco, aparelho fixo e detalhe suficiente da
+bola são necessários. Decisões incertas exigem revisão.
+
+EVIDÊNCIAS
+Provas públicas em mobile/releases/verification/android-v0.6.4/published.json
+e mobile/releases/verification/ios-v0.3.0/published.json.
+Logs completos CI e dados privados da conexão ficam apenas na pasta local
+de trabalho ios-update-2026-10-14, não nos arquivos públicos de download.
