@@ -91,7 +91,9 @@ struct LocalTrainingView: View {
     @ObservedObject var model: LocalTrainingModel
     var openStudio: ()->Void
     @Environment(\.scenePhase) private var phase
-    @State private var settings=false,history=false,areaMenu=false
+    @State private var settings=false
+    @State private var history=false
+    @State private var areaMenu=false
     private var ratio: CGFloat{guard let f=model.visibleFrame else{return 16/9};return CGFloat(f.width)/CGFloat(f.height)}
     var body: some View {
         ScrollView{

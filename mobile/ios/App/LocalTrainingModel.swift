@@ -49,14 +49,31 @@ final class LocalTrainingStore {
 
 @MainActor final class LocalTrainingModel: ObservableObject {
     let camera=LocalCamera(),store=LocalTrainingStore()
-    @Published var frame: LocalCameraFrame?,frozen: LocalCameraFrame?
-    @Published var config=VisionSettings(),session=LocalTrainingSession(),status="Preparando treino local"
-    @Published var ready=false,active=false,denied=false,error: String?,editing=0,draft=[VisionPoint]()
+    @Published var frame: LocalCameraFrame?
+    @Published var frozen: LocalCameraFrame?
+    @Published var config=VisionSettings()
+    @Published var session=LocalTrainingSession()
+    @Published var status="Preparando treino local"
+    @Published var ready=false
+    @Published var active=false
+    @Published var denied=false
+    @Published var error: String?
+    @Published var editing=0
+    @Published var draft=[VisionPoint]()
     @Published var detail=LocalDetail(rawValue:UserDefaults.standard.string(forKey:"local.detail") ?? "fluid") ?? .fluid
     @Published var lensID=UserDefaults.standard.string(forKey:"local.lens") ?? ""
-    @Published var metrics="Aguardando imagens reais",confirmArea=false,confirmed=false,history=[LocalTrainingSession]()
-    @Published var reviewing: VisionImpact?,reviewImage: UIImage?,diagnosticReport: VisionDiagnostics.Report?,testing=false
-    @Published var exportURL: URL?,checkingUpdate=false,updateMessage="",newVersion: String?
+    @Published var metrics="Aguardando imagens reais"
+    @Published var confirmArea=false
+    @Published var confirmed=false
+    @Published var history=[LocalTrainingSession]()
+    @Published var reviewing: VisionImpact?
+    @Published var reviewImage: UIImage?
+    @Published var diagnosticReport: VisionDiagnostics.Report?
+    @Published var testing=false
+    @Published var exportURL: URL?
+    @Published var checkingUpdate=false
+    @Published var updateMessage=""
+    @Published var newVersion: String?
     private var foreground=true,permissionPending=false,key="",savingError=false,lastInfo=0.0,currentGeneration: UUID?
     private var player: AVAudioPlayer?,soundCount=0,editingCourt: VisionCourt?
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
