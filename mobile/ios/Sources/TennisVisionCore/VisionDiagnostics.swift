@@ -30,7 +30,11 @@ public enum VisionDiagnostics {
             var inside=0
             for sy in 0..<8{for sx in 0..<8{let dx=(Double(px)+(Double(sx)+0.5)/8-x)/rx,dy=(Double(py)+(Double(sy)+0.5)/8-y)/ry;if dx*dx+dy*dy<=1{inside+=1}}}
             if inside==0{continue};let old=p[py*width+px],a=Double(inside)/64
-            func channel(_ shift: UInt32) -> UInt32{UInt32(min(255,max(0,Int((Double((old>>shift)&255)*(1-a)+Double((color>>shift)&255)*a).rounded()))))}
+            func channel(_ shift: UInt32) -> UInt32{
+                let background=Double((old>>shift)&255),foreground=Double((color>>shift)&255)
+                let mixed=background*(1-a)+foreground*a
+                return UInt32(max(0,min(255,Int(mixed.rounded()))))
+            }
             p[py*width+px]=0xff000000 | (channel(16)<<16) | (channel(8)<<8) | channel(0)
         }}
     }

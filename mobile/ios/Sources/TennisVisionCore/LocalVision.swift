@@ -37,7 +37,9 @@ public enum VisionGeometry {
         let turns=(0..<4).map { i -> Double in
             let a=p[i],b=p[(i+1)%4],c=p[(i+2)%4];return (b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x)
         }
-        let area=abs((0..<4).reduce(0.0){$0+p[$1].x*p[($1+1)%4].y-p[($1+1)%4].x*p[$1].y})/2
+        var twiceArea=0.0
+        for i in 0..<4{let next=(i+1)%4;twiceArea+=p[i].x*p[next].y-p[next].x*p[i].y}
+        let area=abs(twiceArea)/2
         return area>=0.005 && (turns.allSatisfy{$0>0.00001} || turns.allSatisfy{$0 < -0.00001})
     }
     public static func validLine(_ p: [VisionPoint]) -> Bool {

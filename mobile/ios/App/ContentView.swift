@@ -10,6 +10,7 @@ enum Palette {
 }
 struct ContentView: View {
     @ObservedObject var model: CameraViewModel
+    var onLocal: ()->Void = {}
     @State private var tab=0
     @Environment(\.scenePhase) private var phase
     var body: some View {
@@ -118,8 +119,7 @@ struct ContentView: View {
                 Text("SEU ESTÚDIO EM MOVIMENTO").font(.subheadline).foregroundStyle(Palette.muted)
             }
             Spacer()
-            Text(Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.2.1")
-                .font(.caption.monospaced()).foregroundStyle(Palette.muted)
+            Button("No iPhone",action:onLocal).font(.caption.weight(.semibold)).accessibilityIdentifier("studio.local")
         }
     }
     private var preview: some View {

@@ -11,7 +11,7 @@ def identifier(value):
 
 def generate():
     sources = sorted(ROOT.glob("App/*.swift")) + sorted(ROOT.glob("Sources/TennisVisionCore/*.swift"))
-    resources = [ROOT/"App/Assets.xcassets", ROOT/"App/PrivacyInfo.xcprivacy"]
+    resources = [ROOT/"App/Assets.xcassets", ROOT/"App/PrivacyInfo.xcprivacy"] + sorted(ROOT.glob("App/Resources/*"))
     objects = []
     def add(key, value):
         uid = identifier(key)
@@ -26,7 +26,7 @@ def generate():
                                       (resources, resource_refs, resource_builds, None)]:
         for path in files:
             relative = path.relative_to(ROOT).as_posix()
-            file_kind = kind or ("folder.assetcatalog" if path.suffix == ".xcassets" else "text.xml")
+            file_kind = kind or ("folder.assetcatalog" if path.suffix == ".xcassets" else "audio.mp3" if path.suffix == ".mp3" else "text.xml")
             ref = add(relative, f"isa = PBXFileReference; lastKnownFileType = {file_kind}; path = {q(relative)}; sourceTree = \"<group>\";")
             refs.append(ref)
             builds.append(add("build:"+relative, f"isa = PBXBuildFile; fileRef = {ref};"))
@@ -47,7 +47,7 @@ def generate():
         }
         target_settings = {
             "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "ai.tennisvision.camera.ios",
-            "MARKETING_VERSION": "0.2.1", "CURRENT_PROJECT_VERSION": "3",
+            "MARKETING_VERSION": "0.3.0", "CURRENT_PROJECT_VERSION": "4",
             "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "App/Info.plist",
             "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "CODE_SIGN_STYLE": "Automatic",
             "TARGETED_DEVICE_FAMILY": "1,2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",
