@@ -76,6 +76,9 @@ final class LocalTrainingStore {
     @Published var newVersion: String?
     private var foreground=true,permissionPending=false,key="",savingError=false,lastInfo=0.0,currentGeneration: UUID?
     private var player: AVAudioPlayer?,soundCount=0,editingCourt: VisionCourt?
+    private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
+    private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
+    private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
     var visibleResult: VisionResult?{editing==0 && active ? frame?.result:nil}
     var insideCount: Int{session.events.filter{$0.decision == .inside}.count}
@@ -96,6 +99,9 @@ final class LocalTrainingStore {
     }
     func prepare(){
         foreground=true;guard !testing,!permissionPending else{return}
+        if ProcessInfo.processInfo.arguments.contains("--vision-diagnostics"),!diagnosticLaunched {
+            diagnosticLaunched=true;diagnostics();return
+        }
         switch AVCaptureDevice.authorizationStatus(for:.video){
         case .authorized:denied=false;ready=false;currentGeneration=nil;camera.start(detail:detail,lensID:lensID)
         case .notDetermined:
@@ -113,7 +119,7 @@ final class LocalTrainingStore {
     }
     func pause(){active=false;camera.setAnalysis(false);status="Treino pausado · dados no iPhone"}
     func begin(confirmed: Bool=false){
-        guard ready,editing==0,!testing,!savingError else{return}
+        guard ready,editing==0,!testing,!savingError,!cameraProbe else{return}
         if active{pause();return}
         if session.events.count>=2000{error="Sessão chegou a 2.000 contatos. Comece outra; o histórico será mantido.";return}
         if VisionGeometry.valid(config.polygon) && !self.confirmed && !confirmed{confirmArea=true;return}
@@ -128,6 +134,29 @@ final class LocalTrainingStore {
         if let generation=currentGeneration,generation != frame.generation{active=false;confirmed=false};currentGeneration=frame.generation
         if editing==0{self.frame=frame}
         ready=true
+        // Explicit developer launch only: live pixels go through the same engine,
+        // but no probe event, image or sound is added to the user's session.
+        if cameraProbe {
+            if !probeAttached{probeAttached=true;probeStarted=ProcessInfo.processInfo.systemUptime;camera.setAnalysis(true)}
+            probeFrames+=1;probeObservations += frame.result.observed == nil ? 0:1
+            probeContacts+=events.filter{$0.result.impact != nil}.count
+            probeTotalMs+=frame.analysisMs;probeMaxMs=max(probeMaxMs,frame.analysisMs)
+            status="VALIDAÇÃO DA CÂMERA · nenhum evento salvo no treino"
+            if !probeWritten,ProcessInfo.processInfo.systemUptime-probeStarted>=20 {
+                probeWritten=true
+                let value: [String:Any]=[
+                    "version":appVersion,"os":UIDevice.current.systemVersion,"kind":"physical-camera-probe-not-known-ball-ground-truth",
+                    "width":frame.width,"height":frame.height,"requestedFPS":frame.requestedFPS,"receivedFPS":frame.fps,
+                    "seconds":ProcessInfo.processInfo.systemUptime-probeStarted,"framesDeliveredToUI":probeFrames,
+                    "meanAnalysisMs":probeTotalMs/Double(probeFrames),"maxAnalysisMs":probeMaxMs,
+                    "lastConversionMs":frame.conversionMs,"processingToUIAgeMs":(ProcessInfo.processInfo.systemUptime-frame.startedAt)*1000,
+                    "observations":probeObservations,"candidateContacts":probeContacts,"sessionWrites":0]
+                DispatchQueue.global(qos:.utility).async{
+                    let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("camera-validation.json")
+                    do{try JSONSerialization.data(withJSONObject:value,options:[.prettyPrinted,.sortedKeys]).write(to:url,options:.atomic)}catch{print("Camera validation report failed: \(error)")}
+                }
+            }
+        }
         if active && editing==0 {
             for f in events where f.generation==frame.generation && f.key==key{accept(f)}
             if frame.result.movingCamera{confirmed=false;pause();status="Câmera mudou. Fixe o iPhone e ajuste os cantos antes de retomar."}

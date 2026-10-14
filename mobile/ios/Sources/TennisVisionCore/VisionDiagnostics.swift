@@ -6,6 +6,8 @@ public enum VisionDiagnostics {
     public struct Case: Codable {
         public var name: String,diameter: Double,background: UInt32
         public var chroma=false,clutter=false,bounce=false,blur=1.0
+        public var fixedX: Double?
+        public var expectedContacts=[VisionCall]()
     }
     public struct Measurement: Codable {
         public var name: String,frames: Int,located: Int,wrong: Int,contacts: [VisionCall],maxError: Double,elapsedMs: Double
@@ -20,8 +22,10 @@ public enum VisionDiagnostics {
             cases.append(Case(name:"\(Int(d))px_\(label)_420",diameter:d,background:color,chroma:true))
         }}
         cases.append(Case(name:"small_clutter",diameter:3,background:0xff394b59,chroma:true,clutter:true))
-        cases.append(Case(name:"small_bounce_review",diameter:4,background:0xff394b59,chroma:true,bounce:true))
+        cases.append(Case(name:"small_bounce_review",diameter:4,background:0xff394b59,chroma:true,bounce:true,expectedContacts:[.review]))
         cases.append(Case(name:"blur3",diameter:4,background:0xff394b59,chroma:true,blur:3))
+        cases.append(Case(name:"known_IN",diameter:12,background:0xff394b59,chroma:true,bounce:true,fixedX:280,expectedContacts:[.inside]))
+        cases.append(Case(name:"known_OUT",diameter:12,background:0xff394b59,chroma:true,bounce:true,fixedX:580,expectedContacts:[.outside]))
         return cases
     }
     public static func spot(_ p: inout [UInt32],x: Double,y: Double,diameter: Double,blur: Double=1,color: UInt32=0xffc7eb4d) {
@@ -51,7 +55,7 @@ public enum VisionDiagnostics {
         }}
     }
     public static func frame(_ c: Case,index i: Int) -> ([UInt32],VisionPoint) {
-        let x=75.2+Double(i)*28.65,y=c.bounce ? 270.35-Double(abs(i-8))*16:112.3+Double(i)*3.35
+        let x=c.fixedX ?? (75.2+Double(i)*28.65),y=c.bounce ? 270.35-Double(abs(i-8))*16:112.3+Double(i)*3.35
         var pixels=Array(repeating:c.background,count:width*height)
         spot(&pixels,x:x,y:y,diameter:c.diameter,blur:c.blur)
         if c.clutter{spot(&pixels,x:550,y:85,diameter:18)};if c.chroma{chroma420(&pixels)}
@@ -72,7 +76,7 @@ public enum VisionDiagnostics {
     }
     public static func run() -> Report {
         let results=cases.map(evaluate)
-        let passed=results.allSatisfy{$0.located>=13 && $0.wrong<=($0.name=="small_clutter" ? 2:0) && ($0.name=="small_bounce_review" ? $0.contacts==[.review]:$0.contacts.isEmpty)}
+        let passed=zip(cases,results).allSatisfy{c,r in r.located>=13 && r.wrong<=(c.clutter ? 2:0) && r.contacts==c.expectedContacts}
         return Report(results:results,passed:passed)
     }
 }

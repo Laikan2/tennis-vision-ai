@@ -50,6 +50,8 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     func start(detail: LocalDetail,lensID: String?) {
         queue.async{[weak self] in
             guard let self else{return};self.closeHardware();self.generation=UUID();self.core.reset();self.evidence=[]
+            self.statusWasStale=false;self.rotation=0
+            let requestedGeneration=self.generation
             do {
                 guard AVCaptureDevice.authorizationStatus(for:.video) == .authorized else{throw CameraError.invalid("Permita a câmera nos Ajustes do iPhone.")}
                 let choices=Self.lenses()
@@ -91,7 +93,8 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
                 self.core=LocalVision(settings:self.settingsForKey?(self.key) ?? VisionSettings());self.running=true;self.analyzing=false
                 // Commit before startRunning, which must never run inside configuration.
                 self.queue.async{[weak self] in
-                    guard let self,self.running else{return};self.session.startRunning();self.state("Câmera pronta · confira a área",true)
+                    guard let self,self.running,self.generation==requestedGeneration else{return}
+                    self.session.startRunning();self.state("Câmera pronta · confira a área",true)
                     let timer=DispatchSource.makeTimerSource(queue:self.queue);timer.schedule(deadline:.now()+0.5,repeating:0.5)
                     timer.setEventHandler{[weak self] in self?.watchdog()};self.timer=timer;timer.resume()
                 }

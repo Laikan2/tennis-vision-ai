@@ -23,6 +23,14 @@ final class LocalVisionTests: XCTestCase {
         let c=VisionDiagnostics.cases.first{$0.bounce}!,r=VisionDiagnostics.evaluate(c)
         XCTAssertEqual(r.contacts,[.review])
     }
+    func testOnDeviceDiagnosticContactFixturesHaveKnownResults() {
+        for c in VisionDiagnostics.cases where c.fixedX != nil {
+            let result=VisionDiagnostics.evaluate(c)
+            XCTAssertEqual(result.contacts,c.expectedContacts,c.name)
+            XCTAssertEqual(result.located,16,c.name)
+            XCTAssertEqual(result.wrong,0,c.name)
+        }
+    }
     func testKnownInOutContactsAndNoDuplicates() {
         for (x,call) in [(280,VisionCall.inside),(580,.outside)] {
             var settings=VisionSettings();settings.polygon=area
