@@ -74,12 +74,39 @@ precisar do AltServer para instalar/renovar. O treino local não exige PC.
 Não há uma instalação silenciosa de novo executável por dentro do iPhone.
 
 PENDÊNCIAS E LIMITES
-O iPhone não apareceu na última consulta USB desta rodada. Não foi instalada
-nem testada fisicamente a 0.6.4 no iPhone. A última consulta de instalação
-registrou 0.2.0 no iPhone 15 Pro/iOS 27.2. Compilar/simular não é testar o celular.
-Permanecem sem confirmação: gestos/edição reais, câmera e orientação reais,
-áudio audível, atualização pelo botão com AltStore instalado, alta taxa
-120/240 sustentada, temperatura, latência sensor→tela e quicadas reais.
+ATUALIZAÇÃO DOS TESTES FÍSICOS — 14/10/2026
+A versão 0.6.4/build 5 foi instalada no iPhone 15 Pro pelo AltStore, sobre
+o aplicativo existente, sem desinstalar. Aparelho iPhone16,1, iOS 27.2 beta.
+A prévia real foi confirmada pelo usuário após descobrir/apontar a lente.
+Captura sem análise informou 60, 120 e 239–240 FPS nas opções correspondentes;
+isso não representa taxa da tela ou da análise. Seleção de taxa persistiu
+após reabrir; o ajuste foi devolvido a 60 FPS. Tela cheia abriu e fechou.
+O editor de quatro cantos abriu, bloqueou Salvar sem cantos e cancelou.
+Não se concluiu arraste, marcação completa dos cantos ou salvamento por gestos.
+Marcas de impacto foram desligadas e religadas, preservando a preferência.
+
+Com análise, as sondas físicas de 20 segundos em 1280x720 produziram:
+- 60 solicitados: 541 frames entregues à UI, 27,52 FPS medidos nessa etapa,
+  análise média 34,76 ms, máxima 42,09 ms.
+- 120 solicitados: 515 frames, 26,25 FPS, análise média 36,64 ms,
+  máxima 45,48 ms.
+- 240 solicitados: 494 frames, 25,02 FPS, análise média 37,85 ms,
+  máxima 51,93 ms.
+São sondas da câmera/processamento no ambiente, sem bolas de verdade revisadas.
+Zero eventos foram gravados na sessão. Observações/candidatos não comprovam
+acertos nem falsos positivos sem revisão. Há um gargalo de análise em CPU;
+ele não foi corrigido pela atualização das vozes. Idade processamento→UI
+foi 35,84–39,54 ms, medida após o callback; não é latência sensor→tela.
+
+O teste do som anterior não teve confirmação auditiva: o usuário informou
+que não ouviu. A ativação remota não teve feedback suficiente para provar
+que o player foi acionado. Na atualização 0.6.5, vozes IN/OUT foram geradas
+no ElevenLabs e foi acrescentado feedback de reprodução, volume e saída.
+O iPhone estava desconectado na última consulta desta atualização; ouvir as
+novas vozes no aparelho, sob Bluetooth/mudo/volume zero, continua pendente.
+Também permanecem sem confirmação quicadas reais, gestos completos de área,
+arbitragem, temperatura prolongada e latência completa. Compilação, testes
+sintéticos, reprodução iniciada e áudio ouvido são verificações diferentes.
 
 Não houve treinamento de rede neural. A leitura local usa cor, forma,
 movimento e continuidade. Bola fora da imagem, minúscula, borrada ou oculta

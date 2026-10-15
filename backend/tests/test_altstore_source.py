@@ -47,7 +47,10 @@ def test_common_mobile_release_preserves_old_versions_and_platform_installation(
     app=value['apps'][0]
     assert '/mobile-v'+version+'/' in app['versions'][0]['downloadURL']
     assert 'Android '+version in app['versions'][0]['localizedDescription']
-    assert 'AltStore' in app['localizedDescription'] and '41 cenários' in app['versions'][0]['localizedDescription']
+    assert 'AltStore' in app['localizedDescription']
+    description=app['versions'][0]['localizedDescription']
+    if version=='0.6.4':assert '41 cenários' in description
+    else:assert 'ElevenLabs' in description and 'nenhum novo treinamento' in description
 
 @pytest.mark.parametrize('tag',['main','ios-v0.3.0/extra','android-v0.6.4','v0.3.0-beta'])
 def test_source_rejects_unrelated_and_unstable_tags(tmp_path,tag):

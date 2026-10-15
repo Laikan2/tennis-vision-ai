@@ -13,7 +13,7 @@ export function useOutAudio(events: Event[], enabled: boolean, sessionId?: strin
   const since=useRef(Date.now()/1000);
   const playing=useRef<{voice:Voice;source:AudioBufferSourceNode}|null>(null);
   const request=useRef(0);
-  const pending=useRef(false);
+  const pending=useRef<Voice|null>(null);
   const current=useRef({events,enabled,inEnabled,sessionId,cameraCount,fusionWindowMs});
   current.current={events,enabled,inEnabled,sessionId,cameraCount,fusionWindowMs};
   const [notice,setNotice]=useState("");
@@ -25,12 +25,12 @@ export function useOutAudio(events: Event[], enabled: boolean, sessionId?: strin
     return audio.current;
   },[]);
   const stop=useCallback(()=>{
-    request.current++;pending.current=false;
+    request.current++;pending.current=null;
     if(playing.current){playing.current.source.onended=null;playing.current.source.stop();playing.current.source.disconnect();playing.current=null;}
   },[]);
   const play=useCallback(async(voice:Voice,test=false)=>{
     if(!test && playing.current && !(voice==="OUT" && playing.current.voice==="IN")) return false;
-    stop();const token=request.current;pending.current=true;
+    stop();const token=request.current;pending.current=voice;
     try{
       const state=ensureAudio();
       // Resume inside the click gesture, before the first asynchronous load.
@@ -43,13 +43,13 @@ export function useOutAudio(events: Event[], enabled: boolean, sessionId?: strin
     }catch{
       if(token===request.current) setNotice(`Não iniciou o som ${voice}. Clique em Testar para tentar novamente.`);
       return false;
-    }finally{if(token===request.current) pending.current=false;}
+    }finally{if(token===request.current) pending.current=null;}
   },[ensureAudio,stop]);
   useEffect(()=>{
     const state=ensureAudio();
     void Promise.all([loadLineBuffer(state.OUT,"OUT"),loadLineBuffer(state.IN,"IN")]).catch(()=>setNotice("Não carregou as vozes. Use Testar para tentar novamente."));
     const unlock=()=>{void audio.current?.context.resume().catch(()=>{});};
-    const hidden=()=>{if(document.hidden) stop();};
+    const hidden=()=>{since.current=Date.now()/1000;if(document.hidden) stop();};
     window.addEventListener("pointerdown",unlock);window.addEventListener("keydown",unlock);document.addEventListener("visibilitychange",hidden);
     return()=>{
       window.removeEventListener("pointerdown",unlock);window.removeEventListener("keydown",unlock);document.removeEventListener("visibilitychange",hidden);
@@ -70,7 +70,7 @@ export function useOutAudio(events: Event[], enabled: boolean, sessionId?: strin
       if(audio.current?.context.state!=="running"){setNotice("Clique em Testar som OUT ou IN para ativar o áudio.");return;}
       // Consume a burst together: never replay old calls over the following rally.
       out.forEach(e=>seen.current.OUT.add(e.id));inside.forEach(e=>seen.current.IN.add(e.id));
-      if(pending.current) return;
+      if(pending.current && !(voice==="OUT" && pending.current==="IN")) return;
       void play(voice);
     },120);
     return()=>window.clearInterval(timer);

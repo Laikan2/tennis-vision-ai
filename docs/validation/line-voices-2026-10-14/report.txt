@@ -1,0 +1,52 @@
+TENNIS VISION — VOZES ELEVENLABS — 14/10/2026
+
+GERAÇÃO
+Conta ElevenLabs autorizada pelo usuário; voz Daniel – Steady Broadcaster,
+modelo Eleven v4, inglês, estabilidade 0,5, similaridade 0,75.
+Textos: Out! e In! Os dois arquivos MP3 foram gerados e baixados pela interface.
+Não houve compra, clonagem de voz nem inclusão de credenciais nos aplicativos.
+
+PROCESSAMENTO / ENTREGA
+OUT: 0,58 s, RMS -18,92 dBFS, pico -1,94 dBFS.
+IN: 0,55 s, RMS -18,44 dBFS, pico -4,03 dBFS.
+Silêncio externo aparado, ganho constante e borda de 3 ms. Sem mudar a
+velocidade ou o tom da voz. MP3 mono 44.100 Hz / 128 kbps.
+Manifesto com hashes: mobile/shared/line-audio/manifest.json.
+Os mesmos bytes estão no Android, iPhone e painel. Reprodução offline.
+
+COMPORTAMENTO
+OUT conserva a preferência anterior. IN é independente, opcional e começa
+desligado. Testes não criam impactos nem mudam contagens. Casos REVISAR
+ficam silenciosos. OUT interrompe IN; não existe fila de falas antigas.
+Android usa volume de mídia; iPhone informa volume e rota (incluindo Bluetooth).
+Não se força volume do sistema nem troca de saída. Segundo plano interrompe
+a chamada em andamento e não a retoma posteriormente.
+
+TESTES JÁ CONCLUÍDOS
+61 pytest (26 áudio/empacotamento + 35 receptor/API/desktop): MP3 decodificado, nível/duração/headroom, hashes e igualdade nas
+plataformas, empacotamento, fonte AltStore e publicação conjunta.
+176 testes JVM Android, zero falhas/erros/ignorados; não são celular físico.
+APK Release real 0.6.5/code18 compilado; duas vozes conferidas dentro do ZIP,
+manifesto e certificado de atualização anteriores validados com SDK Android.
+16 testes Node do painel e 28 do programa Windows aprovados; TypeScript
+validado e exportação Next de produção concluída.
+Painel compilado aberto no navegador: IN e OUT iniciaram reprodução,
+troca rápida entre testes funcionou e preferência IN persistiu ao recarregar.
+Isso não comprova que um usuário ouviu o alto-falante.
+
+PENDÊNCIAS
+54 XCTest iOS aprovados no macOS; compilação para iPhone e simulador,
+lançamento do simulador e integração H.264 de 60 quadros aprovados. As duas
+vozes e o contrato mobile foram conferidos dentro do IPA compilado.
+Windows 0.6.10 foi recompilado, empacotado e aberto com dados isolados:
+inicialização 1.505 ms, bridge e backend prontos. O painel do executável
+iniciou IN e OUT; downloads APK, IPA e projeto e bytes dos MP3 conferidos.
+Instalador, blockmap e manifesto de atualização conferidos antes e após o
+upload, com hashes do GitHub. O manifesto público coincide com o local.
+Publicados mobile-v0.6.5 e Windows v0.6.10. AltStore permanece na versão
+0.6.5 com URL imutável mobile-v0.6.5; Windows tornou-se latest v0.6.10. A última consulta USB
+retornou nenhum iPhone; nova voz audível em aparelho físico não comprovada.
+Android físico não foi usado nesta rodada. Qualidade humana é uma avaliação
+auditiva; os MP3 estão disponíveis para o usuário ouvir.
+Detector e precisão IN/OUT não foram modificados por esta atualização.
+Não foi treinado um novo modelo nem comprovada detecção de saques rápidos.

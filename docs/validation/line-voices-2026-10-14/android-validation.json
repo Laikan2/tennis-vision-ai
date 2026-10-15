@@ -1,0 +1,11 @@
+{
+  "version": "0.6.5",
+  "jvmTests": {
+    "tests": 176,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "voiceAssetsVerifiedInAPK": true,
+  "physicalAndroidTest": false
+}

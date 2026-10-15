@@ -1,0 +1,62 @@
+{
+  "appVersion": "0.6.4",
+  "device": "iPhone 15 Pro",
+  "os": "iOS 27.2 beta",
+  "knownBallGroundTruth": false,
+  "probes": [
+    {
+      "candidateContacts": 6,
+      "framesDeliveredToUI": 541,
+      "height": 720,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 1.855916667409474,
+      "maxAnalysisMs": 42.091583334695315,
+      "meanAnalysisMs": 34.756403111571565,
+      "observations": 186,
+      "os": "27.2",
+      "processingToUIAgeMs": 35.842083336319774,
+      "receivedFPS": 27.524835849609318,
+      "requestedFPS": 60,
+      "seconds": 20.00565700000152,
+      "sessionWrites": 0,
+      "version": "0.6.4",
+      "width": 1280
+    },
+    {
+      "candidateContacts": 33,
+      "framesDeliveredToUI": 515,
+      "height": 720,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 1.7568750008649658,
+      "maxAnalysisMs": 45.47854166594334,
+      "meanAnalysisMs": 36.643078479038785,
+      "observations": 361,
+      "os": "27.2",
+      "processingToUIAgeMs": 37.979041666403646,
+      "receivedFPS": 26.252008341724533,
+      "requestedFPS": 120,
+      "seconds": 20.02043504166795,
+      "sessionWrites": 0,
+      "version": "0.6.4",
+      "width": 1280
+    },
+    {
+      "candidateContacts": 36,
+      "framesDeliveredToUI": 494,
+      "height": 720,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 2.035833334957715,
+      "maxAnalysisMs": 51.93070833411184,
+      "meanAnalysisMs": 37.848465755726316,
+      "observations": 436,
+      "os": "27.2",
+      "processingToUIAgeMs": 39.53650000039488,
+      "receivedFPS": 25.022773400824473,
+      "requestedFPS": 240,
+      "seconds": 20.008959208335,
+      "sessionWrites": 0,
+      "version": "0.6.4",
+      "width": 1280
+    }
+  ]
+}

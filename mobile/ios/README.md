@@ -1,10 +1,12 @@
-# Tennis Vision Camera para iPhone — 0.6.4
+# Tennis Vision Camera para iPhone — 0.6.5
+
+**Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Impactos**, o som OUT preserva a configuração anterior e o som IN é opcional. Os testes separados mostram reprodução, volume de mídia e saída de áudio, sem alterar contagens. Confira Bluetooth e volume se não ouvir. O detector mantém a base 0.6.4.
 
 Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. **Treino no próprio iPhone** é a tela inicial: câmera, bola verde, rastro, impactos candidatos, IN/OUT, som e histórico executam localmente. Não exige Windows, Larix, servidor, HTTPS, download de modelo ou internet. O modo de câmera/painel do Windows continua disponível em Ajustes como opção separada.
 
 ## Mesma versão de funcionalidades do Android
 
-A versão iPhone 0.6.4 acompanha a Android 0.6.4. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
+A versão iPhone 0.6.5 acompanha a Android 0.6.5, mantendo os recursos de detecção da base 0.6.4. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
 
 `mobile/shared/release.json` define a entrega comum. A geração do projeto verifica as versões das duas plataformas. `mobile/shared/vision-cases.json` define 41 cenários de pixels conhecidos consumidos pelos testes Kotlin e Swift, cobrindo mão, soltura, queda, movimento rápido, borrão e IN/OUT. Alterações futuras de comportamento precisam ser portadas e passar nesses testes; o contrato não traduz código Kotlin para Swift automaticamente.
 
