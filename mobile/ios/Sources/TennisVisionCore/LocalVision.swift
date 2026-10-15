@@ -157,7 +157,10 @@ final class VisionDetector {
             mask[i]=selected ? 1:0
         }
         var found=[VisionBall](),bounds=[[Int]](),masses=[Int]()
-        for seed in 0..<count where mask[seed]==1 {
+        // Every accepted component needs a strong felt pixel. Seed from those
+        // pixels only; weak-only wall/compression regions cannot produce a ball.
+        // Flood fill still includes the same weak edge pixels around each seed.
+        for seed in 0..<count where mask[seed]==1 && strong[seed]==1 {
             var head=0,tail=1,xmin=width,xmax=0,ymin=height,ymax=0,sxmin=width,sxmax = -1,symin=height,symax = -1
             var sx=0.0,sy=0.0,light=0.0,wx=0.0,wy=0.0,weights=0.0,changed=0,strongCount=0
             queue[0]=seed;mask[seed]=0

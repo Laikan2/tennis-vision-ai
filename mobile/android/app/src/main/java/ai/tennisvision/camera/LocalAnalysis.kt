@@ -217,7 +217,9 @@ class GreenBallDetector {
     val found = ArrayList<BallObservation>()
     val bounds=ArrayList<IntArray>();val masses=ArrayList<Int>()
     for (seed in mask.indices) {
-      if (mask[seed].toInt() != 1) continue
+      // Weak-only regions were always discarded. Avoid flooding a large wall
+      // tint when no strong felt pixel can support an accepted component.
+      if (mask[seed].toInt() != 1 || strongGreen[seed].toInt()!=1) continue
       var head = 0; var tail = 1; queue[0] = seed; mask[seed] = 0
       var xmin = width; var xmax = 0; var ymin = height; var ymax = 0
       var sumX = 0.0; var sumY = 0.0; var sumLight=0.0; var changed = 0
