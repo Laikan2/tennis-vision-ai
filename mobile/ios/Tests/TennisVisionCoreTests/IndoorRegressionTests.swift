@@ -56,7 +56,15 @@ final class IndoorRegressionTests:XCTestCase {
             }
         }
     }
-    var room:[UInt32]{(0..<w*h).map{i in let v=UInt32(60+((i%w)/40+(i/w)/30)%3*45);return 0xff000000 | v<<16 | v<<8 | v}}
+    var room:[UInt32]{
+        var p=[UInt32]();p.reserveCapacity(w*h)
+        for y in 0..<h{for x in 0..<w{
+            let cell=(x/40+y/30)%3
+            let v=UInt32(60+cell*45)
+            p.append(UInt32(0xff000000) | (v<<16) | (v<<8) | v)
+        }}
+        return p
+    }
     func testObstructionRecoversOnlyWhenOriginalViewReturns(){
         let g=VisionSceneReference(),p=room,hand=Array(repeating:UInt32(0xffbc8062),count:w*h)
         g.update(p,width:w,height:h,time:0,changed:false)
