@@ -26,6 +26,8 @@ def test_decoded_audio_has_usable_duration_level_and_headroom(call):
     assert .3<=actual['durationSeconds']<=.8
     assert -24<=actual['rmsDbfs']<=-15
     assert actual['peakDbfs']<=-.7
+    if 'peak limiter' in MANIFEST['processing']:
+        assert abs(actual['rmsDbfs']-MANIFEST['targetRmsDbfs'])<=1
 
 def test_distinct_calls_and_real_provider_metadata():
     assert MANIFEST['provider']=='ElevenLabs'

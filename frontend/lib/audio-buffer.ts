@@ -10,7 +10,7 @@ export async function loadLineBuffer(state: OutAudioState, voice: "OUT" | "IN"):
   if (state.buffer) return state.buffer;
   if (!state.loading) {
     state.loading = (async () => {
-      const response = await fetch(`/audio/${voice.toLowerCase()}-eleven-v4-v3.mp3`);
+      const response = await fetch(`/audio/${voice.toLowerCase()}-eleven-v4-v4.mp3`);
       if (!response.ok) throw new Error("audio unavailable");
       const buffer = await state.context.decodeAudioData(await response.arrayBuffer());
       state.buffer = buffer;

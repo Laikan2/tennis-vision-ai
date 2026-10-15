@@ -1,6 +1,6 @@
 """Prepare the two user-generated ElevenLabs calls for offline playback.
 
-Only trims outer silence and applies one constant gain. No pitch/time change,
+Trims outer silence, applies gain and optionally limits peaks. No pitch/time change,
 voice synthesis, credentials, network requests or inference at playback time.
 """
 import argparse
@@ -40,7 +40,7 @@ def metrics(samples):
                 rmsDbfs=round(db(rms), 2), peakDbfs=round(db(peak), 2))
 
 
-def prepare(ffmpeg, source, destination, lead_ms=30, tail_ms=60, target_rms=-18):
+def prepare(ffmpeg, source, destination, lead_ms=30, tail_ms=60, target_rms=-18, peak_limiter=False):
     if not 0 <= lead_ms <= 300 or not 0 <= tail_ms <= 300 or not -26 <= target_rms <= -16:
         raise ValueError('Invalid silence padding or voice level')
     samples = decode(ffmpeg, source)
@@ -54,24 +54,35 @@ def prepare(ffmpeg, source, destination, lead_ms=30, tail_ms=60, target_rms=-18)
     last=min(len(samples), voiced[-1]+step+int(RATE*tail_ms/1000))
     trimmed=samples[first:last]
     before=metrics(trimmed)
-    gain=min(10**((target_rms-before['rmsDbfs'])/20),
-             10**((-1.5-before['peakDbfs'])/20))
-    result=array.array('h', [round(s*gain) for s in trimmed])
-    ramp=int(RATE*.003)
-    for i in range(min(ramp,len(result)//2)):
-        result[i]=round(result[i]*i/ramp)
-        result[-i-1]=round(result[-i-1]*i/ramp)
-    if sys.byteorder != 'little':
-        result.byteswap()
+    gain=10**((target_rms-before['rmsDbfs'])/20)
+    if not peak_limiter:gain=min(gain,10**((-1.5-before['peakDbfs'])/20))
     destination.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run([str(ffmpeg), '-nostdin', '-y', '-v', 'error',
-                    '-f', 's16le', '-ar', str(RATE), '-ac', '1', '-i', '-',
-                    '-map_metadata', '-1', '-c:a', 'libmp3lame', '-b:a', '128k',
-                    '-write_xing', '1', str(destination)], input=result.tobytes(),
-                   check=True, capture_output=True)
-    final=metrics(decode(ffmpeg,destination))
+    input_args=['-f','f32le' if peak_limiter else 's16le','-ar',str(RATE),'-ac','1','-i','-']
+    if peak_limiter:input_args+=['-af',f'alimiter=limit={10**(-1.5/20):.8f}:attack=3:release=50:level=false:latency=true']
+    # Measure the encoded output: limiting speech peaks can otherwise leave the
+    # delivered file several dB quieter than the requested level.
+    for attempt in range(6 if peak_limiter else 1):
+        result=array.array('f',[s*gain/32768 for s in trimmed]) if peak_limiter else array.array('h',[round(s*gain) for s in trimmed])
+        ramp=int(RATE*.003)
+        for i in range(min(ramp,len(result)//2)):
+            result[i]=result[i]*i/ramp if peak_limiter else round(result[i]*i/ramp)
+            result[-i-1]=result[-i-1]*i/ramp if peak_limiter else round(result[-i-1]*i/ramp)
+        if sys.byteorder != 'little':
+            result.byteswap()
+        subprocess.run([str(ffmpeg), '-nostdin', '-y', '-v', 'error',*input_args,
+                        '-map_metadata', '-1', '-c:a', 'libmp3lame', '-b:a', '128k',
+                        '-write_xing', '1', str(destination)], input=result.tobytes(),
+                       check=True, capture_output=True)
+        final=metrics(decode(ffmpeg,destination))
+        remaining=target_rms-final['rmsDbfs']
+        if not peak_limiter or remaining <= .5:
+            break
+        if attempt < 5:
+            gain*=10**(min(remaining,4)/20)
     if not .15 <= final['durationSeconds'] <= 1.2 or final['peakDbfs'] > -.7 or final['rmsDbfs'] < -25:
         raise ValueError(f'Call failed audio checks: {final}')
+    if peak_limiter and abs(final['rmsDbfs']-target_rms) > 1:
+        raise ValueError(f'Call did not reach the requested voice level: {final}')
     return final | dict(filename=destination.name, bytes=destination.stat().st_size,
                         sha256=hashlib.sha256(destination.read_bytes()).hexdigest(),
                         sourceSha256=hashlib.sha256(source.read_bytes()).hexdigest(),
@@ -92,11 +103,12 @@ def main():
     parser.add_argument('--lead-ms',type=float,default=30)
     parser.add_argument('--tail-ms',type=float,default=60)
     parser.add_argument('--target-rms',type=float,default=-18)
+    parser.add_argument('--peak-limiter',action='store_true')
     args=parser.parse_args()
     folder=ROOT/'mobile/shared/line-audio'
     if not re.fullmatch(r'v[1-9][0-9]*',args.asset_version) or not 0 <= args.stability <= 1:
         raise ValueError('Invalid asset version or requested stability')
-    calls={call:prepare(args.ffmpeg,source,folder/(call.lower()+'.mp3'),args.lead_ms,args.tail_ms,args.target_rms)
+    calls={call:prepare(args.ffmpeg,source,folder/(call.lower()+'.mp3'),args.lead_ms,args.tail_ms,args.target_rms,args.peak_limiter)
            for call,source in [('OUT',args.out),('IN',args.inside)]}
     for call, item in calls.items():
         data=(folder/item['filename']).read_bytes()
@@ -109,7 +121,7 @@ def main():
                   model='Eleven v4',voice=args.voice,language='en',
                   requestedUISettings=dict(stability=args.stability,similarity=.75),source='Generated in the user-authorized ElevenLabs workspace',
                   deliveryTag=args.delivery_tag,
-                  processing='Outer silence trim; constant gain; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps; no time or pitch change',
+                  processing='Outer silence trim; gain; '+('look-ahead peak limiter -1.5 dBFS; ' if args.peak_limiter else '')+'3 ms edge fade; mono MP3 44100 Hz / 128 kbps; no time or pitch change',
                   paddingMs=dict(leading=args.lead_ms,trailing=args.tail_ms),targetRmsDbfs=args.target_rms,
                   playback='Bundled offline; no ElevenLabs account, network or API key required',calls=calls)
     (folder/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')

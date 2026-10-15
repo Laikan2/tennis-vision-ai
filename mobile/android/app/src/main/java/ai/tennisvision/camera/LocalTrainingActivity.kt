@@ -66,7 +66,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   private val disk=Executors.newSingleThreadExecutor()
   private lateinit var sound: LineVoicePlayer
   private var inVoice=false
-  private var audioStatus="Voz Brian · ElevenLabs · tom suave · disponível sem internet"
+  private var audioStatus="Voz Brian · ElevenLabs · chamadas claras · disponível sem internet"
   private val refreshOverlay=object : Runnable {
     override fun run() { if (!closed && foreground) { court.invalidate(); main.postDelayed(this,500) } }
   }
@@ -368,7 +368,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   }
   private fun showVoiceTests() {
     AlertDialog.Builder(this).setTitle("Testar vozes")
-      .setMessage("$audioStatus\n${sound.volumeDescription()}\n\nVoz Brian, tom suave, salva no app. Confira também a saída Bluetooth. Os testes não contam impactos.")
+      .setMessage("$audioStatus\n${sound.volumeDescription()}\n\nVoz Brian, chamadas claras, salva no app. Confira também a saída Bluetooth. Os testes não contam impactos.")
       .setPositiveButton("Testar OUT") { _,_ -> sound.play(LineCall.OUT,true);Toast.makeText(this,audioStatus,Toast.LENGTH_LONG).show() }
       .setNeutralButton("Testar IN") { _,_ -> sound.play(LineCall.IN,true);Toast.makeText(this,audioStatus,Toast.LENGTH_LONG).show() }
       .setNegativeButton("Fechar",null).show()

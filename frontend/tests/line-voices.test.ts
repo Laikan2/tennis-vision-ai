@@ -32,6 +32,6 @@ test("IN and OUT use independent decoded buffers and versioned ElevenLabs assets
     const inside=make(),outside=make();
     const a=await loadLineBuffer(inside,"IN"),b=await loadLineBuffer(outside,"OUT");
     assert.notEqual(a,b);await loadLineBuffer(inside,"IN");
-    assert.deepEqual(paths,["/audio/in-eleven-v4-v3.mp3","/audio/out-eleven-v4-v3.mp3"]);
+    assert.deepEqual(paths,["/audio/in-eleven-v4-v4.mp3","/audio/out-eleven-v4-v4.mp3"]);
   }finally{globalThis.fetch=original;}
 });

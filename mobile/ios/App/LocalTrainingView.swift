@@ -219,7 +219,7 @@ struct LocalTrainingView: View {
                 Button("Testar som OUT"){model.playOut()}.accessibilityIdentifier("local.sound.test")
                 Button("Testar som IN"){model.playIn()}.accessibilityIdentifier("local.sound.in.test")
                 Text(model.audioStatus).font(.footnote).accessibilityIdentifier("local.sound.status")
-                Text("Voz Brian · ElevenLabs · tom suave. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
+                Text("Voz Brian · ElevenLabs · chamadas claras. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
             }
             Section("Sessão e testes"){
                 Button("Começar nova sessão"){model.newSession()}
