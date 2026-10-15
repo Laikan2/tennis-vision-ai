@@ -1,0 +1,167 @@
+{
+  "date": 813779693.314104,
+  "passed": true,
+  "results": [
+    {
+      "wrong": 0,
+      "maxError": 0.15271054907398063,
+      "name": "3px_white_420",
+      "frames": 16,
+      "located": 15,
+      "elapsedMs": 151.9862083332555,
+      "contacts": []
+    },
+    {
+      "contacts": [],
+      "elapsedMs": 143.3246666656487,
+      "maxError": 0.1109426021176705,
+      "located": 15,
+      "name": "3px_dark_420",
+      "wrong": 0,
+      "frames": 16
+    },
+    {
+      "contacts": [],
+      "elapsedMs": 150.3484999993816,
+      "maxError": 0.2475739339248879,
+      "located": 15,
+      "name": "3px_green_420",
+      "wrong": 0,
+      "frames": 16
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 150.08762500110606,
+      "located": 15,
+      "name": "3px_muted_420",
+      "wrong": 0,
+      "maxError": 0.2468953552646885
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 126.12216666457243,
+      "located": 15,
+      "name": "4px_white_420",
+      "wrong": 0,
+      "maxError": 0.17942709314529934
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 126.65524999829358,
+      "located": 15,
+      "name": "4px_dark_420",
+      "wrong": 0,
+      "maxError": 0.16288754879624667
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 132.67291666124947,
+      "located": 15,
+      "name": "4px_green_420",
+      "wrong": 0,
+      "maxError": 0.1688629230434869
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 134.59954166137322,
+      "located": 15,
+      "name": "4px_muted_420",
+      "wrong": 0,
+      "maxError": 0.1524592954798419
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 118.51162499988277,
+      "located": 16,
+      "name": "6px_white_420",
+      "wrong": 0,
+      "maxError": 0.10516175150200102
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 118.61324999699718,
+      "located": 16,
+      "name": "6px_dark_420",
+      "wrong": 0,
+      "maxError": 0.06994285525165096
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 128.73162500363833,
+      "located": 16,
+      "name": "6px_green_420",
+      "wrong": 0,
+      "maxError": 0.10452410861367822
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 133.14612500107614,
+      "located": 16,
+      "name": "6px_muted_420",
+      "wrong": 0,
+      "maxError": 0.10803848695872953
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 116.07137499777309,
+      "located": 14,
+      "name": "small_clutter",
+      "wrong": 2,
+      "maxError": 0.1109426021176705
+    },
+    {
+      "contacts": [
+        "review"
+      ],
+      "frames": 16,
+      "elapsedMs": 115.4897083342803,
+      "located": 15,
+      "name": "small_bounce_review",
+      "wrong": 0,
+      "maxError": 0.2714730383216503
+    },
+    {
+      "contacts": [],
+      "frames": 16,
+      "elapsedMs": 115.45654166729946,
+      "located": 15,
+      "name": "blur3",
+      "wrong": 0,
+      "maxError": 0.18347599553405303
+    },
+    {
+      "contacts": [
+        "inside"
+      ],
+      "frames": 16,
+      "elapsedMs": 115.60920833289856,
+      "located": 16,
+      "name": "known_IN",
+      "wrong": 0,
+      "maxError": 0.35000000000002274
+    },
+    {
+      "contacts": [
+        "outside"
+      ],
+      "frames": 16,
+      "elapsedMs": 115.52958333413699,
+      "located": 16,
+      "name": "known_OUT",
+      "wrong": 0,
+      "maxError": 0.35000000000002274
+    }
+  ],
+  "version": "0.6.7",
+  "kind": "synthetic-pixel-fixtures-not-real-tennis"
+}

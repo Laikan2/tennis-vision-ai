@@ -1,14 +1,16 @@
-# Tennis Vision para Android — treino local 0.6.6
+# Tennis Vision para Android — treino local 0.6.7
 
-**Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Vozes IN / OUT**, o som OUT preserva a configuração anterior e o som IN é opcional. Use **Testar vozes** para ouvir cada chamada e conferir o volume de mídia. O teste não conta impactos. Áreas e histórico são preservados; o detector mantém a base 0.6.4.
+**Correções 0.6.7:** bola amarelada pela iluminação, bola perto da lente, recuperação após obstruções sem encerrar o treino e indicação do limite do piso. Marcas antigas ficam no histórico e não são projetadas sobre uma câmera reaberta. Veja docs/releases/mobile-v0.6.7.md.
+
+**Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Vozes IN / OUT**, o som OUT preserva a configuração anterior e o som IN é opcional. Use **Testar vozes** para ouvir cada chamada e conferir o volume de mídia. O teste não conta impactos. Áreas e histórico são preservados; o detector inclui as correções de iluminação e continuidade da versão 0.6.7.
 
 O aplicativo agora abre no **treino local**. Câmera, detecção da bola verde, rastro, candidatos de impacto, IN/OUT, áudio, revisão, estatísticas e armazenamento executam no Android. Não é necessário Windows, Python, MediaMTX, pareamento, conta ou conexão com a internet para esse modo.
 
 ## Começar no celular
 
-O iPhone passa a acompanhar esta entrega de funcionalidades na versão **0.6.4**. O release conjunto `mobile-v0.6.4` oferece APK e IPA separados. O Android mantém o mesmo APK já publicado, sem trocar certificado ou dados. Os motores Kotlin e Swift são avaliados pelos mesmos 41 cenários sintéticos; formatos de instalação, taxas da câmera e desempenho continuam próprios de cada plataforma. Consulte `mobile/shared/release.json` e as notas `docs/releases/mobile-v0.6.4.md`.
+Android e iPhone acompanham a entrega **0.6.7**. O release conjunto `mobile-v0.6.7` oferece APK e IPA separados, preservando certificado Android e dados anteriores. Os motores Kotlin e Swift são avaliados pelos mesmos 41 cenários sintéticos e pelos testes novos de iluminação e recuperação da referência; formatos de instalação, taxas da câmera e desempenho continuam próprios de cada plataforma. Consulte `mobile/shared/release.json` e as notas `docs/releases/mobile-v0.6.7.md`.
 
-1. Instale `mobile/releases/Tennis-Vision-Camera-Android-v0.6.4.apk` sobre a versão anterior, preservando os dados. Não desinstale para atualizar.
+1. Instale `mobile/releases/Tennis-Vision-Camera-Android-v0.6.7.apk` sobre a versão anterior, preservando os dados. Não desinstale para atualizar.
 2. Abra o app, toque em **Permitir câmera** e aguarde **Câmera pronta**.
 3. Fixe o celular na horizontal, recuado e elevado fora da área de jogo, com margem além das linhas. Em **Enquadramento e detalhe**, escolha a lente antes de marcar. **Ampla**, quando disponível, mostra mais, mas deixa a bola menor. **Bola distante · até 1080p** preserva mais detalhe; confira os FPS recebidos. Se a imagem engasgar, use **Fluidez**. Não é possível recuperar por software partes da quadra fora da imagem.
 4. Em **Marcar quadra · 4 cantos**, escolha quadra inteira ou metade e toque nos quatro cantos ao redor do piso. Para meia quadra, comece pela rede; para a inteira, por um fundo. Ajuste os cantos arrastando, com a lupa, e toque em **Salvar área**. Cancelar mantém a marcação anterior. A referência pausa apenas durante a edição. **Área livre · arrastar** continua disponível. **Quarto · limite do piso** é a reta entre parede e chão usada nos testes de quarto; não substitui os quatro cantos de uma quadra e não é exigida no modo quadra.
@@ -21,6 +23,7 @@ Ao bloquear a tela ou abrir outro aplicativo, a análise para e a câmera é lib
 
 ## Precisão, desempenho e serviços externos
 
+- A 0.6.7 passou em 187 testes JVM/Robolectric e gerou APK com o certificado anterior. A câmera Android física não foi retestada nesta entrega. O [relatório conjunto](../../docs/validation/detection-2026-10-15/report.txt) separa testes controlados, medição no iPhone físico e situações ainda não verificadas em quadra.
 - O detector local é visão computacional por cor, movimento, forma e continuidade temporal, especializado na bola de tênis verde. Não é o modelo neural Python do Windows nem um treinamento novo desse modelo. Objetos verdes semelhantes, reflexos, oclusão, distância e borrão ainda podem causar erros.
 - Só posições observadas formam contatos. Previsões curtas são identificadas e não pontuam. Passar pela área no ar ou o sumiço da bola não prova impacto.
 - No quarto, descida e subida observadas abaixo do limite do piso geram contatos estimados. Na quadra marcada, essa reta de quarto não é exigida; o detector usa a aproximação e o retorno observados para estimar o contato. Marcar uma quadra não comprova por si só contato físico. Poucos pixels, perda de quadros, proximidade da mão ou da linha exigem revisão. Na parede, retornos laterais são candidatos para revisão: uma câmera não distingue sempre parede, mão e raquete. IN/OUT usa o contorno marcado, sem aplicar regras de caixas de saque automaticamente.

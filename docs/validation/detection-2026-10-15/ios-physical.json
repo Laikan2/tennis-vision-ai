@@ -1,0 +1,103 @@
+{
+  "version": "0.6.7",
+  "build": "8",
+  "hardware": "iPhone 15 Pro",
+  "platform": {
+    "ProductType": "iPhone16,1",
+    "ProductVersion": "27.2",
+    "BuildVersion": "24B5110a",
+    "CFBundleShortVersionString": "0.6.7",
+    "CFBundleVersion": "8"
+  },
+  "installedThroughAltStore": true,
+  "archive": {
+    "savedAreasUnchanged": true,
+    "originalSessionsPreserved": true,
+    "allOriginalEventsPreserved": true,
+    "originalEvents": 20,
+    "eventsImmediatelyAfterInstall": 21,
+    "archiveUnchangedByFinalTests": true,
+    "note": "One additional event appeared between the first backup and installation. It was retained; no event was removed or reclassified."
+  },
+  "cameraProbe": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 588,
+    "height": 720,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 1.67666666675359,
+    "maxAnalysisMs": 35.85749999911059,
+    "meanAnalysisMs": 31.947722151397436,
+    "observations": 0,
+    "os": "27.2",
+    "processingToUIAgeMs": 33.6324166655686,
+    "receivedFPS": 29.78105257800427,
+    "requestedFPS": 60,
+    "seconds": 20.002690833332963,
+    "sessionWrites": 0,
+    "version": "0.6.7",
+    "width": 1280
+  },
+  "baselineCameraProbe": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 441,
+    "height": 720,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 1.9730000003619352,
+    "maxAnalysisMs": 65.60812499992608,
+    "meanAnalysisMs": 42.98501077098582,
+    "observations": 1,
+    "os": "27.2",
+    "processingToUIAgeMs": 44.84529166620632,
+    "receivedFPS": 22.1028975838411,
+    "requestedFPS": 60,
+    "seconds": 20.04363208333416,
+    "sessionWrites": 0,
+    "version": "0.6.6",
+    "width": 1280
+  },
+  "performanceComparisonLimit": "Same phone and 1280x720 pixel count; separate live scenes, not an isolated benchmark. Processing-to-UI excludes sensor exposure/readout and does not measure display presentation.",
+  "syntheticOnDevice": {
+    "passedAcceptanceCriteria": true,
+    "cases": 17,
+    "frames": 272,
+    "locatedWithinTolerance": 260,
+    "wrongLocations": 2,
+    "noLocation": 10,
+    "events": [
+      {
+        "case": "small_bounce_review",
+        "contacts": [
+          "review"
+        ]
+      },
+      {
+        "case": "known_IN",
+        "contacts": [
+          "inside"
+        ]
+      },
+      {
+        "case": "known_OUT",
+        "contacts": [
+          "outside"
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "floorEditorOpened": true,
+    "incompleteAreaSaveDisabled": true,
+    "cancelReturnedToLivePreview": true,
+    "savedAreasUnchangedAfterCancel": true,
+    "finalState": "Normal camera preview, training paused; not left in diagnostic mode."
+  },
+  "notVerified": [
+    "Real physical ball bounces with annotated IN/OUT",
+    "Real-match fast tennis balls",
+    "120/240 FPS in this round",
+    "Physical Android camera",
+    "Manual drawing accuracy against visible floor landmarks",
+    "Temporary lens obstruction recovery on the physical phone"
+  ],
+  "syntheticSceneRecoveryTests": "Covered by Kotlin and Swift regression tests; not represented as a physical ball or hand-over-lens test."
+}

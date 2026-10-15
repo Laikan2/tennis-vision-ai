@@ -1,12 +1,14 @@
-# Tennis Vision Camera para iPhone — 0.6.6
+# Tennis Vision Camera para iPhone — 0.6.7
 
-**Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Impactos**, o som OUT preserva a configuração anterior e o som IN é opcional. Os testes separados mostram reprodução, volume de mídia e saída de áudio, sem alterar contagens. Confira Bluetooth e volume se não ouvir. O detector mantém a base 0.6.4.
+**Correções 0.6.7:** bola amarelada pela iluminação, bola perto da lente, recuperação após obstruções sem encerrar o treino e indicação do limite do piso. Marcas antigas ficam no histórico e não são projetadas sobre uma câmera reaberta. Veja docs/releases/mobile-v0.6.7.md.
+
+**Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Impactos**, o som OUT preserva a configuração anterior e o som IN é opcional. Os testes separados mostram reprodução, volume de mídia e saída de áudio, sem alterar contagens. Confira Bluetooth e volume se não ouvir. O detector inclui as correções de iluminação e continuidade da versão 0.6.7.
 
 Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. **Treino no próprio iPhone** é a tela inicial: câmera, bola verde, rastro, impactos candidatos, IN/OUT, som e histórico executam localmente. Não exige Windows, Larix, servidor, HTTPS, download de modelo ou internet. O modo de câmera/painel do Windows continua disponível em Ajustes como opção separada.
 
 ## Mesma versão de funcionalidades do Android
 
-A versão iPhone 0.6.6 acompanha a Android 0.6.6, mantendo os recursos de detecção da base 0.6.4. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
+A versão iPhone 0.6.7 acompanha a Android 0.6.7, com as correções de detecção sob luz quente e recuperação da referência descritas nesta entrega. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
 
 `mobile/shared/release.json` define a entrega comum. A geração do projeto verifica as versões das duas plataformas. `mobile/shared/vision-cases.json` define 41 cenários de pixels conhecidos consumidos pelos testes Kotlin e Swift, cobrindo mão, soltura, queda, movimento rápido, borrão e IN/OUT. Alterações futuras de comportamento precisam ser portadas e passar nesses testes; o contrato não traduz código Kotlin para Swift automaticamente.
 
@@ -21,13 +23,15 @@ O publicador conjunto exige APK/IPA com a mesma versão, certificado Android ant
 5. **IN**: contato candidato dentro ou tocando a linha. **OUT**: fora com margem suficiente e som incluído. **REVISAR**: detalhe, contato ou linha incertos; não toca OUT automático. **SEM ÁREA**: não há polígono válido para classificar.
 6. Toque numa marca ou em **Último contato** para conferir o quadro mais próximo do instante estimado, com a marca na imagem, e confirmar IN/OUT ou descartar. A revisão preserva a decisão original. Ajustes permite esconder as marcas sem apagar o histórico, testar o som e exportar JSON. O acerto usa o mesmo cálculo inteiro do Android, apenas IN e OUT no denominador.
 
-Áreas e sessões ficam no aparelho, separadas por lente, resolução e rotação. Ao reabrir, confirme se a área ainda coincide com o piso. Pequenas translações com referências suficientes podem ser compensadas; perda de referência pausa o treino. Girar ou deslocar o iPhone exige conferir os cantos. Bloquear a tela ou ir para segundo plano interrompe a captura; a retomada exige iniciar o treino.
+Áreas e sessões ficam no aparelho, separadas por lente, resolução e rotação. Ao reabrir, confirme se a área ainda coincide com o piso. Pequenas translações com referências suficientes podem ser compensadas. Perda de referência suspende a contagem sem encerrar o treino; a contagem retorna quando o enquadramento original é reconhecido. Girar ou deslocar o iPhone exige conferir os cantos. Bloquear a tela ou ir para segundo plano interrompe a captura; a retomada exige iniciar o treino.
 
 O detector usa cor, forma, movimento e continuidade temporal; não houve treinamento de uma rede neural nesta atualização. Contorno e rastro são desenhados sobre o mesmo quadro analisado. Uma previsão é indicada explicitamente e expira após uma perda curta. Bola parcialmente oculta, na mão, borrada ou minúscula não certifica contato nem velocidade. A velocidade disponível é **lateral e estimada pelo diâmetro aparente da bola de tênis de 67 mm**, não uma medição 3D ou radar.
 
 Uma câmera só não comprova contato real em todas as perspectivas. A área de quadra deve corresponder ao piso; um retorno no ar ainda pode parecer uma quicada. O modo parede mantém contatos para revisão. Boa luz, foco, bola suficientemente grande na imagem e visão do chão são necessários; nenhuma opção recupera detalhe que a câmera não captou.
 
 ## Validação
+
+Na 0.6.7, 65 testes XCTest passaram no CI. O iPhone 15 Pro físico recebeu a atualização, executou 17 cenários sintéticos com decisões IN/OUT conhecidas e permitiu abrir/cancelar o editor sem alterar as áreas. A câmera analisou cerca de 30 FPS em 720p nessa medição; não sustentou os 60 FPS solicitados. Consulte o [relatório e os limites do teste](../../docs/validation/detection-2026-10-15/report.txt).
 
 O núcleo Swift tem testes de bola pequena com bordas amostradas e perda de croma, oclusão por dedos, bola carregada, falsos reflexos, timestamps, previsão limitada, quicadas e classificação conhecida IN/OUT. O GitHub compila para aparelho e simulador e testa a transmissão H.264 separadamente.
 
@@ -64,7 +68,7 @@ O projeto Xcode e o instalador `.ipa` são arquivos separados. O GitHub compila 
 
 ### Tenho somente Windows
 
-Use **Tennis-Vision-Camera-iOS-v0.6.4-AltStore.ipa** da fonte oficial ou da página de versões. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic. Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
+Use **Tennis-Vision-Camera-iOS-v0.6.7-AltStore.ipa** da fonte oficial ou da página de versões. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic. Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
 
 1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Você informa sua conta Apple diretamente no AltServer.
 2. Coloque o `.ipa` no app Arquivos do iPhone. Com o AltServer aberto no PC e o iPhone conectado, use **AltStore Classic → My Apps → +** para selecionar o arquivo.

@@ -1,0 +1,114 @@
+TENNIS VISION MOBILE 0.6.7 — VALIDAÇÃO DE 15/10/2026
+
+Resultado da entrega
+Android e iPhone 0.6.7 publicados no GitHub, com a fonte do AltStore atualizada.
+iPhone 15 Pro conectado, iOS 27.2 (24B5110a): atualização instalada pelo AltStore,
+versão 0.6.7, build 8, confirmada pelo serviço de instalação do aparelho.
+Windows permanece na versão 0.6.11. A assinatura Android anterior foi mantida.
+
+Problemas reproduzidos e correções
+1. Uma obstrução da lente ou mudança brusca da imagem acionava pause() e
+   desativava a análise. Agora a sessão continua, com impactos suspensos até
+   o enquadramento original ser reconhecido. Se a posição realmente mudou,
+   é necessário conferir a área; não há retomada automática sobre área inválida.
+2. A iluminação quente deixava a bola amarela e o filtro verde fragmentava
+   sua imagem. A detecção aceita feltro amarelo saturado, com restrições que
+   mantêm os testes negativos de pele, madeira e objetos retangulares.
+3. Bolas redondas próximas da lente excediam o limite de tamanho. Esse caso
+   agora é aceito sem liberar componentes grandes de qualquer formato.
+4. Fragmentos pequenos podiam impedir a aquisição de uma bola grande bem
+   visível e gerar candidatos de impacto incoerentes. A seleção e a coerência
+   temporal foram corrigidas. Uma bola pequena realmente em movimento ainda
+   pode exigir revisão; o sistema não transforma falta de evidência em OUT.
+5. Marcas de uma sessão antiga reapareciam sobre outro enquadramento. O
+   histórico foi preservado, mas essas marcas não são reprojetadas na prévia
+   reaberta. Só as três marcas recentes recebem rótulos, reduzindo a sobreposição.
+6. O modo Chão/Área livre estava sem limite do piso. A interface agora explica
+   essa referência e oferece o botão direto “Definir começo do piso”. O
+   polígono IN/OUT e o limite entre parede e chão têm funções diferentes.
+7. A varredura deixou de iniciar componentes em pixels de cor fraca que seriam
+   descartados ao final. Bordas fracas conectadas a feltro forte continuam aceitas.
+
+Evidência do vídeo enviado
+Exame local de gravação de tela comprimida, 384x848, 58,795 segundos.
+Não se trata do vídeo original do sensor. Dois recortes reais, sem reconstruir
+a bola ou remover as marcas da interface, foram comparados com centros
+aproximados por inspeção visual:
+- Recorte em 28 s: erro do centro 217,62 px antes; 5,76 px após a correção.
+  Antes, o detector escolhia um ponto pequeno em outro lugar da imagem.
+- Recorte em 36 s: 5,80 px antes; 3,66 px após a correção.
+São dois exemplos, não uma avaliação estatística de partidas ou impactos.
+O chão e o instante físico de contato não ficam claros o suficiente no vídeo
+para usá-lo como verdade de referência de todas as quicadas.
+
+Testes automatizados
+- Android: 187 testes JVM/Robolectric, zero falhas, erros ou testes ignorados.
+  APK release compilado; versão, certificado e bytes das vozes verificados.
+- iOS: 65 testes XCTest aprovados no CI, builds para iPhone e simulador,
+  abertura do simulador e integração do receptor com 60 quadros H.264.
+  Compilação e simulador são registrados separadamente da câmera física.
+- Testes novos incluem feltro sob luz quente, bola próxima, IN/OUT conhecido,
+  fragmentos falsos, obstrução temporária, retorno da referência e bloqueio
+  de contagem quando o enquadramento realmente muda.
+- Os 41 cenários de pixels compartilhados entre Kotlin e Swift continuam
+  aprovados. Nenhum modelo neural foi treinado ou substituído nesta entrega.
+
+Testes no iPhone físico
+O mesmo detector instalado executou 17 cenários sintéticos, 272 quadros.
+260 localizações ficaram dentro da tolerância; houve 2 localizações erradas
+e 10 quadros sem localização. Os critérios predefinidos passaram, incluindo
+um contato IN, um OUT e uma bola pequena que exige REVISAR. Isso não significa
+detecção perfeita nem equivale a 272 quadros de uma partida real.
+
+Câmera real, 1280x720, 60 FPS solicitados, medições de aproximadamente 20 s:
+- 0.6.6: 441 quadros entregues à interface; 22,10 FPS no indicador final;
+  análise média 42,99 ms, máxima 65,61 ms.
+- 0.6.7: 588 quadros; 29,78 FPS no indicador final; análise média 31,95 ms,
+  máxima 35,86 ms. Conversão final 1,68 ms; processamento até callback da
+  interface 33,63 ms. Nenhum contato candidato nessa sequência.
+São cenas ao vivo separadas no mesmo aparelho e resolução, não um benchmark
+isolado. Não se atribui toda a diferença apenas ao código. O custo médio
+caiu nessa medição, mas a análise ainda não sustenta os 60 FPS solicitados.
+A métrica até a interface não inclui exposição/leitura do sensor nem mede
+o instante em que o painel do aparelho efetivamente apresentou a imagem.
+
+O editor do limite do piso abriu, mostrou 0/2 pontos e impediu salvar uma área
+incompleta. Cancelar retornou à prévia, com 60 FPS indicados sem a análise
+ativa. As áreas anteriores não foram alteradas. Não foram inventados pontos
+de calibração sobre um chão sem referência física conhecida.
+
+Preservação e instalação
+As configurações das duas chaves de câmera permaneceram iguais. A sessão e
+os 20 eventos do primeiro backup foram preservados. Um evento adicional já
+estava presente na leitura feita imediatamente após a atualização; também
+foi preservado. Os testes finais de câmera, imagens sintéticas e cancelamento
+do editor não alteraram esse arquivo de histórico. Backup privado mantido
+localmente; imagens e arquivos pessoais do usuário não foram publicados.
+O AltStore ficou parado em 20%; reiniciar AltServer/AltStore permitiu concluir
+a instalação sem desinstalar o Tennis Vision.
+
+O que ainda precisa de teste real
+- Quicadas com bola real e posição de contato conhecida dentro/fora da área.
+- Recuperação após cobrir a lente fisicamente; a regressão foi testada com
+  pixels simulados, sem representar isso como teste físico realizado.
+- Partidas, saques rápidos e precisão a longa distância.
+- Captura 120/240 FPS e aparelho Android físico nesta entrega.
+- Precisão do desenho manual contra referências reais do piso.
+Uma única câmera não confirma profundidade em todos os casos. Parede,
+contato perto da linha, bola minúscula, mão e oclusão podem exigir REVISAR.
+O áudio OUT só é automático quando existe decisão OUT com evidência suficiente.
+
+Configuração para o próximo teste de chão
+Fixar o iPhone; manter a bola, o chão e a quicada inteiros na imagem.
+Tocar “Definir começo do piso” e marcar dois pontos no encontro da parede
+com o chão. Salvar e conferir separadamente o polígono da área IN/OUT.
+Para quadra inteira ou meia quadra, usar os quatro cantos do piso; a reta
+de quarto não é exigida nesse modo. Uma mudança de posição exige conferir
+as marcações. Os contatos antigos em REVISAR não foram reclassificados.
+
+Fontes verificáveis
+CI: https://github.com/Laikan2/tennis-vision-ai/actions/runs/38778176890
+Código compilado: 82c0a3323d11286c77c2122ccb98a745b5cd6aab
+Entrega: https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.7
+Metadados: android-validation.json, ios-ci.json, ios-physical.json,
+ios-on-device-synthetic.json, investigation.json e manifestos mobile-v0.6.7.

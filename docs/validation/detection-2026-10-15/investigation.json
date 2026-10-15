@@ -1,0 +1,60 @@
+{
+  "version": "0.6.7",
+  "reportedPlatform": "iPhone 15 Pro, iOS 27.2, app 0.6.6",
+  "source": "Local examination of user-supplied screen recording and app archive; no video upload",
+  "video": {
+    "width": 384,
+    "height": 848,
+    "durationSeconds": 58.795,
+    "screenRecording": true
+  },
+  "findings": [
+    "Transient lens/scene change called pause() and disabled analysis",
+    "Warm yellow felt was fragmented by the green threshold",
+    "Large close round balls exceeded component size limits",
+    "Twenty historical events referenced tiny 2–6 px signals; 14 REVIEW and 6 UNMARKED",
+    "Custom FLOOR settings had no floor boundary; an IN polygon does not itself prove floor contact",
+    "Old session events were redrawn after opening a different camera view"
+  ],
+  "baselineRegression": {
+    "tests": 4,
+    "failures": 3
+  },
+  "cropCheck": {
+    "input": "Two unmodified preview crops from compressed screen video, 210x366 pixels; UI marks still present",
+    "knownCenters": "Manually inspected approximate centres; not original sensor ground truth",
+    "frame28": {
+      "baselineErrorPx": 217.6239,
+      "correctedErrorPx": 5.7586,
+      "correctedRadiusPx": 37
+    },
+    "frame36": {
+      "baselineErrorPx": 5.8032,
+      "correctedErrorPx": 3.6585,
+      "correctedRadiusPx": 15
+    },
+    "limitations": "Two examples only; no real-match accuracy or speed conclusion"
+  },
+  "cameraBaseline": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 441,
+    "height": 720,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 1.9730000003619352,
+    "maxAnalysisMs": 65.60812499992608,
+    "meanAnalysisMs": 42.98501077098582,
+    "observations": 1,
+    "os": "27.2",
+    "processingToUIAgeMs": 44.84529166620632,
+    "receivedFPS": 22.1028975838411,
+    "requestedFPS": 60,
+    "seconds": 20.04363208333416,
+    "sessionWrites": 0,
+    "version": "0.6.6",
+    "width": 1280
+  },
+  "physicalAndroidTest": false,
+  "realTennisMatchTest": false,
+  "newTrainingPerformed": false,
+  "modelType": "Deterministic colour, geometry, motion and scene-consistency rules; no trained neural model replaced"
+}
