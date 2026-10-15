@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-15",
+  "provider": "ElevenLabs",
+  "voice": "Brian - Deep, Resonant and Comforting",
+  "model": "Eleven v4",
+  "pack": "elevenlabs-brian-clear-v4-4",
+  "previousPreviewPack": "elevenlabs-brian-v4-3",
+  "requestedUISettings": {
+    "stability": 0.4,
+    "similarity": 0.75
+  },
+  "processing": "Outer silence trim; gain; look-ahead peak limiter -1.5 dBFS; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps; no time or pitch change",
+  "calls": {
+    "OUT": {
+      "durationSeconds": 0.63,
+      "rmsDbfs": -16.65,
+      "peakDbfs": -1.68,
+      "filename": "out.mp3",
+      "bytes": 11327,
+      "sha256": "56cd80d2976dc8748d211b8e02ad88095007d217036b74f7a9b12240c4c0436f",
+      "sourceSha256": "30fc632d29e2a373e90a252ce6213ab040da5a4a0a88b6ade2fdc8be5648fa0b",
+      "trimStartMs": 50.0,
+      "appliedGainDb": 17.1,
+      "increaseVsSoftPreviewDb": 3.78
+    },
+    "IN": {
+      "durationSeconds": 0.62,
+      "rmsDbfs": -16.46,
+      "peakDbfs": -1.83,
+      "filename": "in.mp3",
+      "bytes": 10910,
+      "sha256": "8aa65afef330232ef880c46c71cadc40fedb0b5e7ea39a512f0625ecab6b653a",
+      "sourceSha256": "c0357aacab52fca8fea143837ae11e901f3d077840a2b74b880d2fd25f53ead8",
+      "trimStartMs": 0.0,
+      "appliedGainDb": 8.33,
+      "increaseVsSoftPreviewDb": 3.99
+    }
+  },
+  "systemMediaVolumeChanged": false,
+  "subjectiveAudibilityConfirmed": {
+    "OUT": true,
+    "IN": null
+  }
+}

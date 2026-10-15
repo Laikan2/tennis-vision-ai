@@ -1,0 +1,59 @@
+Tennis Vision — chamadas IN/OUT — 15/10/2026
+
+Problema: a amostra suave ficou pouco audível para o treino.
+Correção: novas falas Brian, ElevenLabs Eleven v4, sem orientação de falar
+suavemente. Ganho e limitação dos picos, preservando palavras completas,
+sem acelerar ou mudar o tom. OUT: 0,63 s, RMS -16,65 dBFS, pico -1,68 dBFS.
+IN: 0,62 s, RMS -16,46 dBFS, pico -1,83 dBFS. Em relação à amostra suave:
++3,78 dB OUT, +3,99 dB IN. A normalização confere o MP3 decodificado,
+pois limitar os picos pode reduzir o nível efetivamente entregue.
+
+Arquivos idênticos no iPhone, Android e painel, incluídos para uso offline.
+IN opcional; OUT prioritário. Preferências e dados preservados. Android
+usa a duração medida de cada fala para impedir sobreposição. iPhone
+mostra a saída utilizada antes de desativar a sessão de áudio e trata
+somente o início de uma interrupção como motivo para parar a reprodução.
+
+Validação local aprovada: 177 testes JVM/Robolectric Android, APK release
+compilado, voz conferida dentro do APK, versão 0.6.6/code19 e continuidade
+da assinatura verificadas pelo SDK; 34 pytest, 4 testes frontend e 28 testes
+Windows. Painel compilado e exportado. Nível, duração, margem dos picos,
+integridade e igualdade dos arquivos verificados com MP3 decodificado.
+
+Os testes do detector reutilizados são regressões; não houve novo treino
+nem prova de detecção em partidas rápidas. Volume e rota de mídia do
+aparelho continuam sob controle do usuário. Nível digital não comprova
+que a voz será ouvida em qualquer distância ou ambiente.
+
+55 XCTest aprovados no macOS, incluindo decodificação dos MP3 pelo codec
+Apple. Compilações para iPhone e simulador, lançamento do simulador e
+integração com 60 quadros H.264 recebidos e decodificados aprovados. Áudios
+conferidos por hash dentro do IPA efetivamente compilado.
+
+Windows 0.6.11 aberto com dados isolados: inicialização em 1.778 ms,
+backend e bridge prontos. Os botões do painel iniciaram IN e OUT. Os MP3
+servidos e downloads mobile coincidiram com os pacotes verificados.
+A instância de teste e seu motor foram encerrados sem tocar nos dados de
+uso. Instalador, blockmap e manifesto de atualização conferidos por hash
+antes e depois do upload. Manifesto público igual ao local.
+
+Publicados mobile-v0.6.6 e Windows v0.6.11. AltStore em 0.6.6 com URL
+imutável mobile-v0.6.6. Windows tornou-se latest v0.6.11.
+
+Teste físico: iPhone 15 Pro, iOS 27.2 beta / 24B5099f, USB, atualizado pelo
+AltStore para 0.6.6/build7. O app confirmou conclusão de OUT e IN pelo
+alto-falante, com volume de mídia em 40%. OUT repetido e confirmado como
+bem ouvido pelo usuário. Não houve confirmação subjetiva de IN. Na
+repetição de IN, a leitura remota de acessibilidade expirou após o pedido
+de ativação; não declaramos a conclusão dessa repetição. O teste inicial
+de IN teve conclusão observada.
+
+Configurações do arquivo local coincidiram com o backup anterior. O backup
+continha zero sessões e a leitura após instalação uma sessão; não havia
+sessões antigas nesse backup para verificar retenção. O arquivo de treino
+permaneceu idêntico antes e depois dos testes manuais de áudio. Nenhuma
+área ou sessão foi sobrescrita/restaurada para obter esse resultado.
+
+Android foi compilado e validado com JVM/Robolectric, sem aparelho Android
+físico nesta entrega. Não foi feito teste de audibilidade em quadra, ao ar
+livre ou a distância. Resultados detalhados nos JSON desta pasta.

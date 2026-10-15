@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-15",
+  "device": "iPhone 15 Pro",
+  "iosVersion": "27.2 beta (24B5099f)",
+  "appVersion": "0.6.6",
+  "build": "7",
+  "installedWithAltStore": true,
+  "playbackCompletionObserved": {
+    "OUT": "ReproduÃ§Ã£o OUT concluÃ­da Â· Volume de mÃ­dia 40% Â· Alto-falante",
+    "IN": "ReproduÃ§Ã£o IN concluÃ­da Â· Volume de mÃ­dia 40% Â· Alto-falante"
+  },
+  "outputVolumePercent": 40,
+  "output": "Alto-falante",
+  "systemMediaVolumeChanged": false,
+  "manualVoiceTestsChangedTrainingArchive": false,
+  "savedSettingsPreserved": true,
+  "previousBackupSessionCount": 0,
+  "postInstallSessionCount": 1,
+  "realCourtAudibilityTested": false,
+  "repeatOutCompleted": true,
+  "repeatInVerification": "Remote accessibility events timed out after the activation request; no completion claimed for this repeat.",
+  "userConfirmedOutAudible": true,
+  "userConfirmedInAudible": null
+}

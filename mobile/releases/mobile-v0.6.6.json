@@ -1,0 +1,24 @@
+{
+  "version": "0.6.6",
+  "baseline": "green-ball-local-0.6.4",
+  "ios": {
+    "version": "0.6.6",
+    "minimumIOS": "17.4",
+    "bundleIdentifier": "ai.tennisvision.camera.ios",
+    "signing": "required-by-installation-tool",
+    "filename": "Tennis-Vision-Camera-iOS-v0.6.6-AltStore.ipa",
+    "bytes": 783607,
+    "sha256": "b5b40acc0198e52da87dec38455f7099e1f737f425b64e5ffaf1cdf0cd6d1801",
+    "build": "7"
+  },
+  "android": {
+    "version": "0.6.6",
+    "versionCode": 19,
+    "filename": "Tennis-Vision-Camera-Android-v0.6.6.apk",
+    "bytes": 3237824,
+    "sha256": "eb4c8462a4f2d8b4663d5e1aa507524a0ca02d4abf3b060524dd0c88895938e1",
+    "certificateSha256": "faf843630ad0a52fef6ca4f844cae592e3da1e266b7b823f481c34d3b2049ce9"
+  },
+  "sourceCommit": "2369f7ba9e8c98cc30bcf1f55855a6b448fd5f55",
+  "validationRun": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/38683219452"
+}

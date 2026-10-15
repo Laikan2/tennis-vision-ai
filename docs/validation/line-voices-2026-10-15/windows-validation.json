@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "version": "0.6.11",
+  "isolated": true,
+  "compiledApplicationLaunched": true,
+  "startupMs": 1778,
+  "bridgeReady": true,
+  "backendReady": true,
+  "offlineVoiceAssetsVerifiedOverPackagedHTTP": true,
+  "mobilePackagesVerified": true,
+  "mobileVersion": "0.6.6",
+  "installerBytes": 402298908,
+  "installerSha512": "MLncOKAAcqy0N5e/tvNxJViiUXQacCo3x7qXS6pORj7oCQ8B34pEOXtLu/RhVH3MqnkadD6p+YJpnkd2DJmwEw==",
+  "audiblePhysicalPhoneTest": false,
+  "voiceButtonsTestedInCompiledBrowserUI": true,
+  "manualVoiceTestsChangedImpactCounts": false,
+  "published": true,
+  "releaseURL": "https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.11",
+  "publishedAssetSha256": {
+    "Tennis-Vision-Studio-0.6.11-Windows-x64.exe": "4ea74d74ffccdd99a7f09fa4589c0c940ba1861fc85e1e610eb37edb531abe4b",
+    "Tennis-Vision-Studio-0.6.11-Windows-x64.exe.blockmap": "4679994431b1f52e53ad051a010eb3b62833e5e2843f474ac56d0c730fa463fc",
+    "latest.yml": "7d4c64b3d64488e35ce167d4cf463d0d32dfb5328e4104c23a3e1467c165753d"
+  },
+  "publicUpdaterManifestVerified": true
+}

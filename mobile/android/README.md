@@ -1,4 +1,4 @@
-# Tennis Vision para Android — treino local 0.6.5
+# Tennis Vision para Android — treino local 0.6.6
 
 **Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Vozes IN / OUT**, o som OUT preserva a configuração anterior e o som IN é opcional. Use **Testar vozes** para ouvir cada chamada e conferir o volume de mídia. O teste não conta impactos. Áreas e histórico são preservados; o detector mantém a base 0.6.4.
 

@@ -1,6 +1,6 @@
 # Tennis Vision Camera no iPhone
 
-**Vozes na 0.6.5:** IN e OUT gerados no ElevenLabs e salvos para uso offline. Em **Ajustes → Impactos**, ative **Som IN · opcional** se quiser ouvir bolas dentro. **Testar som OUT/IN** informa reprodução, volume de mídia e saída de áudio; não conta impactos. Confira também Bluetooth e os botões laterais de volume. A [atualização 0.6.5](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.5) mantém o detector e os dados da 0.6.4. Instale sobre o app existente pelo AltStore, sem desinstalar.
+**Vozes na 0.6.6:** IN e OUT com voz Brian do ElevenLabs, chamadas mais firmes e nível ajustado para maior audibilidade, salvos para uso offline. Em **Ajustes → Impactos**, ative **Som IN · opcional** se quiser ouvir bolas dentro. **Testar som OUT/IN** informa reprodução, volume de mídia e saída de áudio; não conta impactos. Confira também Bluetooth e os botões laterais de volume. A [atualização 0.6.6](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.6) mantém o detector e os dados da 0.6.4. Instale sobre o app existente pelo AltStore, sem desinstalar.
 
 O aplicativo iOS **0.6.4** tem treino no próprio iPhone: câmera, bola verde, rastro, áreas, impactos candidatos, IN/OUT com revisão, som OUT e histórico local. Não exige Windows, servidor ou internet para analisar. A câmera H.264 e o painel do Windows continuam opcionais. Consulte o [guia do modo local](../mobile/ios/README.md) e o [relatório de validação atual](validation/mobile-parity-2026-10-14/report.txt).
 
