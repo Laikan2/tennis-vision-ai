@@ -152,10 +152,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       }
       return
     }
-    if (settings.marks) events.filter { it.decision!=LineCall.REJECTED }.takeLast(24).forEach { e ->
+    if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED }.takeLast(24).forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
-      label(canvas,callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
+      if(events.takeLast(3).any{it.id==e.id}) label(canvas,callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->

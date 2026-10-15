@@ -252,10 +252,9 @@ class LocalTrainingActivity: AppCompatActivity() {
       }
       if (analyzing && court.editing==0) status.text=frame.result.message
     }
-    if (frame.result.movingCamera && analyzing) {
+    if (frame.result.areaNeedsConfirmation && analyzing) {
       areaConfirmed=false;mustMarkArea=true
-      court.events=emptyList(); pauseAnalysis()
-      status.text="A posição da câmera mudou. Fixe o celular e marque a quadra novamente antes de retomar."
+      status.text="Treino ativo · confira os cantos em Marcar área; impactos suspensos"
     }
   }
   private fun acceptImpact(frame: LocalFrame) {
@@ -335,6 +334,13 @@ class LocalTrainingActivity: AppCompatActivity() {
   private fun renderAreaSummary() {
     findViewById<TextView>(R.id.localAreaSummary).text=if(!LocalGeometry.valid(config.polygon)) "Sem área nesta lente e orientação · marque os quatro cantos."
       else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Área livre salva · no quarto, marque também o limite do piso." }
+    val hint=when {
+      config.surface==ContactSurface.WALL -> "Parede: retorno gera candidato para revisão; uma câmera não comprova o contato em profundidade."
+      config.surface==ContactSurface.TRACK -> "Somente rastrear: impactos e IN/OUT desligados."
+      config.court==CourtLayout.CUSTOM && !LocalGeometry.validFloorLine(config.floorLine) -> "Chão: falta indicar onde começa o piso. Marcar área → Quarto · limite do piso. Sem isso, o contato exige revisão."
+      else -> "Chão: aguarda descida e retorno no piso; perto da linha pode exigir revisão."
+    }
+    findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint)
   }
   private fun showSettings() {
     if (court.editing!=0) { showError("Salve ou cancele a área antes de abrir Ajustes."); return }

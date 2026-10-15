@@ -30,6 +30,7 @@ public struct VisionResult: Sendable {
     public var observed: VisionBall?,predicted: VisionPoint?,trail=[VisionPoint](),impact: VisionImpact?
     public var movingCamera=false,speed: Double?,message="Bola não localizada"
     public var area=VisionSettings(),cameraOffset=VisionPoint(0,0)
+    public var areaNeedsConfirmation=false
 }
 public enum VisionGeometry {
     public static func valid(_ p: [VisionPoint]) -> Bool {
@@ -92,7 +93,7 @@ public enum VisionGeometry {
 @inline(__always) func visionLight(_ c: UInt32) -> Int { (Int((c>>16)&255)+2*Int((c>>8)&255)+Int(c&255))/4 }
 @inline(__always) private func strongGreen(_ c: UInt32) -> Bool {
     let r=Int((c>>16)&255),g=Int((c>>8)&255),b=Int(c&255)
-    return g>=45 && r*100>g*42 && g*100>=r*86 && g*100>b*132 && g-b>18
+    return g>=45 && r*100>g*42 && ((g*100>=r*86 && g*100>b*132 && g-b>18) || (g*100>=r*70 && g*100<=r*90 && g*10>b*24 && g-b>=40))
 }
 @inline(__always) private func weakGreen(_ c: UInt32) -> Bool {
     let r=Int((c>>16)&255),g=Int((c>>8)&255),b=Int(c&255)
@@ -172,7 +173,8 @@ final class VisionDetector {
                 if x>0{add(i-1)};if x+1<width{add(i+1)};if y>0{add(i-width)};if y+1<height{add(i+width)}
             }
             let w=xmax-xmin+1,h=ymax-ymin+1,fill=Double(tail)/Double(w*h),aspect=Double(max(w,h))/Double(min(w,h))
-            guard strongCount>0,tail>=3,Double(tail)<=Double(count)*0.025,min(w,h)>=2,Double(max(w,h))<=Double(min(width,height))*0.23,aspect<=8,fill>=0.35 else{continue}
+            let closeRound=aspect<=1.65 && (0.55...0.90).contains(fill) && Double(strongCount)>=Double(tail)*0.65
+            guard strongCount>0,tail>=3,Double(tail)<=Double(count)*(closeRound ? 0.12:0.025),min(w,h)>=2,Double(max(w,h))<=Double(min(width,height))*(closeRound ? 0.42:0.23),aspect<=8,fill>=0.35 else{continue}
             if min(w,h)>=6 && fill>0.94{continue}
             let x=min(w,h)<9 ? wx/weights:sx/Double(tail),y=min(w,h)<9 ? wy/weights:sy/Double(tail),radius=Double(min(w,h))/2
             let weak=Double(strongCount)<Double(tail)*0.25,halo=weak || (min(w,h)>=5 && min(sxmax-sxmin+1,symax-symin+1)<5)
@@ -221,6 +223,7 @@ final class VisionDetector {
 public final class LocalVision {
     public var settings: VisionSettings
     private let detector=VisionDetector()
+    private let scene=VisionSceneReference()
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
     private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
     public private(set) var offset=VisionPoint(0,0)
@@ -229,7 +232,7 @@ public final class LocalVision {
         var s=settings;s.polygon=s.polygon.map{VisionPoint($0.x+offset.x,$0.y+offset.y)};s.floorLine=s.floorLine.map{VisionPoint($0.x+offset.x,$0.y+offset.y)};return s
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();lastFrame = -1;unstableUntil = -1;offset=VisionPoint(0,0)}
+    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
@@ -237,12 +240,15 @@ public final class LocalVision {
         if lastFrame>=0 && time-lastFrame>0.25{path=[]};lastFrame=time
         let (candidates,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
         let motion=detector.alignment
+        var sceneChanged=cameraMoved || motion.large
         if motion.reliable && (motion.dx != 0 || motion.dy != 0) {
             let next=VisionPoint(offset.x+Double(motion.dx)/Double(w),offset.y+Double(motion.dy)/Double(h))
             if abs(next.x)<0.035 && abs(next.y)<0.035{offset=next;for i in path.indices{path[i].x+=Double(motion.dx);path[i].y+=Double(motion.dy)};if lost != nil{lost!.x+=Double(motion.dx);lost!.y+=Double(motion.dy)}}
-            else{unstableUntil=time+0.25;clearTrack()}
+            else{unstableUntil=time+0.25;clearTrack();sceneChanged=true}
         }
         if cameraMoved || motion.large{unstableUntil=time+0.25;clearTrack()}
+        scene.update(pixels,width:w,height:h,time:time,changed:sceneChanged,compensated:motion.reliable && !sceneChanged && (motion.dx != 0 || motion.dy != 0))
+        let blocked=time<unstableUntil || scene.blocked
         var previous=path.last
         let still=previous.flatMap{b in !b.nearHand && !b.occluded && path.suffix(4).allSatisfy{hypot($0.x-b.x,$0.y-b.y)<max(2,b.radius*0.5)} ? b:nil}
         let alternatives=candidates.filter{b in b.motionSupport>=0.25 && !b.nearHand && (still.map{hypot(b.x-$0.x,b.y-$0.y)>max(12,$0.radius*3)} ?? true)}
@@ -260,6 +266,7 @@ public final class LocalVision {
             let moving=eligible.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}
             let resolved=acquiring.filter{$0.resolved};if !resolved.isEmpty{acquiring=resolved}
             if acquiring.count>1{let moving=acquiring.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}}
+            if acquiring.contains(where:{$0.radius>=8 && $0.confidence>=0.60}){acquiring=acquiring.filter{$0.radius>=4}}
         }
         var ranked=[(VisionBall,Double)]()
         for b in acquiring {
@@ -286,19 +293,20 @@ public final class LocalVision {
         guard let b=ball else {
             let age=previous.map{time-$0.time} ?? 1
             if age>0.10{lost=previous ?? lost;path=[]}
-            return VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:time<unstableUntil,message:candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset)
+            return VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Treino ativo · confira a área; impactos suspensos":blocked ? "Treino ativo · aguardando imagem estável":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation)
         }
         path.append(b);lost=nil;acquisition=nil
         while path.count>40 || (path.first.map{time-$0.time>0.6} ?? false){path.removeFirst()}
-        let impact=time>=unstableUntil ? contact():nil,speed=velocity(Array(path.suffix(4)))
+        let impact = !blocked ? contact():nil,speed=velocity(Array(path.suffix(4)))
         let message: String
-        if time<unstableUntil{message="Câmera mudou · confira os quatro cantos"}
+        if scene.needsConfirmation{message="Treino ativo · confira a área em Marcar área; impactos suspensos"}
+        else if blocked{message="Treino ativo · aguardando a imagem estabilizar; impactos suspensos"}
         else if b.occluded{message="Bola parcialmente oculta · contato suspenso"}
         else if !b.resolved{message="Bola ≈\(Int(b.radius*2)) px · detalhe incerto · revise IN/OUT"}
         else if b.nearHand{message="Bola perto da mão · impacto suspenso"}
         else if b.blurred{message="Borrão observado · velocidade indisponível"}
         else{message="Bola observada"}
-        return VisionResult(observed:b,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},impact:impact,movingCamera:time<unstableUntil,speed:speed,message:message,area:activeSettings,cameraOffset:offset)
+        return VisionResult(observed:b,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},impact:impact,movingCamera:blocked,speed:speed,message:message,area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation)
     }
     private func velocity(_ p: [VisionBall]) -> Double? {
         guard p.count>=3,p.allSatisfy({!$0.blurred && !$0.nearHand && $0.resolved}),let a=p.first,let b=p.last else{return nil}
@@ -317,6 +325,12 @@ public final class LocalVision {
         let wallTurn=sa>80 && sb>80 && (before.x*after.x+before.y*after.y)/(sa*sb) < -0.5 && abs(before.x)>abs(before.y)*0.8 && abs(after.x)>abs(after.y)*0.8
         if settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn{return nil}
         let fit=settings.surface == .floor ? floorContact(p):nil,t=fit?.time ?? c.time
+        // Tiny colour fragments are common on textured walls and compression edges.
+        // A REVIEW is still a contact claim: require a coherent observed trajectory.
+        if !c.resolved {
+            let radii=p.map{$0.radius},lights=p.map{$0.luminance}
+            if radii.max()!/radii.min()!>1.65 || lights.max()!/max(1,lights.min()!)>1.8 || (settings.surface == .floor && fit==nil){return nil}
+        }
         let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor ? c.radius:0))/Double(height))
         let intervals=zip(p,p.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
         let missing=sparse ? max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5:0

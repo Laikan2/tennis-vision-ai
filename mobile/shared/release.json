@@ -1,19 +1,45 @@
 {
-  "version": "0.6.6",
-  "baseline": "green-ball-local-0.6.4",
-  "platforms": ["android", "ios"],
+  "version": "0.6.7",
+  "baseline": "green-ball-indoor-0.6.7",
+  "platforms": [
+    "android",
+    "ios"
+  ],
   "features": [
-    "offline-training", "green-ball-small-signal", "hand-occlusion",
-    "observed-trail", "limited-labelled-prediction", "floor-wall-track",
-    "in-out-review", "impact-audio", "estimated-lateral-speed",
-    "full-half-court", "drag-area", "corner-magnifier", "impact-tap-review",
-    "per-lens-area", "local-history", "atomic-storage", "json-export",
-    "capture-profiles", "measured-fps", "github-updates",
-    "elevenlabs-offline-in-out-voices", "optional-in-voice", "audio-test-feedback"
+    "offline-training",
+    "green-ball-small-signal",
+    "hand-occlusion",
+    "observed-trail",
+    "limited-labelled-prediction",
+    "floor-wall-track",
+    "in-out-review",
+    "impact-audio",
+    "estimated-lateral-speed",
+    "full-half-court",
+    "drag-area",
+    "corner-magnifier",
+    "impact-tap-review",
+    "per-lens-area",
+    "local-history",
+    "atomic-storage",
+    "json-export",
+    "capture-profiles",
+    "measured-fps",
+    "github-updates",
+    "elevenlabs-offline-in-out-voices",
+    "optional-in-voice",
+    "audio-test-feedback",
+    "warm-yellow-felt",
+    "scene-recovery-without-stopping-session",
+    "surface-setup-feedback"
   ],
   "installation": {
     "android": "apk-confirmation",
     "ios": "altstore-personal-signing-confirmation"
   },
-  "limits": ["camera-dependent-fps", "monocular-contact-estimate", "real-match-accuracy-unverified"]
+  "limits": [
+    "camera-dependent-fps",
+    "monocular-contact-estimate",
+    "real-match-accuracy-unverified"
+  ]
 }

@@ -1,6 +1,6 @@
 {
-  "version": "0.6.6",
-  "baseline": "green-ball-local-0.6.4",
+  "version": "0.6.7",
+  "baseline": "green-ball-indoor-0.6.7",
   "platforms": [
     "android",
     "ios"
@@ -28,7 +28,10 @@
     "github-updates",
     "elevenlabs-offline-in-out-voices",
     "optional-in-voice",
-    "audio-test-feedback"
+    "audio-test-feedback",
+    "warm-yellow-felt",
+    "scene-recovery-without-stopping-session",
+    "surface-setup-feedback"
   ],
   "installation": {
     "android": "apk-confirmation",

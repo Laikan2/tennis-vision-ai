@@ -86,6 +86,16 @@ final class LocalTrainingStore {
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
+    private var opening=false,overlayStartID=0
+    var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID}}
+    var needsAreaCheck:Bool{frame?.result.areaNeedsConfirmation == true}
+    var surfaceHint:String{
+        if needsAreaCheck{return "A imagem mudou. Use Marcar área para conferir os cantos; o treino continua aberto."}
+        if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
+        if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
+        if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: falta indicar onde começa o piso. Marcar área → Quarto · limite do piso. Sem isso, o contato exige revisão."}
+        return "Chão: aguarda descida e retorno da bola no piso. Perto da linha, a decisão pode exigir revisão."
+    }
     private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
     var visibleResult: VisionResult?{editing==0 && active ? frame?.result:nil}
@@ -93,7 +103,7 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.6"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.7"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Área livre") · salva para esta lente" : "Área ainda não marcada"}
     var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
@@ -103,20 +113,22 @@ final class LocalTrainingStore {
         camera.onFrame={[weak self] frame,events in Task{@MainActor in self?.receive(frame,events:events)}}
         camera.onState={[weak self] message,ready in Task{@MainActor in
             guard let self,self.foreground else{return};self.ready=ready
-            self.cameraUnavailable = !ready
+            self.cameraUnavailable = !ready;self.opening=false
             if !ready{self.active=false;self.currentGeneration=nil}
             self.status=message;UIApplication.shared.isIdleTimerDisabled=ready
         }}
+        camera.onNotice={[weak self] message in Task{@MainActor in if let self,self.foreground{self.status=message}}}
         history=store.history()
         if let message=store.loadError{error=message;savingError=true}
     }
-    func prepare(){
+    func prepare(force:Bool=false){
         foreground=true;guard !testing,!permissionPending else{return}
+        if !force && (ready || opening){return}
         if ProcessInfo.processInfo.arguments.contains("--vision-diagnostics"),!diagnosticLaunched {
             diagnosticLaunched=true;diagnostics();return
         }
         switch AVCaptureDevice.authorizationStatus(for:.video){
-        case .authorized:denied=false;ready=false;cameraUnavailable=false;status="Abrindo câmera · aguarde a imagem";currentGeneration=nil;camera.start(detail:detail,lensID:lensID,rate:rate)
+        case .authorized:opening=true;denied=false;ready=false;cameraUnavailable=false;status="Abrindo câmera · aguarde a imagem";currentGeneration=nil;overlayStartID=session.events.map{$0.id}.max() ?? 0;camera.start(detail:detail,lensID:lensID,rate:rate)
         case .notDetermined:
             permissionPending=true
             AVCaptureDevice.requestAccess(for:.video){[weak self] allowed in Task{@MainActor in
@@ -128,7 +140,7 @@ final class LocalTrainingStore {
         }
     }
     func suspend(completion: (() -> Void)?=nil){
-        foreground=false;active=false;ready=false;editing=0;frozen=nil;currentGeneration=nil
+        foreground=false;opening=false;active=false;ready=false;editing=0;frozen=nil;currentGeneration=nil
         UIApplication.shared.isIdleTimerDisabled=false;camera.stop(completion:completion)
         lineVoice.stop()
     }
@@ -146,10 +158,11 @@ final class LocalTrainingStore {
         if key != frame.key {
             pause();key=frame.key;config=store.settings(key);confirmed=false;currentGeneration=frame.generation
             session=store.history().first(where:{$0.key==key}) ?? LocalTrainingSession(key:key)
+            overlayStartID=session.events.map{$0.id}.max() ?? 0
         }
-        if let generation=currentGeneration,generation != frame.generation{active=false;confirmed=false};currentGeneration=frame.generation
+        if let generation=currentGeneration,generation != frame.generation{active=false;confirmed=false;overlayStartID=session.events.map{$0.id}.max() ?? 0};currentGeneration=frame.generation
         if editing==0{self.frame=frame}
-        ready=true;cameraUnavailable=false
+        ready=true;opening=false;cameraUnavailable=false
         if firstRealImage{status="Câmera pronta · confira a área";UIApplication.shared.isIdleTimerDisabled=true}
         // Explicit developer launch only: live pixels go through the same engine,
         // but no probe event, image or sound is added to the user's session.
@@ -176,7 +189,7 @@ final class LocalTrainingStore {
         }
         if active && editing==0 {
             for f in events where f.generation==frame.generation && f.key==key{accept(f)}
-            if frame.result.movingCamera{confirmed=false;pause();status="Câmera mudou. Fixe o iPhone e ajuste os cantos antes de retomar."}
+            if frame.result.areaNeedsConfirmation{status=surfaceHint}
         }
         let now=ProcessInfo.processInfo.systemUptime
         if now-lastInfo>0.5 {
@@ -213,20 +226,21 @@ final class LocalTrainingStore {
     func saveArea(){
         guard canSaveArea else{return};var value=frozen?.result.area ?? config
         value.court=editingCourt ?? value.court
-        if editing==2{value.floorLine=draft;value.court = .custom}else{value.polygon=draft}
+        if editing==2{value.floorLine=draft;value.court = .custom;value.surface = .floor}else{value.polygon=draft}
+        if value.court != .custom{value.surface = .floor}
         persist(value){[weak self] in self?.editing=0;self?.frozen=nil;self?.draft=[];self?.editingCourt=nil;self?.confirmed=true;self?.status="Área salva para esta câmera, lente e resolução"}
     }
     func persist(_ value: VisionSettings,done: (() -> Void)?=nil){
         pause();store.save(settings:value,key:key,session:nil,evidence:nil){[weak self] message in
             guard let self else{return}
             if let message{self.error=message;self.savingError=true;return}
-            self.config=value;self.camera.update(value);done?()
+            self.config=value;self.overlayStartID=self.session.events.map{$0.id}.max() ?? 0;self.camera.update(value);done?()
         }
     }
-    func changeDetail(_ value: LocalDetail){guard editing==0 else{return};pause();detail=value;UserDefaults.standard.set(value.rawValue,forKey:"local.detail");prepare()}
-    func changeLens(_ value: String){guard editing==0 else{return};pause();lensID=value;UserDefaults.standard.set(value,forKey:"local.lens");prepare()}
-    func changeRate(_ value: Int){guard editing==0,[0,30,60,120,240].contains(value) else{return};pause();rate=value;UserDefaults.standard.set(value,forKey:"local.rate");prepare()}
-    func newSession(){pause();session=LocalTrainingSession(key:key);store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message};history=store.history()}
+    func changeDetail(_ value: LocalDetail){guard editing==0 else{return};pause();detail=value;UserDefaults.standard.set(value.rawValue,forKey:"local.detail");prepare(force:true)}
+    func changeLens(_ value: String){guard editing==0 else{return};pause();lensID=value;UserDefaults.standard.set(value,forKey:"local.lens");prepare(force:true)}
+    func changeRate(_ value: Int){guard editing==0,[0,30,60,120,240].contains(value) else{return};pause();rate=value;UserDefaults.standard.set(value,forKey:"local.rate");prepare(force:true)}
+    func newSession(){pause();overlayStartID=0;session=LocalTrainingSession(key:key);store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message};history=store.history()}
     func review(_ event: VisionImpact){pause();reviewing=event;reviewImage=nil;let url=store.evidenceURL(session.id,event.id)
         DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id{self?.reviewImage=image}}}
     }

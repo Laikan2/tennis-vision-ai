@@ -52,10 +52,10 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             if let p=touchPoint{magnifier(p,image:f.image)}
             return
         }
-        if confirmed && config.marks{for event in events.suffix(24) where event.decision != .rejected{
+        if confirmed && config.marks && !f.result.movingCamera{for event in events.suffix(24) where event.decision != .rejected{
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? f.result.cameraOffset)),color=event.decision.color
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
-            label(event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)
+            if events.suffix(3).contains(where:{$0.id==event.id}){label(event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)}
         }}
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
@@ -118,7 +118,7 @@ struct LocalCourtCanvas: UIViewRepresentable {
     @ObservedObject var model: LocalTrainingModel
     func makeUIView(context: Context) -> LocalCourtSurface{LocalCourtSurface()}
     func updateUIView(_ view: LocalCourtSurface,context: Context){
-        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.config;view.events=model.session.events
+        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.config;view.events=model.visibleEvents
         view.confirmed=model.confirmed;view.editing=model.editing;view.draft=model.draft;view.onDraft={model.draft=$0}
         view.onImpact={id in if let hit=model.session.events.first(where:{$0.id==id}){model.review(hit)}}
         view.refreshGestures();view.setNeedsDisplay()
@@ -158,6 +158,10 @@ struct LocalTrainingView: View {
                     }.background(.black,in:RoundedRectangle(cornerRadius:16))
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
+                    Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
+                    if model.config.surface == .floor && model.config.court == .custom && !VisionGeometry.validLine(model.config.floorLine){
+                        Button("Definir começo do piso"){model.edit(2)}.buttonStyle(.bordered).disabled(!model.ready || model.editing>0).accessibilityIdentifier("local.floor.setup")
+                    }
                     if model.editing>0 {
                         Text(model.editing==1 ? "Arraste para expandir; depois ajuste os cantos.":"\(model.draft.count) / \(model.editing==2 ? 2:4) pontos · arraste para ajustar").font(.footnote).foregroundStyle(Palette.muted)
                         HStack{Button("Salvar área"){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea).accessibilityIdentifier("local.area.save");Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered)}
@@ -170,7 +174,7 @@ struct LocalTrainingView: View {
                 HStack(spacing:10){stat("IN",model.insideCount,Palette.lime);stat("OUT",model.outsideCount,.red);stat("REVISAR",model.reviewCount,.orange)}
                 HStack{Text("Acerto nas decisões válidas").foregroundStyle(Palette.muted);Spacer();Text(model.accuracy).font(.title3.monospacedDigit().weight(.semibold))}.font(.footnote)
                 Text("\(model.totalContacts) contatos estimados · toque numa marca para revisar").font(.footnote).foregroundStyle(Palette.muted)
-                if let last=model.session.events.last{Button{model.review(last)}label:{HStack{VStack(alignment:.leading,spacing:5){Text("Último contato · \(last.decision.label)").font(.headline);Text(last.speed.map{"≈\(Int($0)) km/h lateral"} ?? "Velocidade indisponível").font(.footnote).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right")}.padding(18)}.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:18)).accessibilityIdentifier("local.review")}
+                if let last=model.session.events.last{Button{model.review(last)}label:{HStack{VStack(alignment:.leading,spacing:5){Text("Último contato · \(last.decision.label)").font(.headline);Text(last.reason).font(.footnote).foregroundStyle(Palette.muted);Text(last.speed.map{"≈\(Int($0)) km/h lateral"} ?? "Velocidade indisponível").font(.footnote).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right")}.padding(18)}.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:18)).accessibilityIdentifier("local.review")}
                 if !VisionGeometry.valid(model.config.polygon){Text("A busca cobre a imagem inteira. Marque quatro cantos para classificar a área IN/OUT. A área sozinha não comprova contato com o chão.").font(.footnote).foregroundStyle(Palette.muted)}
                 Text("Cor fraca, bola minúscula, oclusão e contato próximo à linha exigem revisão. Velocidade é lateral e estimada; não é radar.").font(.footnote).foregroundStyle(Palette.muted)
             }.padding(20).frame(maxWidth:900).frame(maxWidth:.infinity)

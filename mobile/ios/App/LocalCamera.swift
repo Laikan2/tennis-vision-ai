@@ -17,6 +17,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     var settingsForKey: ((String)->VisionSettings)?
     var onFrame: ((LocalCameraFrame,[LocalCameraFrame])->Void)?
     var onState: ((String,Bool)->Void)?
+    var onNotice: ((String)->Void)?
     private let queue=DispatchQueue(label:"ai.tennisvision.ios.local-camera",qos:.userInitiated)
     private let session=AVCaptureSession(),output=AVCaptureVideoDataOutput()
     private let context=CIContext(options:[.cacheIntermediates:false])
@@ -128,13 +129,13 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     private func watchdog(){
         guard running else{return};let age=ProcessInfo.processInfo.systemUptime-lastFrame
         if age>5{fail("A câmera parou de produzir imagens. Toque em Reabrir câmera.")}
-        else if age>0.5 && !statusWasStale{statusWasStale=true;analyzing=false;core.clearTrack();state("Imagem interrompida · treino pausado",false)}
+        else if age>0.5 && !statusWasStale{statusWasStale=true;core.clearTrack();DispatchQueue.main.async{[weak self] in self?.onNotice?("Aguardando imagem · o treino retoma quando os quadros voltarem") }}
     }
     func captureOutput(_ output: AVCaptureOutput,didOutput sampleBuffer: CMSampleBuffer,from connection: AVCaptureConnection){
         guard running,let buffer=CMSampleBufferGetImageBuffer(sampleBuffer) else{return}
         autoreleasepool{
             let started=ProcessInfo.processInfo.systemUptime;lastFrame=started;meter.observe(started)
-            if statusWasStale{statusWasStale=false;state("Câmera retomada · inicie o treino novamente",true)}
+            if statusWasStale{statusWasStale=false;state("Imagem retomada · treino preservado",true)}
             let w=CVPixelBufferGetWidth(buffer),h=CVPixelBufferGetHeight(buffer)
             if pixelStorage.count != w*h{pixelStorage=Array(repeating:0,count:w*h)}
             pixelStorage.withUnsafeMutableBytes{raw in
