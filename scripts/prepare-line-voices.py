@@ -8,6 +8,7 @@ import array
 import hashlib
 import json
 import math
+import re
 from pathlib import Path
 import subprocess
 import sys
@@ -39,7 +40,9 @@ def metrics(samples):
                 rmsDbfs=round(db(rms), 2), peakDbfs=round(db(peak), 2))
 
 
-def prepare(ffmpeg, source, destination):
+def prepare(ffmpeg, source, destination, lead_ms=30, tail_ms=60, target_rms=-18):
+    if not 0 <= lead_ms <= 300 or not 0 <= tail_ms <= 300 or not -26 <= target_rms <= -16:
+        raise ValueError('Invalid silence padding or voice level')
     samples = decode(ffmpeg, source)
     step = RATE // 100
     voiced = [i for i in range(0, len(samples), step)
@@ -47,11 +50,11 @@ def prepare(ffmpeg, source, destination):
                               len(samples[i:i+step])) / 32768) > -43]
     if not voiced:
         raise ValueError('The input contains no audible voice')
-    first=max(0, voiced[0]-int(RATE*.030))
-    last=min(len(samples), voiced[-1]+step+int(RATE*.060))
+    first=max(0, voiced[0]-int(RATE*lead_ms/1000))
+    last=min(len(samples), voiced[-1]+step+int(RATE*tail_ms/1000))
     trimmed=samples[first:last]
     before=metrics(trimmed)
-    gain=min(10**((-18-before['rmsDbfs'])/20),
+    gain=min(10**((target_rms-before['rmsDbfs'])/20),
              10**((-1.5-before['peakDbfs'])/20))
     result=array.array('h', [round(s*gain) for s in trimmed])
     ramp=int(RATE*.003)
@@ -81,23 +84,39 @@ def main():
     parser.add_argument('--ffmpeg', type=Path, required=True)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--inside', type=Path, required=True)
+    parser.add_argument('--voice',default='Daniel - Steady Broadcaster')
+    parser.add_argument('--pack',default='elevenlabs-daniel-v4-1')
+    parser.add_argument('--asset-version',default='v1')
+    parser.add_argument('--stability',type=float,default=.5)
+    parser.add_argument('--delivery-tag',default='')
+    parser.add_argument('--lead-ms',type=float,default=30)
+    parser.add_argument('--tail-ms',type=float,default=60)
+    parser.add_argument('--target-rms',type=float,default=-18)
     args=parser.parse_args()
     folder=ROOT/'mobile/shared/line-audio'
-    calls={call:prepare(args.ffmpeg,source,folder/(call.lower()+'.mp3'))
+    if not re.fullmatch(r'v[1-9][0-9]*',args.asset_version) or not 0 <= args.stability <= 1:
+        raise ValueError('Invalid asset version or requested stability')
+    calls={call:prepare(args.ffmpeg,source,folder/(call.lower()+'.mp3'),args.lead_ms,args.tail_ms,args.target_rms)
            for call,source in [('OUT',args.out),('IN',args.inside)]}
     for call, item in calls.items():
         data=(folder/item['filename']).read_bytes()
         for path in [ROOT/f'mobile/ios/App/Resources/{call}.mp3',
                      ROOT/f'mobile/android/app/src/main/res/raw/{call.lower()}_natural.mp3',
-                     ROOT/f'frontend/public/audio/{call.lower()}-eleven-v4-v1.mp3']:
+                     ROOT/f'frontend/public/audio/{call.lower()}-eleven-v4-{args.asset_version}.mp3']:
             path.parent.mkdir(parents=True,exist_ok=True)
             path.write_bytes(data)
-    manifest=dict(schema=1,pack='elevenlabs-daniel-v4-1',provider='ElevenLabs',
-                  model='Eleven v4',voice='Daniel - Steady Broadcaster',language='en',
-                  stability=.5,similarity=.75,source='Generated in the user-authorized ElevenLabs workspace',
-                  processing='Outer silence trim; constant gain; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps',
+    manifest=dict(schema=1,pack=args.pack,assetVersion=args.asset_version,provider='ElevenLabs',
+                  model='Eleven v4',voice=args.voice,language='en',
+                  requestedUISettings=dict(stability=args.stability,similarity=.75),source='Generated in the user-authorized ElevenLabs workspace',
+                  deliveryTag=args.delivery_tag,
+                  processing='Outer silence trim; constant gain; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps; no time or pitch change',
+                  paddingMs=dict(leading=args.lead_ms,trailing=args.tail_ms),targetRmsDbfs=args.target_rms,
                   playback='Bundled offline; no ElevenLabs account, network or API key required',calls=calls)
     (folder/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n',encoding='utf-8')
+    timing=ROOT/'mobile/android/app/src/main/res/values/line_voice_durations.xml'
+    timing.write_text('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n'+''.join(
+        f'    <integer name="line_voice_{call.lower()}_ms">{math.ceil(item["durationSeconds"]*1000)+30}</integer>\n'
+        for call,item in calls.items())+'</resources>\n',encoding='utf-8')
     print(json.dumps(manifest,indent=2))
 
 

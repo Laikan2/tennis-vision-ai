@@ -56,9 +56,9 @@ install_review_routes(app,store,pipeline,learning,DATA/'replays',control_lock)
 from .recordings import Recordings
 recordings=Recordings(app,store,pipeline,learning,DATA/'recordings',control_lock)
 learning.is_running=lambda:pipeline.session is not None or recordings.busy
-ANDROID_APP_VERSION='0.6.5'
+ANDROID_APP_VERSION='0.6.6'
 ANDROID_APK=Path(os.getenv('TV_ANDROID_APK_PATH', str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-Android-v{ANDROID_APP_VERSION}.apk')))
-IOS_APP_VERSION='0.6.5'
+IOS_APP_VERSION='0.6.6'
 IOS_PROJECT_ZIP=Path(os.getenv('TV_IOS_PROJECT_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-Projeto.zip')))
 IOS_IPA=Path(os.getenv('TV_IOS_IPA_PATH',str(ROOT/'mobile'/'releases'/f'Tennis-Vision-Camera-iOS-v{IOS_APP_VERSION}-AltStore.ipa')))
 ALLOWED_ORIGINS={'http://localhost:3000','http://127.0.0.1:3000','http://localhost:8000','http://127.0.0.1:8000'}

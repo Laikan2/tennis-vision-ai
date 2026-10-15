@@ -1,7 +1,7 @@
 {
   "name": "tennis-vision-studio",
   "productName": "Tennis Vision Studio",
-  "version": "0.6.10",
+  "version": "0.6.11",
   "description": "Estúdio local de análise de tênis e câmeras de alta velocidade",
   "author": "Tennis Vision",
   "private": true,
@@ -77,15 +77,15 @@
         "from": "build/ios",
         "to": "ios",
         "filter": [
-          "Tennis-Vision-Camera-iOS-v0.6.5-Projeto.zip",
-          "Tennis-Vision-Camera-iOS-v0.6.5-AltStore.ipa"
+          "Tennis-Vision-Camera-iOS-v0.6.6-Projeto.zip",
+          "Tennis-Vision-Camera-iOS-v0.6.6-AltStore.ipa"
         ]
       },
       {
         "from": "../mobile/releases",
         "to": "android",
         "filter": [
-          "*v0.6.5.apk"
+          "*v0.6.6.apk"
         ]
       }
     ],

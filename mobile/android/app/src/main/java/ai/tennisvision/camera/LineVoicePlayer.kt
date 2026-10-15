@@ -45,7 +45,8 @@ internal class LineVoicePlayer(private val context: Context) {
     stop()
     stream=pool.play(id,1f,1f,if(call==LineCall.OUT) 2 else 1,0,1f)
     if(stream==0) { onStatus?.invoke("Não iniciou o áudio ${call.name} · tente novamente.");return false }
-    current=call;endsAt=SystemClock.elapsedRealtime()+if(call==LineCall.OUT) 580 else 550
+    val duration=context.resources.getInteger(if(call==LineCall.OUT) R.integer.line_voice_out_ms else R.integer.line_voice_in_ms)
+    current=call;endsAt=SystemClock.elapsedRealtime()+duration
     startedCount++
     onStatus?.invoke("Reprodução ${call.name} iniciada · ${volumeDescription()}")
     return true

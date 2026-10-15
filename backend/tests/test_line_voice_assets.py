@@ -14,7 +14,8 @@ def test_offline_assets_are_identical_on_every_platform(call):
     data=canonical.read_bytes()
     assert len(data)==item['bytes']
     assert hashlib.sha256(data).hexdigest()==item['sha256']
-    for path in [ROOT/f'mobile/ios/App/Resources/{call}.mp3',ROOT/f'mobile/android/app/src/main/res/raw/{call.lower()}_natural.mp3',ROOT/f'frontend/public/audio/{call.lower()}-eleven-v4-v1.mp3']:
+    variant=MANIFEST.get('assetVersion','v1')
+    for path in [ROOT/f'mobile/ios/App/Resources/{call}.mp3',ROOT/f'mobile/android/app/src/main/res/raw/{call.lower()}_natural.mp3',ROOT/f'frontend/public/audio/{call.lower()}-eleven-v4-{variant}.mp3']:
         assert path.read_bytes()==data
 @pytest.mark.parametrize('call',['IN','OUT'])
 def test_decoded_audio_has_usable_duration_level_and_headroom(call):

@@ -143,7 +143,7 @@ struct LocalTrainingView: View {
                 HStack{
                     Image(systemName:"tennisball.fill").font(.system(size:32)).foregroundStyle(Palette.lime)
                     VStack(alignment:.leading,spacing:3){Text("TENNIS VISION").font(.headline).tracking(1.2);Text("TREINO NO IPHONE · \(model.appVersion)").font(.caption).foregroundStyle(Palette.muted)}
-                    Spacer();Button{model.pause();settings=true}label:{Image(systemName:"slider.horizontal.3").font(.title3).padding(12)}.disabled(model.editing>0).accessibilityIdentifier("local.settings")
+                    Spacer();Button{model.pause();settings=true}label:{Image(systemName:"slider.horizontal.3").font(.title3).padding(12)}.disabled(model.editing>0).accessibilityLabel("Ajustes do treino").accessibilityIdentifier("local.settings")
                 }
                 if let version=model.newVersion{Button{updates=true}label:{Label("Atualização \(version) disponível",systemImage:"arrow.down.circle.fill").font(.subheadline.weight(.semibold)).frame(maxWidth:.infinity,alignment:.leading).padding(16)}.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:16)).accessibilityIdentifier("local.update.available")}
                 VStack(alignment:.leading,spacing:8){
@@ -219,7 +219,7 @@ struct LocalTrainingView: View {
                 Button("Testar som OUT"){model.playOut()}.accessibilityIdentifier("local.sound.test")
                 Button("Testar som IN"){model.playIn()}.accessibilityIdentifier("local.sound.in.test")
                 Text(model.audioStatus).font(.footnote).accessibilityIdentifier("local.sound.status")
-                Text("Voz Daniel · ElevenLabs. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
+                Text("Voz Brian · ElevenLabs · tom suave. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
             }
             Section("Sessão e testes"){
                 Button("Começar nova sessão"){model.newSession()}

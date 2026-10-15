@@ -1,37 +1,46 @@
 {
   "schema": 1,
-  "pack": "elevenlabs-daniel-v4-1",
+  "pack": "elevenlabs-brian-v4-3",
+  "assetVersion": "v3",
   "provider": "ElevenLabs",
   "model": "Eleven v4",
-  "voice": "Daniel - Steady Broadcaster",
+  "voice": "Brian - Deep, Resonant and Comforting",
   "language": "en",
-  "stability": 0.5,
-  "similarity": 0.75,
+  "requestedUISettings": {
+    "stability": 0.4,
+    "similarity": 0.75
+  },
   "source": "Generated in the user-authorized ElevenLabs workspace",
-  "processing": "Outer silence trim; constant gain; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps",
+  "deliveryTag": "[suavemente]",
+  "processing": "Outer silence trim; constant gain; 3 ms edge fade; mono MP3 44100 Hz / 128 kbps; no time or pitch change",
+  "paddingMs": {
+    "leading": 70.0,
+    "trailing": 140.0
+  },
+  "targetRmsDbfs": -20.0,
   "playback": "Bundled offline; no ElevenLabs account, network or API key required",
   "calls": {
     "OUT": {
-      "durationSeconds": 0.58,
-      "rmsDbfs": -18.92,
-      "peakDbfs": -1.94,
+      "durationSeconds": 0.78,
+      "rmsDbfs": -20.43,
+      "peakDbfs": -3.29,
       "filename": "out.mp3",
-      "bytes": 10492,
-      "sha256": "f6bdef0fca47a2e86af6264705acbf5744431fad48a660bb1e126425a89d1d33",
-      "sourceSha256": "d6f832901b01c03647ade1188abd541469d51c5845e2f95576c82ada96f48095",
-      "trimStartMs": 30.0,
-      "appliedGainDb": -0.19
+      "bytes": 13417,
+      "sha256": "adeebfd0a4fdf7f3879422c35ca913165ac622b6b058f6cf37c9e7e35cfa8e5d",
+      "sourceSha256": "c4d0f80c7abe2e47747d5c1589089ead9f80f42eea35b2aeaaf6a00b8945011b",
+      "trimStartMs": 150.0,
+      "appliedGainDb": 4.81
     },
     "IN": {
-      "durationSeconds": 0.55,
-      "rmsDbfs": -18.44,
-      "peakDbfs": -4.03,
+      "durationSeconds": 0.67,
+      "rmsDbfs": -20.45,
+      "peakDbfs": -4.1,
       "filename": "in.mp3",
-      "bytes": 10074,
-      "sha256": "2b33c41bb828f7aaee24a7a1e8c968349e368b456e19afae5be8bd6140b5fb82",
-      "sourceSha256": "0b65807dd769c085c91a73bea4052aa2647edd4678b5feca9ba3b56ae077d4d1",
-      "trimStartMs": 50.0,
-      "appliedGainDb": 2.4
+      "bytes": 11745,
+      "sha256": "983ea967fe52636e72c10c51331beeea8c64252b0546a7040f385c294842faec",
+      "sourceSha256": "9c24861262b229b21d1b48c7bc4fd87cc25707f4804f943e355e6dc360ae528d",
+      "trimStartMs": 210.0,
+      "appliedGainDb": 1.23
     }
   }
 }

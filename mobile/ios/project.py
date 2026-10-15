@@ -14,7 +14,7 @@ def generate():
     shared = ROOT.parent/'shared/release.json'
     resource = ROOT/'App/Resources/MobileRelease.json'
     contract = json.loads((shared if shared.is_file() else resource).read_text(encoding='utf-8'))
-    if contract['version'] != '0.6.5' or set(contract['platforms']) != {'android','ios'}:
+    if contract['version'] != '0.6.6' or set(contract['platforms']) != {'android','ios'}:
         raise ValueError('Android/iOS feature release must be coordinated')
     android = ROOT.parent/'android/app/build.gradle.kts'
     if android.is_file() and re.search(r'versionName\s*=\s*"([0-9.]+)"',android.read_text(encoding='utf-8')).group(1) != contract['version']:
@@ -63,7 +63,7 @@ def generate():
         }
         target_settings = {
             "PRODUCT_NAME": "$(TARGET_NAME)", "PRODUCT_BUNDLE_IDENTIFIER": "ai.tennisvision.camera.ios",
-            "MARKETING_VERSION": "0.6.5", "CURRENT_PROJECT_VERSION": "6",
+            "MARKETING_VERSION": "0.6.6", "CURRENT_PROJECT_VERSION": "7",
             "GENERATE_INFOPLIST_FILE": "NO", "INFOPLIST_FILE": "App/Info.plist",
             "ASSETCATALOG_COMPILER_APPICON_NAME": "AppIcon", "CODE_SIGN_STYLE": "Automatic",
             "TARGETED_DEVICE_FAMILY": "1,2", "SUPPORTED_PLATFORMS": "iphoneos iphonesimulator",

@@ -11,7 +11,9 @@ import Foundation
 
     override init(){
         super.init()
-        interruption=NotificationCenter.default.addObserver(forName:AVAudioSession.interruptionNotification,object:nil,queue:.main){[weak self] _ in
+        interruption=NotificationCenter.default.addObserver(forName:AVAudioSession.interruptionNotification,object:nil,queue:.main){[weak self] notification in
+            guard let type=notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  type==AVAudioSession.InterruptionType.began.rawValue else{return}
             Task{@MainActor in self?.stop();self?.onStatus?("Áudio interrompido · toque em Testar para conferir a saída.")}
         }
     }
@@ -49,8 +51,9 @@ import Foundation
     }
     private func finished(_ id: ObjectIdentifier,success: Bool){
         guard let voice=current,let player=players[voice],ObjectIdentifier(player)==id else{return}
+        let output=outputDescription
         stop()
-        onStatus?(success ? "Reprodução \(voice.rawValue) concluída · \(outputDescription)":"Falha durante a reprodução \(voice.rawValue).")
+        onStatus?(success ? "Reprodução \(voice.rawValue) concluída · \(output)":"Falha durante a reprodução \(voice.rawValue).")
     }
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer,successfully flag: Bool){
         let id=ObjectIdentifier(player);Task{@MainActor [weak self] in self?.finished(id,success:flag)}
