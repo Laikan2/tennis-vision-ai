@@ -1,0 +1,24 @@
+{
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/38810578402",
+  "sourceCommit": "35b032467b2fa52f70ecafcecf0d83018850a03e",
+  "conclusion": "success",
+  "xctestCount": 72,
+  "voiceAssetsVerifiedInIPA": true,
+  "voicePack": "elevenlabs-brian-clear-v4-4",
+  "version": "0.6.8",
+  "physicalIPhoneTest": false,
+  "steps": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "success",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  }
+}

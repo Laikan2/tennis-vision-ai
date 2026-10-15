@@ -1,0 +1,33 @@
+{
+  "version": "0.6.8",
+  "hardware": "Android emulator, AVD TennisVisionTest35, x86_64",
+  "android": "15",
+  "api": 35,
+  "application": "ai.tennisvision.camera.audit",
+  "variant": "audit (debug), separate from personal installed app",
+  "passed": true,
+  "tests": [
+    "homeFloorWallSetupAndCancellationPreserveSeparateAreas",
+    "cameraAreaTouchesCancellationAndLifecycleWorkOffline",
+    "encodedKnownBouncesReachUiStatisticsSoundAndPersistence"
+  ],
+  "tested": [
+    "floor drag and two-step save",
+    "wall drag and save",
+    "cancel second step without saving first",
+    "recreate activity and restore both surface areas",
+    "invalid area blocked",
+    "rapid start/stop",
+    "known encoded synthetic IN, OUT and REVIEW reach UI, audio start and persistence"
+  ],
+  "notTested": [
+    "Physical Android camera",
+    "Physical iPhone 0.6.8",
+    "Real floor and wall ball contacts",
+    "Real match precision",
+    "Human confirmation of audio"
+  ],
+  "releaseAPKManifestVerified": true,
+  "releaseAPKSigningCertificateVerified": true,
+  "pythonReleaseTests": 22
+}

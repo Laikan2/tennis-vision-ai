@@ -1,0 +1,85 @@
+TENNIS VISION MOBILE 0.6.8 — CHÃO E PAREDE EM CASA
+
+O que mudou
+Android e iPhone têm botões Marcar chão e Marcar parede no treino local.
+O iPhone também oferece as opções no menu da tela cheia. No chão, o primeiro
+passo delimita a área por arraste, com ajuste dos quatro cantos. O segundo
+pede dois pontos entre parede e piso. A configuração só é salva depois dos
+dois passos válidos. A parede usa uma área por arraste e ajuste dos cantos.
+
+Chão aparece em azul, parede em violeta e o limite do piso em laranja.
+Cada superfície guarda seu próprio contorno por câmera, lente, resolução e
+orientação. Em Ajustes, trocar a superfície recupera sua área. Só uma
+superfície é analisada por vez. Eventos da outra superfície continuam no
+histórico e não aparecem como marcas na prévia atual.
+
+Correções associadas
+O editor podia carregar o contorno do último quadro, mesmo quando outra
+superfície tinha sido escolhida. Agora recebe explicitamente a referência
+da superfície selecionada. Criar uma parede não substitui a área do chão.
+O cancelamento do segundo passo descarta também o primeiro, sem salvar
+uma configuração incompleta. As duas áreas acompanham a mesma compensação
+de pequenas translações da câmera. Ajustar quadra inteira/metade mantém
+os modos anteriores. Configurações antigas continuam sendo lidas.
+
+Testes
+Android: 196 testes JVM/Robolectric passaram, sem falhas, erros ou ignorados.
+O APK release compilou, com versão 0.6.8, versionCode 21, certificado
+anterior e os mesmos arquivos de áudio IN/OUT. Os testes novos verificam
+etapas obrigatórias, cancelamento, áreas independentes, armazenamento,
+arquivos antigos, compensação de câmera e a referência correta no editor.
+
+Emulador Android 15, AVD TennisVisionTest35, x86_64, variante de auditoria
+isolada ai.tennisvision.camera.audit:
+1. homeFloorWallSetupAndCancellationPreserveSeparateAreas: PASSOU.
+   Toques e arrastes reais de entrada do Android criaram chão, limite do
+   piso e parede. Cancelar no segundo passo manteve a área anterior.
+   Recriar a atividade manteve as configurações; o chão recuperou seus
+   próprios cantos e linha, e a parede permaneceu salva separadamente.
+2. cameraAreaTouchesCancellationAndLifecycleWorkOffline: PASSOU.
+   Área válida/inválida, cancelamento, segundo plano/retorno, dez toques
+   rápidos em iniciar/pausar e recriação da atividade preservaram os dados.
+3. encodedKnownBouncesReachUiStatisticsSoundAndPersistence: PASSOU.
+   Vídeo sintético H.264 conhecido atravessou decodificação, detector,
+   interface, contagens, início de reprodução OUT e armazenamento com
+   decisões esperadas IN, OUT e REVISAR. Não se trata de uma partida real
+   nem de confirmação auditiva por uma pessoa.
+
+Publicador e formato do IPA: 22 testes Python passaram. Os resultados do
+CI iOS e dos pacotes publicados ficam nos arquivos JSON desta entrega.
+
+Preservação
+Os campos novos de área são opcionais na leitura de arquivos antigos.
+O contorno antigo é associado à superfície que já estava ativa. Nenhuma
+sessão, gravação ou pareamento é removido. O teste Android usou um pacote
+de auditoria separado; não instalou por cima dos dados pessoais de um S25.
+
+Limites
+Os testes desta entrega verificam configuração e integração com imagens
+de resultado conhecido. Não comprovam precisão em quicadas físicas ou
+partidas rápidas. O detector mantém a base da 0.6.7. Marcar uma área não
+comprova contato físico; candidatos de parede continuam para revisão.
+Nenhuma área foi inventada sobre a câmera pessoal do usuário.
+
+Como testar em casa
+1. Fixe o celular, com a bola e o contato inteiro visíveis na imagem.
+2. Em Marcar chão, arraste a área, ajuste os cantos e toque em Próximo:
+   limite do piso. Marque dois pontos no encontro da parede com o chão e
+   salve. O piso considerado fica abaixo dessa linha.
+3. Para parede, use Marcar parede, arraste a área desejada, ajuste e salve.
+4. Em Ajustes > Superfície, escolha qual marcação usar. Confira se ela
+   ainda coincide com a imagem antes de iniciar o treino.
+
+iOS: 72 testes XCTest passaram no CI 38810578402, com build para iPhone,
+build/abertura do simulador e 60 quadros H.264 recebidos e decodificados.
+O IPA 0.6.8 (build 9) corresponde ao artefato aprovado. O simulador não
+tem câmera; a imagem indisponível nessa captura não comprova câmera física.
+O iPhone desconectou após a entrega anterior, portanto a 0.6.8 não foi
+instalada nem retestada nele nesta rodada. A versão foi disponibilizada
+no GitHub e anunciada pela fonte oficial do AltStore.
+
+Código compilado: 35b032467b2fa52f70ecafcecf0d83018850a03e
+CI: https://github.com/Laikan2/tennis-vision-ai/actions/runs/38810578402
+Entrega: https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.8
+Dados verificáveis: android-validation.json, android-emulator.json,
+ios-ci.json e mobile/releases/verification/mobile-v0.6.8/published.json.

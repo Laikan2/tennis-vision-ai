@@ -4,7 +4,7 @@ MVP local de captura e análise de tênis: Python/OpenCV/FastAPI, SQLite, Next.j
 
 ## Aplicativos prontos
 
-**Android e iPhone 0.6.7:** [instaladores e notas](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.7). Melhora a bola amarelada pela iluminação e a bola próxima da lente, recupera a referência após obstruções sem encerrar o treino e explica a configuração do limite do piso. Mantém as vozes IN/OUT offline e os dados anteriores. Não houve treinamento de uma rede neural nesta entrega.
+**Android e iPhone 0.6.8:** [instaladores e notas](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.8). Adiciona Marcar chão e Marcar parede para testar em casa, com contornos salvos separadamente. O chão tem dois passos: área e limite do piso. Mantém o detector da 0.6.7, as vozes IN/OUT offline e os dados anteriores.
 
 **Windows 0.6.11:** [downloads e atualizações](https://github.com/Laikan2/tennis-vision-releases/releases/tag/v0.6.11). Motor, painel, receptor e aplicativos mobile incluídos, sem exigir Node/Python instalados. O painel oferece Som OUT, Som IN e testes junto ao vídeo. Atualizações pelo GitHub e dados existentes preservados.
 
@@ -13,6 +13,8 @@ O treino local Android/iPhone executa câmera, bola verde, rastro, contatos cand
 [Validação das vozes e pacotes](docs/validation/line-voices-2026-10-15/report.txt) e [testes anteriores de câmera/limites](docs/validation/mobile-parity-2026-10-14/report.txt). OUT confirmado como bem ouvido no iPhone 15 Pro com a 0.6.6; IN teve conclusão de reprodução observada, sem confirmação auditiva do usuário. Testes sintéticos não comprovam arbitragem em partidas ou detecção de saques a 200 km/h; 120/240 FPS dependem da câmera e não equivalem à taxa de análise.
 
 [Validação da detecção 0.6.7](docs/validation/detection-2026-10-15/report.txt): 187 testes Android, 65 testes iOS e instalação no iPhone 15 Pro. O relatório registra os testes sintéticos executados no aparelho, os erros ainda presentes e a medição de aproximadamente 30 FPS analisados em 720p. Quicadas reais e partidas rápidas continuam exigindo avaliação com resultados conhecidos.
+
+[Validação de chão e parede 0.6.8](docs/validation/home-areas-2026-10-15/report.txt): 196 testes Android, 72 testes iOS e três testes de integração no emulador Android 15, incluindo arraste, cancelamento, reabertura e IN/OUT com vídeo simulado conhecido. O iPhone físico não foi retestado nesta entrega.
 
 ## Executar no Windows
 
@@ -28,7 +30,7 @@ Abra [o dashboard local](http://127.0.0.1:3000). A API fica em [FastAPI /docs](h
 
 ### Transmissão Android para Windows — modo opcional
 
-O APK atual deste código é `mobile/releases/Tennis-Vision-Camera-Android-v0.6.7.apk`. Envie ao Galaxy por USB ou Quick Share e instale sobre a versão existente. Para o fluxo descrito abaixo, abra **Ajustes → Transmitir para PC (opcional)**. O treino local da tela inicial não precisa destes passos. Instalações Windows antigas podem ainda oferecer o APK incorporado naquela versão.
+O APK atual deste código é `mobile/releases/Tennis-Vision-Camera-Android-v0.6.8.apk`. Envie ao Galaxy por USB ou Quick Share e instale sobre a versão existente. Para o fluxo descrito abaixo, abra **Ajustes → Transmitir para PC (opcional)**. O treino local da tela inicial não precisa destes passos. Instalações Windows antigas podem ainda oferecer o APK incorporado naquela versão.
 
 Em **Captura**, teste a estabilidade do perfil escolhido, consulte orientações de exposição/foco e grave o MP4 original no celular. No Windows, **Configurações → Analisar gravação original** processa o arquivo completo. **Timeline → Revisar contato** permite corrigir decisões, posições e falsos impactos com as imagens reais. [Uso e resultados medidos](docs/melhorias-2026-10-06.md).
 

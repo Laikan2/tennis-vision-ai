@@ -1,5 +1,6 @@
-# Tennis Vision para Android — treino local 0.6.7
+# Tennis Vision para Android — treino local 0.6.8
 
+**Teste em casa na 0.6.8:** use **Marcar chão** para arrastar a área, ajustar os cantos, avançar e indicar dois pontos no encontro parede/piso. **Marcar parede** salva sua própria área por arraste. As marcações ficam separadas; **Ajustes → Superfície** recupera cada uma. Cancelar no segundo passo preserva a configuração anterior. Na parede, contatos candidatos continuam exigindo revisão. Veja o [relatório da entrega](../../docs/validation/home-areas-2026-10-15/report.txt).
 **Correções 0.6.7:** bola amarelada pela iluminação, bola perto da lente, recuperação após obstruções sem encerrar o treino e indicação do limite do piso. Marcas antigas ficam no histórico e não são projetadas sobre uma câmera reaberta. Veja docs/releases/mobile-v0.6.7.md.
 
 **Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Vozes IN / OUT**, o som OUT preserva a configuração anterior e o som IN é opcional. Use **Testar vozes** para ouvir cada chamada e conferir o volume de mídia. O teste não conta impactos. Áreas e histórico são preservados; o detector inclui as correções de iluminação e continuidade da versão 0.6.7.
@@ -8,9 +9,9 @@ O aplicativo agora abre no **treino local**. Câmera, detecção da bola verde, 
 
 ## Começar no celular
 
-Android e iPhone acompanham a entrega **0.6.7**. O release conjunto `mobile-v0.6.7` oferece APK e IPA separados, preservando certificado Android e dados anteriores. Os motores Kotlin e Swift são avaliados pelos mesmos 41 cenários sintéticos e pelos testes novos de iluminação e recuperação da referência; formatos de instalação, taxas da câmera e desempenho continuam próprios de cada plataforma. Consulte `mobile/shared/release.json` e as notas `docs/releases/mobile-v0.6.7.md`.
+Android e iPhone acompanham a entrega **0.6.8**. O release conjunto `mobile-v0.6.8` oferece APK e IPA separados, preservando certificado Android e dados anteriores. Os motores Kotlin e Swift são avaliados pelos mesmos 41 cenários sintéticos e pelos testes novos de iluminação e recuperação da referência; formatos de instalação, taxas da câmera e desempenho continuam próprios de cada plataforma. Consulte `mobile/shared/release.json` e as notas `docs/releases/mobile-v0.6.7.md`.
 
-1. Instale `mobile/releases/Tennis-Vision-Camera-Android-v0.6.7.apk` sobre a versão anterior, preservando os dados. Não desinstale para atualizar.
+1. Instale `mobile/releases/Tennis-Vision-Camera-Android-v0.6.8.apk` sobre a versão anterior, preservando os dados. Não desinstale para atualizar.
 2. Abra o app, toque em **Permitir câmera** e aguarde **Câmera pronta**.
 3. Fixe o celular na horizontal, recuado e elevado fora da área de jogo, com margem além das linhas. Em **Enquadramento e detalhe**, escolha a lente antes de marcar. **Ampla**, quando disponível, mostra mais, mas deixa a bola menor. **Bola distante · até 1080p** preserva mais detalhe; confira os FPS recebidos. Se a imagem engasgar, use **Fluidez**. Não é possível recuperar por software partes da quadra fora da imagem.
 4. Em **Marcar quadra · 4 cantos**, escolha quadra inteira ou metade e toque nos quatro cantos ao redor do piso. Para meia quadra, comece pela rede; para a inteira, por um fundo. Ajuste os cantos arrastando, com a lupa, e toque em **Salvar área**. Cancelar mantém a marcação anterior. A referência pausa apenas durante a edição. **Área livre · arrastar** continua disponível. **Quarto · limite do piso** é a reta entre parede e chão usada nos testes de quarto; não substitui os quatro cantos de uma quadra e não é exigida no modo quadra.

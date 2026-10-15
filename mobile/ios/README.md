@@ -1,5 +1,6 @@
-# Tennis Vision Camera para iPhone — 0.6.7
+# Tennis Vision Camera para iPhone — 0.6.8
 
+**Teste em casa na 0.6.8:** use **Marcar chão** para arrastar a área, ajustar os cantos, avançar e indicar dois pontos no encontro parede/piso. **Marcar parede** salva sua própria área por arraste. As marcações ficam separadas; **Ajustes → Superfície** recupera cada uma. Cancelar no segundo passo preserva a configuração anterior. Na parede, contatos candidatos continuam exigindo revisão. Veja o [relatório da entrega](../../docs/validation/home-areas-2026-10-15/report.txt).
 **Correções 0.6.7:** bola amarelada pela iluminação, bola perto da lente, recuperação após obstruções sem encerrar o treino e indicação do limite do piso. Marcas antigas ficam no histórico e não são projetadas sobre uma câmera reaberta. Veja docs/releases/mobile-v0.6.7.md.
 
 **Novas vozes IN/OUT:** geradas no ElevenLabs, incluídas no app e disponíveis sem internet. Em **Ajustes → Impactos**, o som OUT preserva a configuração anterior e o som IN é opcional. Os testes separados mostram reprodução, volume de mídia e saída de áudio, sem alterar contagens. Confira Bluetooth e volume se não ouvir. O detector inclui as correções de iluminação e continuidade da versão 0.6.7.
@@ -8,7 +9,7 @@ Aplicativo nativo SwiftUI para iOS 17.4 ou posterior. **Treino no próprio iPhon
 
 ## Mesma versão de funcionalidades do Android
 
-A versão iPhone 0.6.7 acompanha a Android 0.6.7, com as correções de detecção sob luz quente e recuperação da referência descritas nesta entrega. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
+A versão iPhone 0.6.8 acompanha a Android 0.6.8, com as correções de detecção sob luz quente e recuperação da referência descritas nesta entrega. Inclui as melhorias da bola pequena/distante, mão/oclusão e recuperação de rastreamento, mais quatro cantos, área livre, lupa no ajuste, toque nas marcas para revisar, tela cheia, enquadramento, contagens, histórico e atualização pelo GitHub. Aparência nativa, câmera, FPS e instalação dependem da plataforma; isso não significa desempenho idêntico.
 
 `mobile/shared/release.json` define a entrega comum. A geração do projeto verifica as versões das duas plataformas. `mobile/shared/vision-cases.json` define 41 cenários de pixels conhecidos consumidos pelos testes Kotlin e Swift, cobrindo mão, soltura, queda, movimento rápido, borrão e IN/OUT. Alterações futuras de comportamento precisam ser portadas e passar nesses testes; o contrato não traduz código Kotlin para Swift automaticamente.
 
@@ -68,7 +69,7 @@ O projeto Xcode e o instalador `.ipa` são arquivos separados. O GitHub compila 
 
 ### Tenho somente Windows
 
-Use **Tennis-Vision-Camera-iOS-v0.6.7-AltStore.ipa** da fonte oficial ou da página de versões. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic. Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
+Use **Tennis-Vision-Camera-iOS-v0.6.8-AltStore.ipa** da fonte oficial ou da página de versões. Ele contém a compilação para iPhone físico, preparada para assinatura pessoal pelo AltStore Classic. Painéis Windows antigos podem oferecer um IPA antigo incorporado naquela versão.
 
 1. Instale AltServer e AltStore Classic conforme o [guia oficial para Windows](https://faq.altstore.io/altstore-classic/how-to-install-altstore-windows). Você informa sua conta Apple diretamente no AltServer.
 2. Coloque o `.ipa` no app Arquivos do iPhone. Com o AltServer aberto no PC e o iPhone conectado, use **AltStore Classic → My Apps → +** para selecionar o arquivo.

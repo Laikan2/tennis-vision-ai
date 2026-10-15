@@ -70,9 +70,46 @@ class LocalTrainingTest {
     drag(scenario,CourtPoint(.2,.35),CourtPoint(.7,.9))
     scenario.onActivity { assertTrue(it.findViewById<Button>(R.id.localSaveArea).isEnabled) }
     tap(scenario,R.id.localSaveArea)
-    tap(scenario,R.id.localFloor); tap(scenario,R.id.localRedraw)
+    // The floor wizard advances directly to its boundary step, without saving yet.
+    scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
+    tap(scenario,R.id.localRedraw)
     drag(scenario,CourtPoint(.05,.28),CourtPoint(.05,.28)); drag(scenario,CourtPoint(.95,.28),CourtPoint(.95,.28))
     tap(scenario,R.id.localSaveArea)
+  }
+  @Test fun homeFloorWallSetupAndCancellationPreserveSeparateAreas() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);area(scenario)
+      var floor=LocalSettings()
+      scenario.onActivity { floor=it.testConfig();assertEquals(ContactSurface.FLOOR,floor.surface) }
+      tap(scenario,R.id.localWall);tap(scenario,R.id.localRedraw)
+      drag(scenario,CourtPoint(.25,.1),CourtPoint(.85,.6))
+      tap(scenario,R.id.localSaveArea)
+      var wall=LocalSettings()
+      scenario.onActivity {
+        wall=it.testConfig();assertEquals(ContactSurface.WALL,wall.surface)
+        assertEquals(floor.polygon,wall.floorPolygon);assertEquals(floor.floorLine,wall.floorLine)
+        assertNotEquals(floor.polygon,wall.polygon)
+      }
+      // Cancelling the second floor step must not save the first step alone.
+      tap(scenario,R.id.localArea);tap(scenario,R.id.localRedraw)
+      drag(scenario,CourtPoint(.1,.65),CourtPoint(.6,.95));tap(scenario,R.id.localSaveArea)
+      scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
+      tap(scenario,R.id.localCancelArea)
+      scenario.onActivity { assertEquals(wall,it.testConfig()) }
+      scenario.recreate();ready(scenario)
+      scenario.onActivity { assertEquals(wall,it.testConfig()) }
+      // Reopening floor uses its saved corners and line, rather than the wall's.
+      tap(scenario,R.id.localArea)
+      scenario.onActivity { assertEquals(floor.polygon,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
+      tap(scenario,R.id.localSaveArea)
+      scenario.onActivity { assertEquals(floor.floorLine,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
+      tap(scenario,R.id.localSaveArea)
+      scenario.onActivity {
+        assertEquals(floor.polygon,it.testConfig().polygon)
+        assertEquals(wall.polygon,it.testConfig().wallPolygon)
+      }
+      screenshot("home-areas-0.6.8-floor-restored")
+    }
   }
   @Test fun cameraAreaTouchesCancellationAndLifecycleWorkOffline() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->

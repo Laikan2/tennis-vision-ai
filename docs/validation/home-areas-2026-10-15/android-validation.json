@@ -1,0 +1,12 @@
+{
+  "version": "0.6.8",
+  "jvmTests": {
+    "tests": 196,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "voiceAssetsVerifiedInAPK": true,
+  "voicePack": "elevenlabs-brian-clear-v4-4",
+  "physicalAndroidTest": false
+}
