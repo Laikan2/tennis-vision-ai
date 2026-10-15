@@ -83,17 +83,29 @@ final class LocalTrainingStore {
     @Published var audioStatus="Voz ElevenLabs · funciona sem internet. Teste IN e OUT para conferir o volume."
     private var soundCount: Int{lineVoice.startedCount}
     private var editingCourt: VisionCourt?
+    @Published private(set) var homeSetup: VisionHomeAreaSetup?
+    @Published private(set) var savingArea=false
+    private var editorConfig: VisionSettings?
+    var editingArea: VisionSettings?{homeSetup?.settings ?? editorConfig}
+    var saveAreaTitle:String{homeSetup?.stage == .area && homeSetup?.surface == .floor ? "Próximo: limite do piso":"Salvar área"}
+    var editorHint:String{
+        if homeSetup?.surface == .floor {
+            return editing==2 ? "Passo 2/2 · toque em dois pontos onde a parede encontra o chão. O piso fica abaixo da linha.":"Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
+        }
+        if homeSetup?.surface == .wall{return "Parede · arraste sobre a área da parede e ajuste os quatro cantos. A marcação do chão será mantida."}
+        return editing==2 ? "Toque em dois pontos entre parede e chão. O piso fica abaixo da linha.":editing==1 ? "Arraste para expandir; depois ajuste os quatro cantos.":"\(draft.count) / 4 pontos · arraste para ajustar"
+    }
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
     private var opening=false,overlayStartID=0
-    var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID}}
+    var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
     var needsAreaCheck:Bool{frame?.result.areaNeedsConfirmation == true}
     var surfaceHint:String{
         if needsAreaCheck{return "A imagem mudou. Use Marcar área para conferir os cantos; o treino continua aberto."}
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
         if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
-        if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: falta indicar onde começa o piso. Marcar área → Quarto · limite do piso. Sem isso, o contato exige revisão."}
+        if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: use Marcar chão e conclua os dois passos: área e limite do piso. Sem a referência, o contato exige revisão."}
         return "Chão: aguarda descida e retorno da bola no piso. Perto da linha, a decisão pode exigir revisão."
     }
     private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
@@ -103,9 +115,9 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.7"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.8"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
-    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Área livre") · salva para esta lente" : "Área ainda não marcada"}
+    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área salva para esta lente" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
     init(){
         lineVoice.onStatus={[weak self] message in self?.audioStatus=message}
@@ -141,6 +153,7 @@ final class LocalTrainingStore {
     }
     func suspend(completion: (() -> Void)?=nil){
         foreground=false;opening=false;active=false;ready=false;editing=0;frozen=nil;currentGeneration=nil
+        homeSetup=nil;editorConfig=nil;editingCourt=nil;draft=[]
         UIApplication.shared.isIdleTimerDisabled=false;camera.stop(completion:completion)
         lineVoice.stop()
     }
@@ -213,27 +226,42 @@ final class LocalTrainingStore {
     func playOut(){lineVoice.play(.outside,test:true)}
     func playIn(){lineVoice.play(.inside,test:true)}
     func setInVoice(_ enabled: Bool){inVoice=enabled;UserDefaults.standard.set(enabled,forKey:"local.sound.in")}
-    func edit(_ mode: Int,court: VisionCourt?=nil){
-        guard ready,frame != nil,!testing else{return};pause();frozen=frame;editing=mode
-        editingCourt=court
-        let reference=frame?.result.area ?? config
-        draft=mode==2 ? reference.floorLine:mode==3 ? reference.polygon:[]
-        status=mode==2 ? "Toque nos dois extremos do limite parede/chão":mode==1 ? "Arraste para criar a área":draft.count==4 ? "Arraste os cantos para ajustar":"Toque nos quatro cantos ao redor do piso"
+    func edit(_ mode: Int,court: VisionCourt?=nil,surface:VisionSurface?=nil,home:Bool=false){
+        guard ready,frame != nil,!testing,editing==0,!savingArea else{return};pause();frozen=frame;editing=mode
+        let target=surface ?? ((mode==2 || court != nil && court != .custom) ? .floor:config.surface)
+        let reference=(frame?.result.area ?? config).selectingSurface(target)
+        editingCourt=court;editorConfig=reference
+        homeSetup=home ? VisionHomeAreaSetup(settings:reference,surface:target):nil
+        draft=mode==2 ? reference.floorLine:(mode==3 || home) ? reference.polygon:[]
+        status=home ? editorHint:mode==2 ? "Toque nos dois extremos do limite parede/chão":mode==1 ? "Arraste para criar a área":draft.count==4 ? "Arraste os cantos para ajustar":"Toque nos quatro cantos da superfície"
     }
-    func cancelEdit(){editing=0;draft=[];frozen=nil;editingCourt=nil;status="Edição cancelada · área anterior mantida"}
+    func editHome(_ surface:VisionSurface){edit(1,court:.custom,surface:surface,home:true)}
+    func changeSurface(_ surface:VisionSurface){guard editing==0,!savingArea else{return};confirmed=false;persist((frame?.result.area ?? config).selectingSurface(surface))}
+    func cancelEdit(){guard !savingArea else{return};editing=0;draft=[];frozen=nil;editingCourt=nil;editorConfig=nil;homeSetup=nil;status="Edição cancelada · área anterior mantida"}
     func redraw(){draft=[]}
-    var canSaveArea: Bool{editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft)}
+    var canSaveArea: Bool{!savingArea && (editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft))}
     func saveArea(){
-        guard canSaveArea else{return};var value=frozen?.result.area ?? config
-        value.court=editingCourt ?? value.court
-        if editing==2{value.floorLine=draft;value.court = .custom;value.surface = .floor}else{value.polygon=draft}
-        if value.court != .custom{value.surface = .floor}
-        persist(value){[weak self] in self?.editing=0;self?.frozen=nil;self?.draft=[];self?.editingCourt=nil;self?.confirmed=true;self?.status="Área salva para esta câmera, lente e resolução"}
+        guard canSaveArea else{return}
+        var value=editorConfig ?? config
+        if var home=homeSetup {
+            guard home.accept(draft) else{return};homeSetup=home
+            if home.stage == .floorBoundary{editing=2;draft=home.settings.floorLine;status=editorHint;return}
+            guard let completed=home.completedSettings else{return};value=completed
+        }else{
+            value.court=editingCourt ?? value.court
+            if editing==2{value.floorLine=draft;value.court = .custom;value.surface = .floor}else{value.polygon=draft}
+        }
+        savingArea=true
+        let saved=value.rememberingArea()
+        persist(saved){[weak self] in
+            guard let self else{return};self.savingArea=false;self.editing=0;self.frozen=nil;self.draft=[];self.editingCourt=nil;self.editorConfig=nil;self.homeSetup=nil;self.confirmed=true
+            self.status="\(saved.surface == .wall ? "Parede":"Chão") salvo para esta câmera, lente e resolução"
+        }
     }
     func persist(_ value: VisionSettings,done: (() -> Void)?=nil){
         pause();store.save(settings:value,key:key,session:nil,evidence:nil){[weak self] message in
             guard let self else{return}
-            if let message{self.error=message;self.savingError=true;return}
+            if let message{self.savingArea=false;self.error=message;self.savingError=true;return}
             self.config=value;self.overlayStartID=self.session.events.map{$0.id}.max() ?? 0;self.camera.update(value);done?()
         }
     }

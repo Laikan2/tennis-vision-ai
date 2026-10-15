@@ -12,6 +12,8 @@ public struct VisionSettings: Codable, Equatable, Sendable {
     public var polygon=[VisionPoint](), floorLine=[VisionPoint]()
     public var surface=VisionSurface.floor, court=VisionCourt.custom
     public var sound=true, marks=true
+    // Optional fields allow archives from earlier versions to decode unchanged.
+    public var floorPolygon: [VisionPoint]?,wallPolygon: [VisionPoint]?,floorCourt: VisionCourt?
     public init() {}
 }
 public struct VisionBall: Sendable {
@@ -232,7 +234,7 @@ public final class LocalVision {
     public private(set) var offset=VisionPoint(0,0)
     public init(settings: VisionSettings=VisionSettings()){self.settings=settings}
     public var activeSettings: VisionSettings {
-        var s=settings;s.polygon=s.polygon.map{VisionPoint($0.x+offset.x,$0.y+offset.y)};s.floorLine=s.floorLine.map{VisionPoint($0.x+offset.x,$0.y+offset.y)};return s
+        settings.translated(by:offset)
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
     public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;offset=VisionPoint(0,0)}

@@ -41,11 +41,12 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     }
     override func draw(_ rect: CGRect){
         guard let f=frameValue else{return};UIImage(cgImage:f.image).draw(in:imageRect)
-        let cyan=UIColor.systemCyan,lime=VisionCall.inside.color
-        let area=result?.area ?? f.result.area
+        let lime=VisionCall.inside.color
+        let area=editing>0 ? config:(result?.area ?? f.result.area)
+        let cyan=area.surface == .wall ? UIColor.systemPurple:UIColor.systemCyan
         line(area.polygon,closed:true,color:cyan)
         for guide in VisionGeometry.guides(area.polygon,court:area.court){line(guide,closed:false,color:cyan.withAlphaComponent(0.6),width:1)}
-        line(area.floorLine,closed:false,color:.systemOrange)
+        if area.surface == .floor{line(area.floorLine,closed:false,color:.systemOrange)}
         if editing>0 {
             line(draft,closed:editing != 2 && draft.count==4,color:lime,width:3)
             for (i,p) in draft.enumerated(){let c=screen(p);lime.setFill();UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14)).fill();label("\(i+1)",at:CGPoint(x:c.x+11,y:c.y-18),color:lime)}
@@ -118,7 +119,7 @@ struct LocalCourtCanvas: UIViewRepresentable {
     @ObservedObject var model: LocalTrainingModel
     func makeUIView(context: Context) -> LocalCourtSurface{LocalCourtSurface()}
     func updateUIView(_ view: LocalCourtSurface,context: Context){
-        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.config;view.events=model.visibleEvents
+        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.editingArea ?? model.config;view.events=model.visibleEvents
         view.confirmed=model.confirmed;view.editing=model.editing;view.draft=model.draft;view.onDraft={model.draft=$0}
         view.onImpact={id in if let hit=model.session.events.first(where:{$0.id==id}){model.review(hit)}}
         view.refreshGestures();view.setNeedsDisplay()
@@ -159,13 +160,16 @@ struct LocalTrainingView: View {
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
                     Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
-                    if model.config.surface == .floor && model.config.court == .custom && !VisionGeometry.validLine(model.config.floorLine){
-                        Button("Definir começo do piso"){model.edit(2)}.buttonStyle(.bordered).disabled(!model.ready || model.editing>0).accessibilityIdentifier("local.floor.setup")
-                    }
                     if model.editing>0 {
-                        Text(model.editing==1 ? "Arraste para expandir; depois ajuste os cantos.":"\(model.draft.count) / \(model.editing==2 ? 2:4) pontos · arraste para ajustar").font(.footnote).foregroundStyle(Palette.muted)
-                        HStack{Button("Salvar área"){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea).accessibilityIdentifier("local.area.save");Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered)}
+                        Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
+                        HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea).accessibilityIdentifier("local.area.save");Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}
                     }else{
+                        Text("Teste em casa").font(.subheadline.weight(.semibold))
+                        HStack{
+                            Button{model.editHome(.floor)}label:{Label("Marcar chão",systemImage:"square.dashed")}.buttonStyle(.bordered).tint(.cyan).accessibilityIdentifier("local.home.floor")
+                            Button{model.editHome(.wall)}label:{Label("Marcar parede",systemImage:"rectangle.portrait")}.buttonStyle(.bordered).tint(.purple).accessibilityIdentifier("local.home.wall")
+                        }.disabled(!model.ready)
+                        Text("Chão: área e limite do piso, em dois passos. Parede: área de contato. As marcações são salvas separadamente; mova o celular somente antes de marcar.").font(.footnote).foregroundStyle(Palette.muted)
                         HStack{Button{model.pause();areaMenu=true}label:{Label("Marcar área",systemImage:"viewfinder")}.buttonStyle(.bordered).disabled(!model.ready).accessibilityIdentifier("local.area");Button{history=true;model.history=model.store.history()}label:{Label("Histórico",systemImage:"clock")}.buttonStyle(.bordered);Spacer()}
                         HStack{Button("Enquadramento"){model.pause();framing=true}.buttonStyle(.bordered);Button("Tela cheia"){fullScreen=true}.buttonStyle(.bordered);Button{updates=true}label:{Image(systemName:"arrow.down.circle")}.buttonStyle(.bordered).accessibilityLabel("Atualizações")}
                     }
@@ -186,13 +190,15 @@ struct LocalTrainingView: View {
         .task{model.prepare();await model.checkUpdate()}
         .onChange(of:phase){_,phase in if phase == .active{model.prepare()}else if phase == .background{model.suspend()}}
         .confirmationDialog("Área da superfície",isPresented:$areaMenu,titleVisibility:.visible){
+            Button("Marcar chão · teste em casa"){model.editHome(.floor)}
+            Button("Marcar parede · teste em casa"){model.editHome(.wall)}
             Button("Quadra inteira · 4 cantos"){model.edit(3,court:.full)}
             Button("Meia quadra · 4 cantos"){model.edit(3,court:.half)}
             Button("Área livre · arrastar"){model.edit(1,court:.custom)}
             Button("Ajustar área salva"){model.edit(3)}
-            Button("Quarto · limite do piso"){model.edit(2)}
-        }message:{Text("Quadra: marque os cantos ao redor do piso. Meia quadra começa na rede. O limite do quarto é uma reta separada, usada só no quarto.")}
-        .alert("Confira a área salva",isPresented:Binding(get:{!fullScreen && model.confirmArea},set:{model.confirmArea=$0})){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os quatro cantos ainda coincidem com o chão? Mover ou girar o iPhone exige ajustar a área.")}
+            Button("Ajustar limite parede/chão"){model.edit(2)}
+        }message:{Text("Em casa, escolha Chão ou Parede. Para tênis, marque a quadra inteira ou metade. Cada superfície mantém sua área nesta lente.")}
+        .alert("Confira a área salva",isPresented:Binding(get:{!fullScreen && model.confirmArea},set:{model.confirmArea=$0})){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os quatro cantos ainda coincidem com a superfície marcada? Mover ou girar o iPhone exige ajustar a área.")}
         .alert("Atenção",isPresented:Binding(get:{!fullScreen && model.error != nil},set:{if !$0{model.error=nil}})){Button("Entendi"){model.error=nil}}message:{Text(model.error ?? "")}
         .sheet(isPresented:$settings){settingsView}
         .sheet(isPresented:$history){historyView}
@@ -216,7 +222,8 @@ struct LocalTrainingView: View {
                 Text("120/240 só aparecem se anunciados pela lente/resolução. Taxa escolhida não garante análise nessa taxa: confira FPS recebidos e tempos. Se um modo falhar, escolha outra taxa; a escolha manual não é trocada silenciosamente. Para longe, teste 1080p, boa luz e meia quadra. Teleobjetiva amplia a bola e reduz o campo.").font(.footnote)
             }
             Section("Impactos"){
-                Picker("Superfície",selection:Binding(get:{model.config.surface},set:{value in var s=model.config;s.surface=value;if value == .wall{s.court = .custom};model.persist(s)})){Text("Chão · quicadas").tag(VisionSurface.floor);Text("Parede · revisão").tag(VisionSurface.wall);Text("Somente rastrear").tag(VisionSurface.track)}
+                Picker("Superfície",selection:Binding(get:{model.config.surface},set:{model.changeSurface($0)})){Text("Chão · quicadas").tag(VisionSurface.floor);Text("Parede · revisão").tag(VisionSurface.wall);Text("Somente rastrear").tag(VisionSurface.track)}
+                Text("Trocar a superfície recupera a marcação salva de chão ou parede. Use Marcar chão/parede na tela do treino para criar ou ajustar.").font(.footnote)
                 Toggle("Mostrar marcas de impacto",isOn:Binding(get:{model.config.marks},set:{var s=model.config;s.marks=$0;model.persist(s)}))
                 Toggle("Som OUT",isOn:Binding(get:{model.config.sound},set:{var s=model.config;s.sound=$0;model.persist(s)}))
                 Toggle("Som IN · opcional",isOn:Binding(get:{model.inVoice},set:{model.setInVoice($0)}))
@@ -287,10 +294,12 @@ struct LocalTrainingView: View {
             LocalCourtCanvas(model:model).frame(maxWidth:.infinity,maxHeight:.infinity).background(.black)
             Text(model.status).font(.footnote).foregroundStyle(Palette.muted).padding(.horizontal,16)
             if model.editing>0{
-                HStack{Button("Salvar área"){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea);Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered)}
+                Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
+                HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea);Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}
             }else{
                 HStack{
                     Menu("Marcar área"){
+                        Button("Marcar chão"){model.editHome(.floor)};Button("Marcar parede"){model.editHome(.wall)}
                         Button("Quadra inteira"){model.edit(3,court:.full)};Button("Meia quadra"){model.edit(3,court:.half)};Button("Área livre"){model.edit(1,court:.custom)};Button("Limite do piso"){model.edit(2)}
                     }.buttonStyle(.bordered).disabled(!model.ready)
                     Button(model.active ? "Pausar treino":"Iniciar treino"){model.begin()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.ready)
@@ -298,7 +307,7 @@ struct LocalTrainingView: View {
             }
         }.padding(.vertical,12).background(Palette.background).tint(Palette.lime).preferredColorScheme(.dark)
         .sheet(item:$model.reviewing){event in reviewView(event)}
-        .alert("Confira a área salva",isPresented:$model.confirmArea){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os cantos ainda coincidem com o piso? Ajuste se moveu o iPhone.")}
+        .alert("Confira a área salva",isPresented:$model.confirmArea){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os cantos ainda coincidem com a superfície marcada? Ajuste se moveu o iPhone.")}
         .alert("Atenção",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("Entendi"){model.error=nil}}message:{Text(model.error ?? "")}
     }
     private func reviewView(_ event: VisionImpact) -> some View{

@@ -26,12 +26,18 @@ class LocalSessionStore(context: Context) {
       points("floor").takeIf(LocalGeometry::validFloorLine) ?: emptyList(),
       runCatching { ContactSurface.valueOf(j.optString("surface","FLOOR")) }.getOrDefault(ContactSurface.FLOOR),
       prefs.getBoolean("sound",true),prefs.getBoolean("marks",true),
-      runCatching { CourtLayout.valueOf(j.optString("court","CUSTOM")) }.getOrDefault(CourtLayout.CUSTOM))
+      runCatching { CourtLayout.valueOf(j.optString("court","CUSTOM")) }.getOrDefault(CourtLayout.CUSTOM),
+      if(j.has("floorPolygon")) points("floorPolygon").takeIf(LocalGeometry::valid) ?: emptyList() else null,
+      if(j.has("wallPolygon")) points("wallPolygon").takeIf(LocalGeometry::valid) ?: emptyList() else null,
+      runCatching { CourtLayout.valueOf(j.getString("floorCourt")) }.getOrNull())
   }.getOrElse { warning="Configuração de área inválida; marque novamente."; LocalSettings() }
 
   fun saveSettings(camera: String, settings: LocalSettings) {
     fun points(items: List<CourtPoint>) = JSONArray().apply { items.forEach { put(JSONArray().put(it.x).put(it.y)) } }
     val j=JSONObject().put("polygon",points(settings.polygon)).put("floor",points(settings.floorLine)).put("surface",settings.surface.name).put("court",settings.court.name)
+    settings.floorPolygon?.let { j.put("floorPolygon",points(it)) }
+    settings.wallPolygon?.let { j.put("wallPolygon",points(it)) }
+    settings.floorCourt?.let { j.put("floorCourt",it.name) }
     prefs.edit().putString("area:$camera",j.toString()).putBoolean("sound",settings.sound).putBoolean("marks",settings.marks).apply()
   }
   fun current(): LocalSession {

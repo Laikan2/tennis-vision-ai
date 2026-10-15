@@ -55,4 +55,15 @@ class LocalCourtEditorTest {
     assertTrue(LocalGeometry.validFloorLine(v.draft))
     assertEquals(2,v.draft.size)
   }
+  @Test fun openingWallEditorUsesItsOwnAreaRatherThanTheLastFloorFrame() {
+    val v=view()
+    val floor=listOf(CourtPoint(.1,.6),CourtPoint(.9,.6),CourtPoint(.9,.95),CourtPoint(.1,.95))
+    val wall=listOf(CourtPoint(.2,.1),CourtPoint(.8,.1),CourtPoint(.8,.5),CourtPoint(.2,.5))
+    v.present(LocalFrame(IntArray(1280*720),1280,720,0.0,
+      LocalResult(null,null,emptyList(),null,false,null,"Fixture",activeArea=LocalSettings(polygon=floor)),0.0,60.0,60,"fixture"))
+    val selected=LocalSettings(polygon=wall,surface=ContactSurface.WALL)
+    v.settings=selected;v.begin(1,selected)
+    assertEquals(wall,v.draft)
+    v.finish();assertEquals(wall,v.settings.polygon)
+  }
 }

@@ -44,7 +44,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   }
   fun clearTracking() { result=null; invalidate() }
   fun resetReference() { cameraOffset=CourtPoint(0.0,0.0);result=null;events=emptyList();invalidate() }
-  fun begin(mode: Int) { editing=mode; draft=if (mode==2) visibleSettings.floorLine.toList() else visibleSettings.polygon.toList(); selected=-1; anchor=null; loupePoint=null; changed() }
+  fun begin(mode: Int,reference: LocalSettings=visibleSettings) { editing=mode; draft=if (mode==2) reference.floorLine.toList() else reference.polygon.toList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun redraw() { draft=emptyList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun finish() { editing=0; draft=emptyList(); result=null; loupePoint=null; invalidate() }
   private fun changed() { onDraft?.invoke(if (editing==2) LocalGeometry.validFloorLine(draft) else LocalGeometry.valid(draft)); invalidate() }
@@ -74,7 +74,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     if (image==null) return super.onTouchEvent(event)
     if (editing==0) {
       if (event.actionMasked==MotionEvent.ACTION_UP && settings.marks) {
-        events.filter { it.decision!=LineCall.REJECTED }.minByOrNull { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); hypot(s.x-event.x,s.y-event.y) }
+        events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.minByOrNull { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); hypot(s.x-event.x,s.y-event.y) }
           ?.let { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); if (hypot(s.x-event.x,s.y-event.y)<28*resources.displayMetrics.density) onImpact?.invoke(e.id) }
         performClick()
       }
@@ -122,12 +122,13 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       if (fill) { paint.color=(color and 0xffffff) or (30 shl 24); paint.style=Paint.Style.FILL; canvas.drawPath(path,paint) }
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawPath(path,paint); paint.style=Paint.Style.FILL
     }
-    val displayed=visibleSettings
+    val displayed=if(editing!=0) settings else visibleSettings
+    val regionColor=if(displayed.surface==ContactSurface.WALL) Color.rgb(185,140,255) else cyan
     val area=if (editing==1 || editing==3) draft else displayed.polygon
-    line(area,area.size==4,if (editing==1 || editing==3) cyan else lime,area.size==4)
+    line(area,area.size==4,regionColor,area.size==4)
     val layout=if(editing!=0) editorLayout else displayed.court
     CourtProjection.guides(area,layout).forEach { line(it,false,0x88ffffff.toInt()) }
-    if(layout==CourtLayout.CUSTOM) line(if (editing==2) draft else displayed.floorLine,false,cyan)
+    if(layout==CourtLayout.CUSTOM && displayed.surface==ContactSurface.FLOOR) line(if (editing==2) draft else displayed.floorLine,false,amber)
     if (editing!=0) {
       draft.forEachIndexed { i,p ->
         val s=screen(p); paint.color=cyan; canvas.drawCircle(s.x,s.y,9*density,paint)
@@ -152,7 +153,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       }
       return
     }
-    if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED }.takeLast(24).forEach { e ->
+    if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24).forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
       if(events.takeLast(3).any{it.id==e.id}) label(canvas,callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)

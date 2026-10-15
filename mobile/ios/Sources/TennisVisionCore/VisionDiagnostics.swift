@@ -13,7 +13,7 @@ public enum VisionDiagnostics {
         public var name: String,frames: Int,located: Int,wrong: Int,contacts: [VisionCall],maxError: Double,elapsedMs: Double
     }
     public struct Report: Codable {
-        public var version="0.6.7",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
+        public var version="0.6.8",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
         public var results: [Measurement],passed: Bool
     }
     public static var cases: [Case] {

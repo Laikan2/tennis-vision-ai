@@ -1,5 +1,5 @@
 {
-  "version": "0.6.7",
+  "version": "0.6.8",
   "baseline": "green-ball-indoor-0.6.7",
   "platforms": [
     "android",
@@ -31,7 +31,10 @@
     "audio-test-feedback",
     "warm-yellow-felt",
     "scene-recovery-without-stopping-session",
-    "surface-setup-feedback"
+    "surface-setup-feedback",
+    "home-floor-wall-setup",
+    "separate-surface-areas",
+    "guided-floor-boundary"
   ],
   "installation": {
     "android": "apk-confirmation",

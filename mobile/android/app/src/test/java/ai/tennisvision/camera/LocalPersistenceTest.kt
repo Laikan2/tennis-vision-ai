@@ -12,6 +12,26 @@ import java.io.File
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk=[33])
 class LocalPersistenceTest {
+  @Test fun floorAndWallRemainSeparateAfterReopening() {
+    val context=RuntimeEnvironment.getApplication() as Context
+    val floor=listOf(CourtPoint(.1,.6),CourtPoint(.9,.6),CourtPoint(.9,.95),CourtPoint(.1,.95))
+    val wall=listOf(CourtPoint(.2,.1),CourtPoint(.8,.1),CourtPoint(.8,.5),CourtPoint(.2,.5))
+    val line=listOf(CourtPoint(.05,.55),CourtPoint(.95,.55))
+    val setup=HomeAreaSetup(LocalSettings(polygon=floor,floorLine=line),ContactSurface.WALL)
+    assertTrue(setup.accept(wall))
+    val saved=setup.completedSettings!!;LocalSessionStore(context).saveSettings("home-camera",saved)
+    val reopened=LocalSessionStore(context).settings("home-camera")
+    assertEquals(saved,reopened);assertEquals(floor,reopened.selectingSurface(ContactSurface.FLOOR).polygon)
+    assertEquals(wall,reopened.polygon);assertEquals(line,reopened.floorLine)
+  }
+  @Test fun legacyAreaJsonIsReadWithoutNewSurfaceFields() {
+    val context=RuntimeEnvironment.getApplication() as Context
+    context.getSharedPreferences("standalone-settings-v1",0).edit().putString("area:legacy",
+      """{"polygon":[[0.2,0.1],[0.8,0.1],[0.8,0.5],[0.2,0.5]],"floor":[],"surface":"WALL","court":"CUSTOM"}""").commit()
+    val old=LocalSessionStore(context).settings("legacy")
+    assertEquals(ContactSurface.WALL,old.surface);assertEquals(4,old.polygon.size);assertNull(old.floorPolygon)
+    assertEquals(old.polygon,old.selectingSurface(ContactSurface.FLOOR).selectingSurface(ContactSurface.WALL).polygon)
+  }
   private val context get()=RuntimeEnvironment.getApplication() as Context
   @Test fun independentCameraAreasAndPairedPcSettingsSurviveLocalSessions() {
     context.getSharedPreferences("pairing",0).edit().putString("host","192.168.1.55").commit()

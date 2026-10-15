@@ -58,6 +58,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   private var autoSaveError=false
   private var editorResume=false
   private var editorConfig=LocalSettings()
+  private var homeSetup: HomeAreaSetup?=null
   private var uiEpoch=0
   private var lastInfo=0L
   private val main=Handler(Looper.getMainLooper())
@@ -118,7 +119,8 @@ class LocalTrainingActivity: AppCompatActivity() {
     inVoice=getSharedPreferences("standalone-settings-v1",0).getBoolean("sound-in",false)
     sound=LineVoicePlayer(this).also { it.onStatus={ message -> audioStatus=message } }
     start.setOnClickListener { toggleAnalysis() }
-    findViewById<Button>(R.id.localArea).setOnClickListener { edit(1) }
+    findViewById<Button>(R.id.localArea).setOnClickListener { edit(1,surface=ContactSurface.FLOOR,home=true) }
+    findViewById<Button>(R.id.localWall).setOnClickListener { edit(1,surface=ContactSurface.WALL,home=true) }
     findViewById<Button>(R.id.localFloor).setOnClickListener { edit(2) }
     findViewById<Button>(R.id.localCourt).setOnClickListener {
       if(!frameReady) { showError("Aguarde a imagem antes de marcar a quadra."); return@setOnClickListener }
@@ -288,12 +290,15 @@ class LocalTrainingActivity: AppCompatActivity() {
     findViewById<TextView>(R.id.localStats).text="$inside IN · $outside OUT · $review para revisar\n$percent · ${valid.size} contatos estimados"
     findViewById<Button>(R.id.localReview).isEnabled=session.events.isNotEmpty()
   }
-  private fun edit(mode: Int,layout: CourtLayout=CourtLayout.CUSTOM) {
+  private fun edit(mode: Int,layout: CourtLayout=CourtLayout.CUSTOM,surface: ContactSurface?=null,home: Boolean=false) {
     if (!frameReady) { showError("Abra a câmera e aguarde uma imagem antes de marcar a área."); return }
     if (court.editing!=0) return
-    editorConfig=court.visibleSettings.copy(court=layout,surface=if(mode==3) ContactSurface.FLOOR else config.surface)
+    val target=surface ?: if(mode==2 || layout!=CourtLayout.CUSTOM) ContactSurface.FLOOR else config.surface
+    val reference=court.visibleSettings.selectingSurface(target).copy(court=layout)
+    homeSetup=if(home) HomeAreaSetup(reference,target) else null
+    editorConfig=homeSetup?.settings ?: reference
     editorResume=analyzing; pauseAnalysis(); uiEpoch++; pending.set(null)
-    court.settings=editorConfig;court.editorLayout=layout;court.begin(mode); start.isEnabled=false
+    court.settings=editorConfig;court.editorLayout=layout;court.begin(mode,editorConfig); start.isEnabled=false
     findViewById<View>(R.id.localEditor).visibility=View.VISIBLE
     updateEditorHint(if(mode==2) LocalGeometry.validFloorLine(court.draft) else LocalGeometry.valid(court.draft))
     configureLayout()
@@ -302,7 +307,12 @@ class LocalTrainingActivity: AppCompatActivity() {
   }
   private fun updateEditorHint(valid: Boolean) {
     if(!::court.isInitialized || court.editing==0) return
-    val hint=when(court.editing) {
+    findViewById<Button>(R.id.localSaveArea).text=if(homeSetup?.surface==ContactSurface.FLOOR && homeSetup?.stage==HomeAreaSetup.Stage.AREA) "Próximo: limite do piso" else "Salvar área"
+    val hint=when {
+      homeSetup?.surface==ContactSurface.FLOOR && court.editing==1 -> "Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
+      homeSetup?.surface==ContactSurface.FLOOR -> "Passo 2/2 · toque em dois pontos onde a parede encontra o chão. O piso fica abaixo da linha."
+      homeSetup?.surface==ContactSurface.WALL -> "Parede · arraste sobre a área de contato e ajuste os quatro cantos. A marcação do chão será mantida."
+      else -> when(court.editing) {
       3 -> if(court.draft.size<4) {
         val names=if(court.editorLayout==CourtLayout.HALF) arrayOf("rede, esquerda","rede, direita","fundo, direita","fundo, esquerda")
           else arrayOf("um fundo, esquerda","o mesmo fundo, direita","outro fundo, direita","outro fundo, esquerda")
@@ -311,6 +321,7 @@ class LocalTrainingActivity: AppCompatActivity() {
         else "Os cantos se cruzam ou ficaram alinhados. Ajuste os quatro pontos ao redor da quadra."
       1 -> "Arraste para abrir um retângulo, depois ajuste os quatro cantos. A área válida não limita a busca da bola."
       else -> "Somente para quarto: toque em dois pontos entre parede e piso. O chão fica abaixo da linha. Para tênis, use Marcar quadra."
+      }
     }
     findViewById<TextView>(R.id.localEditorHint).text=hint
     status.text=if(court.editing==3) "Quadra · ${court.draft.size}/4 cantos · referência pausada" else "Editando · imagem de referência pausada"
@@ -319,25 +330,36 @@ class LocalTrainingActivity: AppCompatActivity() {
     if (court.editing==0) return
     if (save) {
       if (court.editing!=2 && !LocalGeometry.valid(court.draft) || court.editing==2 && !LocalGeometry.validFloorLine(court.draft)) { showError("A marcação precisa de pontos válidos. Ajuste antes de salvar."); return }
-      config=if (court.editing!=2) editorConfig.copy(polygon=court.draft.toList()) else editorConfig.copy(floorLine=court.draft.toList())
-      if(court.editing!=2) { areaConfirmed=true;mustMarkArea=false }
+      val home=homeSetup
+      if(home!=null) {
+        if(!home.accept(court.draft)) return
+        if(home.stage==HomeAreaSetup.Stage.FLOOR_BOUNDARY) {
+          editorConfig=home.settings;court.settings=editorConfig;court.begin(2,editorConfig)
+          updateEditorHint(LocalGeometry.validFloorLine(court.draft));return
+        }
+        config=home.completedSettings ?: return
+      }else {
+        config=(if(court.editing!=2) editorConfig.copy(polygon=court.draft.toList()) else editorConfig.copy(floorLine=court.draft.toList())).rememberingArea()
+      }
+      if(court.editing!=2 || home!=null) { areaConfirmed=true;mustMarkArea=false }
       store.saveSettings(cameraKey,config); court.settings=config; camera.update(config)
       court.resetReference();uiEpoch++;pending.set(null)
     }
-    court.finish();court.settings=config; findViewById<View>(R.id.localEditor).visibility=View.GONE; start.isEnabled=true
+    homeSetup=null;court.finish();court.settings=config; findViewById<View>(R.id.localEditor).visibility=View.GONE; start.isEnabled=true
     configureLayout();renderAreaSummary()
-    status.text=if (save) "Área salva neste celular" else "Edição cancelada · área anterior mantida"
+    status.text=if (save) "${if(config.surface==ContactSurface.WALL) "Parede" else "Chão"} salvo neste celular" else "Edição cancelada · área anterior mantida"
     updates.activityState(true)
     val resume=editorResume; editorResume=false
     if (resume && foreground) toggleAnalysis()
   }
   private fun renderAreaSummary() {
     findViewById<TextView>(R.id.localAreaSummary).text=if(!LocalGeometry.valid(config.polygon)) "Sem área nesta lente e orientação · marque os quatro cantos."
-      else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Área livre salva · no quarto, marque também o limite do piso." }
+      else if(config.surface==ContactSurface.WALL) "Parede salva para esta lente · a área do chão permanece separada."
+      else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Chão salvo para esta lente · a área da parede permanece separada." }
     val hint=when {
       config.surface==ContactSurface.WALL -> "Parede: retorno gera candidato para revisão; uma câmera não comprova o contato em profundidade."
       config.surface==ContactSurface.TRACK -> "Somente rastrear: impactos e IN/OUT desligados."
-      config.court==CourtLayout.CUSTOM && !LocalGeometry.validFloorLine(config.floorLine) -> "Chão: falta indicar onde começa o piso. Marcar área → Quarto · limite do piso. Sem isso, o contato exige revisão."
+      config.court==CourtLayout.CUSTOM && !LocalGeometry.validFloorLine(config.floorLine) -> "Chão: toque em Marcar chão e conclua os dois passos, área e limite do piso. Sem a referência, o contato exige revisão."
       else -> "Chão: aguarda descida e retorno no piso; perto da linha pode exigir revisão."
     }
     findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint)
@@ -350,7 +372,7 @@ class LocalTrainingActivity: AppCompatActivity() {
       "Perfil de captura / bateria","Começar nova sessão","Exportar sessão (JSON)","Transmitir para PC (opcional)","Como usar sem computador")
     AlertDialog.Builder(this).setTitle("Seu treino local").setItems(choices) { _,which -> when(which) {
       0 -> AlertDialog.Builder(this).setTitle("Superfície observada").setItems(arrayOf("Chão · quicadas","Parede · candidatos para revisão","Somente rastrear · sem impactos")) { _,i ->
-        config=config.copy(surface=ContactSurface.entries[i],court=if(i==1) CourtLayout.CUSTOM else config.court); persistConfig()
+        config=court.visibleSettings.selectingSurface(ContactSurface.entries[i]);areaConfirmed=false;court.resetReference();persistConfig()
       }.show()
       1 -> showVoiceSettings()
       2 -> { config=config.copy(marks=!config.marks); persistConfig() }
@@ -359,7 +381,7 @@ class LocalTrainingActivity: AppCompatActivity() {
         .setPositiveButton("Começar") { _,_ -> saveSession(); session=LocalSession(); court.events=emptyList(); renderStats(); saveSession() }.setNegativeButton("Cancelar",null).show()
       5 -> exportFile.launch("Tennis-Vision-${session.id}.json")
       6 -> { camera.stop(); startActivity(Intent(this,MainActivity::class.java)) }
-      7 -> AlertDialog.Builder(this).setTitle("Treino sem PC").setMessage("QUADRA\n1. Celular fixo e na horizontal, com os quatro cantos e margem para bolas fora.\n2. Ajuste lente e detalhe em Enquadramento.\n3. Toque em Marcar quadra: inteira ou metade. Toque nos quatro cantos ao redor do piso; ajuste com a lupa e salve.\n4. Confira a área e inicie.\n\nQUARTO\nUse Área livre e Quarto · limite do piso. Essa reta não é a quadra.\n\nA busca cobre a imagem inteira. Bola minúscula, borrão, mão, perda de quadros e contato incerto exigem revisão. O contorno da área não prova sozinho que uma bola tocou o chão. IN/OUT refere-se à área marcada, sem regras automáticas de saque.\n\nPequenas translações com fundo texturizado são compensadas durante o treino. Reposicionar ou girar o celular exige conferir e remarcar. Uma lente ampla mostra mais, mas deixa a bola menor. Velocidade lateral estimada pela bola de 67 mm; não mede um saque em 3D.\n\nTela bloqueada ou outro app pausa e salva. Internet só é usada nas atualizações opcionais.")
+      7 -> AlertDialog.Builder(this).setTitle("Treino sem PC").setMessage("QUADRA\n1. Celular fixo e na horizontal, com os quatro cantos e margem para bolas fora.\n2. Ajuste lente e detalhe em Enquadramento.\n3. Toque em Marcar quadra: inteira ou metade. Toque nos quatro cantos ao redor do piso; ajuste com a lupa e salve.\n4. Confira a área e inicie.\n\nQUARTO\nUse Marcar chão: arraste a área, avance e indique o limite parede/piso. Use Marcar parede para a área de contato na parede. As duas marcações são salvas separadamente; troque a superfície em Ajustes. Candidatos de parede exigem revisão.\n\nA busca cobre a imagem inteira. Bola minúscula, borrão, mão, perda de quadros e contato incerto exigem revisão. O contorno da área não prova sozinho que uma bola tocou o chão. IN/OUT refere-se à área marcada, sem regras automáticas de saque.\n\nPequenas translações com fundo texturizado são compensadas durante o treino. Reposicionar ou girar o celular exige conferir e remarcar. Uma lente ampla mostra mais, mas deixa a bola menor. Velocidade lateral estimada pela bola de 67 mm; não mede um saque em 3D.\n\nTela bloqueada ou outro app pausa e salva. Internet só é usada nas atualizações opcionais.")
         .setPositiveButton("Entendi",null).show()
     } }.setNegativeButton("Fechar",null).show()
   }

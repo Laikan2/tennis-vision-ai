@@ -29,8 +29,11 @@
     <Button android:id="@+id/localFraming" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="Enquadramento e detalhe" />
     <Button android:id="@+id/localCourt" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar quadra · 4 cantos" />
     <TextView android:id="@+id/localAreaSummary" style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="Quadra inteira ou meia quadra. Se os dois lados não couberem, ajuste a posição ou a lente." />
-    <Button android:id="@+id/localArea" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Área livre · arrastar" />
-    <Button android:id="@+id/localFloor" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Quarto · limite do piso" />
+    <TextView style="@style/CameraEyebrow" android:layout_marginTop="14dp" android:text="TESTE EM CASA" />
+    <Button android:id="@+id/localArea" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar chão" />
+    <Button android:id="@+id/localWall" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar parede" />
+    <TextView style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="Chão: área e limite do piso, em dois passos. Parede: área de contato. Cada marcação fica salva separadamente para esta lente." />
+    <Button android:id="@+id/localFloor" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Ajustar limite parede/chão" />
     <TextView android:id="@+id/localDecision" style="@style/CameraLabel" android:text="Aguardando contato" android:textSize="22sp" android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" />
     <TextView android:id="@+id/localStats" style="@style/CameraBody" android:layout_marginTop="6dp" android:text="0 IN · 0 OUT · 0 para revisar" />
     <Button android:id="@+id/localReview" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="Revisar último contato" />

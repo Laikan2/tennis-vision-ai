@@ -14,6 +14,9 @@ data class LocalSettings(
   val sound: Boolean = true,
   val marks: Boolean = true,
   val court: CourtLayout = CourtLayout.CUSTOM,
+  val floorPolygon: List<CourtPoint>? = null,
+  val wallPolygon: List<CourtPoint>? = null,
+  val floorCourt: CourtLayout? = null,
 )
 data class BallObservation(val x: Double, val y: Double, val radius: Double,
   val time: Double, val confidence: Double, val nearHand: Boolean = false,
@@ -346,9 +349,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var acquisition: BallObservation?=null
   private var tinyAcquisition: BallObservation?=null
   private var motionAcquisition: BallObservation?=null
-  val activeSettings get()=settings.copy(
-    polygon=settings.polygon.map { CourtPoint(it.x+offset.x,it.y+offset.y) },
-    floorLine=settings.floorLine.map { CourtPoint(it.x+offset.x,it.y+offset.y) })
+  val activeSettings get()=settings.translated(offset)
   fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
   fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
