@@ -266,7 +266,7 @@ public final class LocalVision {
             let moving=eligible.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}
             let resolved=acquiring.filter{$0.resolved};if !resolved.isEmpty{acquiring=resolved}
             if acquiring.count>1{let moving=acquiring.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}}
-            if acquiring.contains(where:{$0.radius>=8 && $0.confidence>=0.60}){acquiring=acquiring.filter{$0.radius>=4}}
+            if acquiring.contains(where:{$0.radius>=max(16,Double(min(w,h))*0.08) && $0.confidence>=0.60}){acquiring=acquiring.filter{$0.radius>=4}}
         }
         var ranked=[(VisionBall,Double)]()
         for b in acquiring {

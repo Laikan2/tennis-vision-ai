@@ -403,7 +403,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val acquisitionPool=if(previous==null && plausible.size>1) plausible.filter { it.motionSupport>=.25 }.ifEmpty { plausible } else plausible
     // A resolved close ball must not be vetoed by a few unrelated 2–6 px wall fragments.
     // Unique moving small balls were already preferred above; two substantial balls stay ambiguous.
-    val acquiring=if(previous==null && acquisitionPool.any{it.radius>=8 && it.confidence>=.60}) acquisitionPool.filter{it.radius>=4} else acquisitionPool
+    val acquiring=if(previous==null && acquisitionPool.any{it.radius>=max(16.0,min(width,height)*.08) && it.confidence>=.60}) acquisitionPool.filter{it.radius>=4} else acquisitionPool
     val gated=acquiring.mapNotNull { b ->
       if(previous==null) b to -b.confidence*b.radius
       else {
