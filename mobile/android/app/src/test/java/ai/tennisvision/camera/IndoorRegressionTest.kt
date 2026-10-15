@@ -53,4 +53,13 @@ class IndoorRegressionTest {
     repeat(12){i->val p=frame(ball=false);for(y in 75..100)for(x in 30+i*12..55+i*12)p[y*w+x]=0xffb8920a.toInt()
       assertNull(core.process(p,w,h,i/30.0).impact)}
   }
+  @Test fun disconnectedTinyFragmentsDoNotAccumulateReviewContacts() {
+    val core=LocalAnalysis(LocalSettings(court=CourtLayout.FULL,polygon=listOf(CourtPoint(.1,.1),CourtPoint(.9,.1),CourtPoint(.9,.95),CourtPoint(.1,.95))))
+    val ys=listOf(70,85,105,130,160,195,160,130,105,85)
+    val xs=listOf(95,100,105,110,115,120,180,240,245,250)
+    for(i in ys.indices){val p=frame(ball=false)
+      for(y in ys[i]..ys[i]+1)for(x in xs[i]..xs[i]+1)p[y*w+x]=0xffc7eb4d.toInt()
+      assertNull(core.process(p,w,h,i/60.0).impact)
+    }
+  }
 }

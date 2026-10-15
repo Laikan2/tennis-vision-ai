@@ -40,6 +40,14 @@ final class IndoorRegressionTests:XCTestCase {
         let b=LocalVision().process(p,width:w,height:h,time:0).observed
         XCTAssertNotNil(b);if let b{XCTAssertEqual(b.x,160,accuracy:3)}
     }
+    func testDisconnectedTinyFragmentsDoNotAccumulateReviewContacts(){
+        var s=VisionSettings();s.court = .full;s.polygon=[VisionPoint(0.1,0.1),VisionPoint(0.9,0.1),VisionPoint(0.9,0.95),VisionPoint(0.1,0.95)]
+        let core=LocalVision(settings:s),ys=[70,85,105,130,160,195,160,130,105,85],xs=[95,100,105,110,115,120,180,240,245,250]
+        for i in ys.indices{var p=pixels(ball:false)
+            for y in ys[i]...ys[i]+1{for x in xs[i]...xs[i]+1{p[y*w+x]=0xffc7eb4d}}
+            XCTAssertNil(core.process(p,width:w,height:h,time:Double(i)/60).impact)
+        }
+    }
     func testSkinWoodAndWarmRectanglesDoNotScore(){
         for color:UInt32 in [0xffbc8062,0xffbc9062,0xff3b2921,0xffb8920a]{
             let core=LocalVision()
