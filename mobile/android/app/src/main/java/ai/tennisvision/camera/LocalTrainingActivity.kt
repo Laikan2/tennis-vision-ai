@@ -9,8 +9,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.AudioAttributes
-import android.media.SoundPool
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -65,12 +64,9 @@ class LocalTrainingActivity: AppCompatActivity() {
   private val pending=AtomicReference<LocalFrame?>()
   private val scheduled=AtomicBoolean(false)
   private val disk=Executors.newSingleThreadExecutor()
-  private val sound=SoundPool.Builder().setMaxStreams(1).setAudioAttributes(AudioAttributes.Builder()
-    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build()).build()
-  private var soundId=0
-  private var soundReady=false
-  private var soundPlayed=0
-  private var lastSound=0L
+  private lateinit var sound: LineVoicePlayer
+  private var inVoice=false
+  private var audioStatus="Voz Daniel · ElevenLabs · disponível sem internet"
   private val refreshOverlay=object : Runnable {
     override fun run() { if (!closed && foreground) { court.invalidate(); main.postDelayed(this,500) } }
   }
@@ -78,6 +74,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     override fun onReceive(context: Context?,intent: Intent?) {
       if (closed) return
       if (intent?.action==Intent.ACTION_SCREEN_OFF) {
+        sound.stop()
         editorResume=false; if (court.editing!=0) finishEdit(false)
         pauseAnalysis(); camera.stop(); frameReady=false; uiEpoch++; pending.set(null)
         start.text="Reabrir câmera"; status.text="Tela bloqueada · treino pausado"
@@ -117,8 +114,9 @@ class LocalTrainingActivity: AppCompatActivity() {
     ContextCompat.registerReceiver(this,screenReceiver,IntentFilter().apply {
       addAction(Intent.ACTION_SCREEN_OFF); addAction(Intent.ACTION_SCREEN_ON); addAction(Intent.ACTION_USER_PRESENT)
     },ContextCompat.RECEIVER_NOT_EXPORTED)
-    sound.setOnLoadCompleteListener { _,_,code -> soundReady=code==0 }
-    soundId=sound.load(this,R.raw.out_natural,1)
+    volumeControlStream=AudioManager.STREAM_MUSIC
+    inVoice=getSharedPreferences("standalone-settings-v1",0).getBoolean("sound-in",false)
+    sound=LineVoicePlayer(this).also { it.onStatus={ message -> audioStatus=message } }
     start.setOnClickListener { toggleAnalysis() }
     findViewById<Button>(R.id.localArea).setOnClickListener { edit(1) }
     findViewById<Button>(R.id.localFloor).setOnClickListener { edit(2) }
@@ -267,10 +265,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     session=session.copy(events=session.events+event)
     court.events=(court.events+event).takeLast(24); renderStats(); saveSession(frame,event)
     findViewById<TextView>(R.id.localDecision).apply { text=court.callLabel(event.decision); setTextColor(court.callColor(event.decision)) }
-    if (event.decision==LineCall.OUT && config.sound && soundReady && SystemClock.elapsedRealtime()-lastSound>250) {
-      val stream=sound.play(soundId,1f,1f,1,0,1f)
-      if (stream!=0) { soundPlayed++; lastSound=SystemClock.elapsedRealtime() }
-    }
+    if (LineVoicePolicy.enabled(event.decision,config.sound,inVoice)) sound.play(event.decision)
     if (session.events.size>=2000) pauseAnalysis()
   }
   private fun saveSession(frame: LocalFrame?=null,event: LocalImpact?=null) {
@@ -345,13 +340,13 @@ class LocalTrainingActivity: AppCompatActivity() {
     if (court.editing!=0) { showError("Salve ou cancele a área antes de abrir Ajustes."); return }
     pauseAnalysis()
     val choices=arrayOf("Superfície: ${when(config.surface) { ContactSurface.FLOOR->"chão"; ContactSurface.WALL->"parede (revisão)"; else->"somente rastrear" }}",
-      "Som OUT: ${if (config.sound) "ligado" else "desligado"}","Marcas na imagem: ${if (config.marks) "visíveis" else "ocultas"}",
+      "Vozes IN / OUT · ElevenLabs","Marcas na imagem: ${if (config.marks) "visíveis" else "ocultas"}",
       "Perfil de captura / bateria","Começar nova sessão","Exportar sessão (JSON)","Transmitir para PC (opcional)","Como usar sem computador")
     AlertDialog.Builder(this).setTitle("Seu treino local").setItems(choices) { _,which -> when(which) {
       0 -> AlertDialog.Builder(this).setTitle("Superfície observada").setItems(arrayOf("Chão · quicadas","Parede · candidatos para revisão","Somente rastrear · sem impactos")) { _,i ->
         config=config.copy(surface=ContactSurface.entries[i],court=if(i==1) CourtLayout.CUSTOM else config.court); persistConfig()
       }.show()
-      1 -> { config=config.copy(sound=!config.sound); persistConfig() }
+      1 -> showVoiceSettings()
       2 -> { config=config.copy(marks=!config.marks); persistConfig() }
       3 -> showCaptureProfiles()
       4 -> AlertDialog.Builder(this).setTitle("Nova sessão?").setMessage("A sessão atual continuará no histórico.")
@@ -363,6 +358,21 @@ class LocalTrainingActivity: AppCompatActivity() {
     } }.setNegativeButton("Fechar",null).show()
   }
   private fun persistConfig() { store.saveSettings(cameraKey,config); court.settings=config; court.invalidate(); camera.update(config); renderAreaSummary();status.text="Ajuste salvo" }
+  private fun showVoiceSettings() {
+    AlertDialog.Builder(this).setTitle("Vozes IN / OUT · ElevenLabs")
+      .setMultiChoiceItems(arrayOf("Som OUT","Som IN · opcional"),booleanArrayOf(config.sound,inVoice)) { _,which,checked ->
+        if(which==0) { config=config.copy(sound=checked);persistConfig() }
+        else { inVoice=checked;getSharedPreferences("standalone-settings-v1",0).edit().putBoolean("sound-in",checked).apply() }
+      }
+      .setPositiveButton("Concluir",null).setNeutralButton("Testar vozes") { _,_ -> showVoiceTests() }.show()
+  }
+  private fun showVoiceTests() {
+    AlertDialog.Builder(this).setTitle("Testar vozes")
+      .setMessage("$audioStatus\n${sound.volumeDescription()}\n\nVoz Daniel, salva no app. Confira também a saída Bluetooth. Os testes não contam impactos.")
+      .setPositiveButton("Testar OUT") { _,_ -> sound.play(LineCall.OUT,true);Toast.makeText(this,audioStatus,Toast.LENGTH_LONG).show() }
+      .setNeutralButton("Testar IN") { _,_ -> sound.play(LineCall.IN,true);Toast.makeText(this,audioStatus,Toast.LENGTH_LONG).show() }
+      .setNegativeButton("Fechar",null).show()
+  }
   private fun showCaptureProfiles() {
     AlertDialog.Builder(this).setTitle("Detalhe ou fluidez").setItems(arrayOf("Fluidez · até 720p\nPrioriza quadros recebidos", "Bola distante · até 1080p\nMais pixels; pode reduzir os FPS", "Economia · até 720p / 30 FPS\nMenor consumo de bateria")) { _,i ->
       getSharedPreferences("standalone-settings-v1",0).edit().putString("capture-profile",LocalCaptureProfile.entries[i].name).apply();reopenProfile()
@@ -430,14 +440,14 @@ class LocalTrainingActivity: AppCompatActivity() {
   private fun revise(id: Long,call: LineCall) { session=session.copy(events=session.events.map { if (it.id==id) it.copy(reviewed=call) else it }); court.events=session.events.takeLast(24); saveSession(); renderStats(); court.invalidate() }
   private fun showError(message: String) { status.text=message; status.setTextColor(ContextCompat.getColor(this,R.color.tv_error)) }
   internal fun testSession()=session
-  internal fun testSoundCount()=soundPlayed
+  internal fun testSoundCount()=sound.startedCount
   internal fun testConfig()=config
   override fun onResume() { super.onResume(); foreground=true; main.removeCallbacks(refreshOverlay); main.post(refreshOverlay); if (::updates.isInitialized) updates.resume(true); if (allowed()) openCamera() }
   override fun onPause() {
     foreground=false; uiEpoch++; pending.set(null); main.removeCallbacks(refreshOverlay)
     if (::camera.isInitialized) { editorResume=false; if (court.editing!=0) finishEdit(false); pauseAnalysis(); camera.stop(); frameReady=false; start.isEnabled=true; start.text="Reabrir câmera" }
     if (::updates.isInitialized) updates.pause()
-    sound.autoPause(); super.onPause()
+    sound.stop(); super.onPause()
   }
-  override fun onDestroy() { closed=true; unregisterReceiver(screenReceiver); camera.close(); updates.close(); sound.release(); main.removeCallbacksAndMessages(null); disk.shutdown(); super.onDestroy() }
+  override fun onDestroy() { closed=true; unregisterReceiver(screenReceiver); camera.close(); updates.close(); sound.close(); main.removeCallbacksAndMessages(null); disk.shutdown(); super.onDestroy() }
 }

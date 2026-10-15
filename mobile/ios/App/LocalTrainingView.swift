@@ -215,8 +215,11 @@ struct LocalTrainingView: View {
                 Picker("Superfície",selection:Binding(get:{model.config.surface},set:{value in var s=model.config;s.surface=value;if value == .wall{s.court = .custom};model.persist(s)})){Text("Chão · quicadas").tag(VisionSurface.floor);Text("Parede · revisão").tag(VisionSurface.wall);Text("Somente rastrear").tag(VisionSurface.track)}
                 Toggle("Mostrar marcas de impacto",isOn:Binding(get:{model.config.marks},set:{var s=model.config;s.marks=$0;model.persist(s)}))
                 Toggle("Som OUT",isOn:Binding(get:{model.config.sound},set:{var s=model.config;s.sound=$0;model.persist(s)}))
+                Toggle("Som IN · opcional",isOn:Binding(get:{model.inVoice},set:{model.setInVoice($0)}))
                 Button("Testar som OUT"){model.playOut()}.accessibilityIdentifier("local.sound.test")
-                Text("OUT automático só ocorre quando há evidência suficiente. Casos incertos ficam em REVISAR e não disparam o som.").font(.footnote)
+                Button("Testar som IN"){model.playIn()}.accessibilityIdentifier("local.sound.in.test")
+                Text(model.audioStatus).font(.footnote).accessibilityIdentifier("local.sound.status")
+                Text("Voz Daniel · ElevenLabs. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
             }
             Section("Sessão e testes"){
                 Button("Começar nova sessão"){model.newSession()}

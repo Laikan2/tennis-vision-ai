@@ -1,5 +1,5 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "baseline": "green-ball-local-0.6.4",
   "platforms": [
     "android",
@@ -25,7 +25,10 @@
     "json-export",
     "capture-profiles",
     "measured-fps",
-    "github-updates"
+    "github-updates",
+    "elevenlabs-offline-in-out-voices",
+    "optional-in-voice",
+    "audio-test-feedback"
   ],
   "installation": {
     "android": "apk-confirmation",

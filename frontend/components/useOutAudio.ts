@@ -1,94 +1,79 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Event } from "../lib/types";
-import { readyOutCalls } from "../lib/out-calls";
-import { loadOutBuffer } from "../lib/audio-buffer";
+import { readyOutCalls, readyInCalls } from "../lib/out-calls";
+import { loadLineBuffer, type OutAudioState } from "../lib/audio-buffer";
 
+type Voice="OUT"|"IN";
+type AudioState={context:AudioContext;OUT:OutAudioState;IN:OutAudioState};
 export function useOutAudio(events: Event[], enabled: boolean, sessionId?: string,
-  cameraCount = 1, fusionWindowMs = 550) {
-  const audio = useRef<{ context: AudioContext; buffer: AudioBuffer | null; loading?: Promise<AudioBuffer> } | null>(null);
-  const seen = useRef(new Set<string>());
-  const since = useRef(Date.now()/1000);
-  const lastPlayed = useRef(0);
-  const current = useRef({ events, enabled, sessionId, cameraCount, fusionWindowMs });
-  current.current = { events, enabled, sessionId, cameraCount, fusionWindowMs };
-  const [notice, setNotice] = useState("");
-
-  const prepare = useCallback(async () => {
-    if (!audio.current) {
-      const context = new AudioContext();
-      const state = { context, buffer: null as AudioBuffer | null };
-      audio.current = state;
+  cameraCount=1, fusionWindowMs=550, inEnabled=false) {
+  const audio=useRef<AudioState|null>(null);
+  const seen=useRef({OUT:new Set<string>(),IN:new Set<string>()});
+  const since=useRef(Date.now()/1000);
+  const playing=useRef<{voice:Voice;source:AudioBufferSourceNode}|null>(null);
+  const request=useRef(0);
+  const pending=useRef(false);
+  const current=useRef({events,enabled,inEnabled,sessionId,cameraCount,fusionWindowMs});
+  current.current={events,enabled,inEnabled,sessionId,cameraCount,fusionWindowMs};
+  const [notice,setNotice]=useState("");
+  const ensureAudio=useCallback(()=>{
+    if(!audio.current){
+      const context=new AudioContext();
+      audio.current={context,OUT:{context,buffer:null},IN:{context,buffer:null}};
     }
-    const state = audio.current;
-    await loadOutBuffer(state);
-    return state;
-  }, []);
-
-  const play = useCallback(async () => {
-    try {
-      const state = await prepare();
-      if (state.context.state !== "running") await state.context.resume();
-      if (state.context.state !== "running" || !state.buffer) return false;
-      const source = state.context.createBufferSource();
-      source.buffer = state.buffer;
-      source.connect(state.context.destination);
-      source.start();
-      lastPlayed.current = Date.now()/1000;
-      setNotice("");
-      return true;
-    } catch {
-      setNotice("Ative o áudio em Testar som OUT.");
+    return audio.current;
+  },[]);
+  const stop=useCallback(()=>{
+    request.current++;pending.current=false;
+    if(playing.current){playing.current.source.onended=null;playing.current.source.stop();playing.current.source.disconnect();playing.current=null;}
+  },[]);
+  const play=useCallback(async(voice:Voice,test=false)=>{
+    if(!test && playing.current && !(voice==="OUT" && playing.current.voice==="IN")) return false;
+    stop();const token=request.current;pending.current=true;
+    try{
+      const state=ensureAudio();
+      // Resume inside the click gesture, before the first asynchronous load.
+      if(state.context.state!=="running") await state.context.resume();
+      const buffer=await loadLineBuffer(state[voice],voice);
+      if(token!==request.current || audio.current!==state || state.context.state!=="running") return false;
+      const source=state.context.createBufferSource();source.buffer=buffer;source.connect(state.context.destination);
+      playing.current={voice,source};source.onended=()=>{source.disconnect();if(playing.current?.source===source) playing.current=null;};
+      source.start();setNotice(`Reprodução ${voice} iniciada · confira o volume de mídia e a saída de áudio.`);return true;
+    }catch{
+      if(token===request.current) setNotice(`Não iniciou o som ${voice}. Clique em Testar para tentar novamente.`);
       return false;
-    }
-  }, [prepare]);
-
-  useEffect(() => {
-    void prepare().catch(() => setNotice("Não foi possível carregar o som OUT."));
-    const unlock = () => { void audio.current?.context.resume().catch(() => {}); };
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
-    return () => {
-      window.removeEventListener("pointerdown", unlock);
-      window.removeEventListener("keydown", unlock);
-      void audio.current?.context.close();
-      audio.current = null;
+    }finally{if(token===request.current) pending.current=false;}
+  },[ensureAudio,stop]);
+  useEffect(()=>{
+    const state=ensureAudio();
+    void Promise.all([loadLineBuffer(state.OUT,"OUT"),loadLineBuffer(state.IN,"IN")]).catch(()=>setNotice("Não carregou as vozes. Use Testar para tentar novamente."));
+    const unlock=()=>{void audio.current?.context.resume().catch(()=>{});};
+    const hidden=()=>{if(document.hidden) stop();};
+    window.addEventListener("pointerdown",unlock);window.addEventListener("keydown",unlock);document.addEventListener("visibilitychange",hidden);
+    return()=>{
+      window.removeEventListener("pointerdown",unlock);window.removeEventListener("keydown",unlock);document.removeEventListener("visibilitychange",hidden);
+      stop();void audio.current?.context.close();audio.current=null;
     };
-  }, [prepare]);
-
-  useEffect(() => {
-    seen.current.clear();
-    since.current = Date.now()/1000 - 1;
-  }, [sessionId]);
-
-  useEffect(() => {
-    let playing = false;
-    const timer = window.setInterval(() => {
-      const state = current.current;
-      if (!state.sessionId) return;
-      const calls = readyOutCalls(state.events,state.sessionId,since.current,
-        Date.now()/1000,seen.current,state.cameraCount,state.fusionWindowMs/1000);
-      if (!state.enabled) {
-        calls.forEach(event => seen.current.add(event.id));
-        return;
-      }
-      if (playing || Date.now()/1000-lastPlayed.current < 1.0 || !calls.length) return;
-      if (audio.current?.context.state !== "running") {
-        setNotice("Clique em Testar som OUT para ativar o áudio.");
-        return;
-      }
-      playing = true;
-      const id = calls[0].id;
-      void play().then(ok => { if (ok) seen.current.add(id); }).finally(() => { playing=false; });
-    }, 120);
-    return () => window.clearInterval(timer);
-  }, [play]);
-
-  const test = useCallback(async () => {
-    // Resume immediately in the click gesture, before awaiting any loading.
-    void audio.current?.context.resume();
-    if (await play()) setNotice("Som OUT testado. Mantenha o volume ligado.");
-    else setNotice("O navegador bloqueou o áudio. Clique para testar novamente.");
-  }, [play]);
-  return { test, notice };
+  },[ensureAudio,stop]);
+  useEffect(()=>{seen.current.OUT.clear();seen.current.IN.clear();since.current=Date.now()/1000-1;stop();},[sessionId,stop]);
+  useEffect(()=>{
+    const timer=window.setInterval(()=>{
+      const s=current.current;if(!s.sessionId || document.hidden) return;
+      const now=Date.now()/1000;
+      const out=readyOutCalls(s.events,s.sessionId,since.current,now,seen.current.OUT,s.cameraCount,s.fusionWindowMs/1000);
+      const inside=readyInCalls(s.events,s.sessionId,since.current,now,seen.current.IN,s.cameraCount,s.fusionWindowMs/1000);
+      if(!s.enabled) out.forEach(e=>seen.current.OUT.add(e.id));
+      if(!s.inEnabled) inside.forEach(e=>seen.current.IN.add(e.id));
+      const voice:Voice|null=s.enabled && out.length ? "OUT":s.inEnabled && inside.length ? "IN":null;
+      if(!voice) return;
+      if(audio.current?.context.state!=="running"){setNotice("Clique em Testar som OUT ou IN para ativar o áudio.");return;}
+      // Consume a burst together: never replay old calls over the following rally.
+      out.forEach(e=>seen.current.OUT.add(e.id));inside.forEach(e=>seen.current.IN.add(e.id));
+      if(pending.current) return;
+      void play(voice);
+    },120);
+    return()=>window.clearInterval(timer);
+  },[play]);
+  return {test:useCallback(()=>play("OUT",true),[play]),testIn:useCallback(()=>play("IN",true),[play]),notice};
 }

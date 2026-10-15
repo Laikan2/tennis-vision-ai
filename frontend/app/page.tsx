@@ -169,6 +169,7 @@ export default function Page() {
     [labels, setLabels] = useState(true),
     [showImpacts, setShowImpacts] = useState(true),
     [outAudio, setOutAudio] = useState(true),
+    [inAudio, setInAudio] = useState(false),
     [debug, setDebug] = useState(false),
     [activeReplay, setActiveReplay] = useState<Replay | null>(null),
     [activeImpact, setActiveImpact] = useState<Event | null>(null),
@@ -210,11 +211,12 @@ export default function Page() {
   }>({ summary: { count: 0, mae: null, mape: null, std: null, ci95: null } });
   const reduce = useReducedMotion();
   const outSound = useOutAudio(events, outAudio, status.session?.id,
-    status.cameraCount ?? 1, status.fusionWindowMs ?? 550);
+    status.cameraCount ?? 1, status.fusionWindowMs ?? 550, inAudio);
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("tennis-out-audio");
       if (saved != null) setOutAudio(saved !== "false");
+      setInAudio(window.localStorage.getItem("tennis-in-audio") === "true");
       const savedImpacts = window.localStorage.getItem("tennis-show-impacts");
       if (savedImpacts != null) setShowImpacts(savedImpacts !== "false");
     } catch { /* Private browsing can make storage unavailable. */ }
@@ -225,6 +227,9 @@ export default function Page() {
       try { window.localStorage.setItem("tennis-out-audio", String(outAudio)); } catch {}
     }
   }, [outAudio, preferencesReady]);
+  useEffect(() => {
+    if (preferencesReady) { try { window.localStorage.setItem("tennis-in-audio",String(inAudio)); } catch {} }
+  }, [inAudio, preferencesReady]);
   useEffect(() => {
     if (preferencesReady) {
       try { window.localStorage.setItem("tennis-show-impacts", String(showImpacts)); } catch {}
@@ -736,9 +741,16 @@ export default function Page() {
                       <span />
                       <Volume2 size={14} /> Som OUT
                     </label>
+                    <label className="toggle" title="Voz IN opcional · decisões confirmadas">
+                      <input type="checkbox" checked={inAudio} onChange={e=>setInAudio(e.target.checked)} />
+                      <span /><Volume2 size={14} /> Som IN
+                    </label>
                     <button type="button" className="button button-secondary out-sound-test"
                       onClick={() => { setOutAudio(true); void outSound.test(); }}>
                       <Volume2 size={14} /> Testar som OUT
+                    </button>
+                    <button type="button" className="button button-secondary out-sound-test" onClick={()=>{void outSound.testIn();}}>
+                      <Volume2 size={14} /> Testar som IN
                     </button>
                     {outSound.notice && <span className="out-sound-notice" role="status">{outSound.notice}</span>}
                     <button

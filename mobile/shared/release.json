@@ -1,5 +1,5 @@
 {
-  "version": "0.6.4",
+  "version": "0.6.5",
   "baseline": "green-ball-local-0.6.4",
   "platforms": ["android", "ios"],
   "features": [
@@ -8,7 +8,8 @@
     "in-out-review", "impact-audio", "estimated-lateral-speed",
     "full-half-court", "drag-area", "corner-magnifier", "impact-tap-review",
     "per-lens-area", "local-history", "atomic-storage", "json-export",
-    "capture-profiles", "measured-fps", "github-updates"
+    "capture-profiles", "measured-fps", "github-updates",
+    "elevenlabs-offline-in-out-voices", "optional-in-voice", "audio-test-feedback"
   ],
   "installation": {
     "android": "apk-confirmation",

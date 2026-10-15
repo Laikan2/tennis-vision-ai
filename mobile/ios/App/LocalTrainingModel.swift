@@ -78,7 +78,11 @@ final class LocalTrainingStore {
     @Published var newVersion: String?
     @Published var updateDownloadURL: URL?
     private var foreground=true,permissionPending=false,key="",savingError=false,lastInfo=0.0,currentGeneration: UUID?
-    private var player: AVAudioPlayer?,soundCount=0,editingCourt: VisionCourt?
+    private let lineVoice=LineVoicePlayer()
+    @Published var inVoice=UserDefaults.standard.bool(forKey:"local.sound.in")
+    @Published var audioStatus="Voz ElevenLabs · funciona sem internet. Teste IN e OUT para conferir o volume."
+    private var soundCount: Int{lineVoice.startedCount}
+    private var editingCourt: VisionCourt?
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
@@ -89,11 +93,12 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.4"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.5"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Área livre") · salva para esta lente" : "Área ainda não marcada"}
     var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
     init(){
+        lineVoice.onStatus={[weak self] message in self?.audioStatus=message}
         let store=store;camera.settingsForKey={store.settings($0)}
         camera.onFrame={[weak self] frame,events in Task{@MainActor in self?.receive(frame,events:events)}}
         camera.onState={[weak self] message,ready in Task{@MainActor in
@@ -125,7 +130,7 @@ final class LocalTrainingStore {
     func suspend(completion: (() -> Void)?=nil){
         foreground=false;active=false;ready=false;editing=0;frozen=nil;currentGeneration=nil
         UIApplication.shared.isIdleTimerDisabled=false;camera.stop(completion:completion)
-        player?.stop();try? AVAudioSession.sharedInstance().setActive(false,options:.notifyOthersOnDeactivation)
+        lineVoice.stop()
     }
     func pause(){active=false;camera.setAnalysis(false);status="Treino pausado · dados no iPhone"}
     func begin(confirmed: Bool=false){
@@ -190,18 +195,11 @@ final class LocalTrainingStore {
         store.save(settings:nil,key:key,session:session,evidence:f.evidence.map{(hit.id,$0)}){[weak self] message in
             if let message{self?.savingError=true;self?.pause();self?.error=message}
         }
-        if hit.decision == .outside && config.sound{playOut()}
+        if let voice=LineVoicePolicy.voice(for:hit.decision,outEnabled:config.sound,inEnabled:inVoice){lineVoice.play(voice)}
     }
-    func playOut(){
-        do{
-            guard let url=Bundle.main.url(forResource:"OUT",withExtension:"mp3") else{throw CameraError.invalid("Áudio OUT não encontrado no aplicativo.")}
-            try AVAudioSession.sharedInstance().setCategory(.playback,mode:.spokenAudio,options:[.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            player=try AVAudioPlayer(contentsOf:url);player?.prepareToPlay()
-            guard player?.play()==true else{throw CameraError.invalid("O iPhone não iniciou o áudio OUT.")}
-            soundCount+=1
-        }catch{self.error=error.localizedDescription}
-    }
+    func playOut(){lineVoice.play(.outside,test:true)}
+    func playIn(){lineVoice.play(.inside,test:true)}
+    func setInVoice(_ enabled: Bool){inVoice=enabled;UserDefaults.standard.set(enabled,forKey:"local.sound.in")}
     func edit(_ mode: Int,court: VisionCourt?=nil){
         guard ready,frame != nil,!testing else{return};pause();frozen=frame;editing=mode
         editingCourt=court

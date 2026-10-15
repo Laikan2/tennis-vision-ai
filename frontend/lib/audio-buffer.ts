@@ -6,11 +6,11 @@ export type OutAudioState = {
 
 // A click during initial loading waits for the same decoded sound. Failed
 // requests are retryable instead of leaving an empty buffer forever.
-export async function loadOutBuffer(state: OutAudioState): Promise<AudioBuffer> {
+export async function loadLineBuffer(state: OutAudioState, voice: "OUT" | "IN"): Promise<AudioBuffer> {
   if (state.buffer) return state.buffer;
   if (!state.loading) {
     state.loading = (async () => {
-      const response = await fetch("/audio/out-natural.mp3");
+      const response = await fetch(`/audio/${voice.toLowerCase()}-eleven-v4-v1.mp3`);
       if (!response.ok) throw new Error("audio unavailable");
       const buffer = await state.context.decodeAudioData(await response.arrayBuffer());
       state.buffer = buffer;
@@ -21,3 +21,5 @@ export async function loadOutBuffer(state: OutAudioState): Promise<AudioBuffer> 
   try { return await pending; }
   finally { if (state.loading === pending) state.loading = undefined; }
 }
+
+export const loadOutBuffer = (state: OutAudioState) => loadLineBuffer(state,"OUT");
