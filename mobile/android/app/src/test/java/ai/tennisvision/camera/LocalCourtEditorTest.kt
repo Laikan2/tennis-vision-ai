@@ -66,4 +66,17 @@ class LocalCourtEditorTest {
     assertEquals(wall,v.draft)
     v.finish();assertEquals(wall,v.settings.polygon)
   }
+  @Test fun previewContourIsDrawnAroundTheObservedBallWithoutCoveringItsCentre() {
+    val p=IntArray(640*360){0xff315372.toInt()}
+    for(y in 174..186) for(x in 94..106) if(kotlin.math.hypot(x-100.0,y-180.0)<=6)p[y*640+x]=0xffc7eb4d.toInt()
+    val result=BallPreview().process(p,640,360,0.0,LocalSettings())
+    assertNotNull(result.observed);assertNull(result.impact)
+    val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context);v.layout(0,0,640,360)
+    v.present(LocalFrame(p,640,360,0.0,result,0.0,60.0,60,"preview-fixture"))
+    val image=android.graphics.Bitmap.createBitmap(640,360,android.graphics.Bitmap.Config.ARGB_8888)
+    v.draw(android.graphics.Canvas(image))
+    assertEquals("The outline must leave the actual ball centre visible",p[180*640+100],image.getPixel(100,180))
+    assertNotEquals("The contour needs contrast outside the ball",p[180*640+108],image.getPixel(108,180))
+    image.recycle()
+  }
 }

@@ -56,15 +56,19 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         if confirmed && config.marks && !f.result.movingCamera{for event in events.suffix(24) where event.decision != .rejected{
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? f.result.cameraOffset)),color=event.decision.color
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
-            if events.suffix(3).contains(where:{$0.id==event.id}){label(event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)}
+            if events.suffix(3).contains(where:{$0.id==event.id}){label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)}
         }}
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
         if let ball=result.observed {
-            let p=screen(VisionPoint(ball.x/Double(f.width),ball.y/Double(f.height))),radius=max(7,CGFloat(ball.radius/Double(f.width))*imageRect.width),color=ball.resolved ? lime:.systemOrange
-            color.setStroke();let box=UIBezierPath(roundedRect:CGRect(x:p.x-radius,y:p.y-radius,width:radius*2,height:radius*2),cornerRadius:4);box.lineWidth=2;box.stroke()
-            let text=ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "SINAL INCERTO":result.speed.map{"≈\(Int($0)) km/h lateral"} ?? "BOLA"
-            label(text,at:CGPoint(x:p.x+radius+5,y:p.y),color:color)
+            let p=screen(VisionPoint(ball.x/Double(f.width),ball.y/Double(f.height))),color=ball.resolved ? lime:.systemOrange
+            let rx=max(3,CGFloat(max(ball.diameterX,ball.radius*2)/Double(f.width))*imageRect.width/2)
+            let ry=max(3,CGFloat(max(ball.diameterY,ball.radius*2)/Double(f.height))*imageRect.height/2)
+            let outline=UIBezierPath(ovalIn:CGRect(x:p.x-rx,y:p.y-ry,width:rx*2,height:ry*2))
+            UIColor(white:0.04,alpha:0.95).setStroke();outline.lineWidth=4;outline.stroke()
+            color.setStroke();outline.lineWidth=2;outline.stroke()
+            let text=ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈\(Int($0)) km/h lateral"} ?? "BOLA"
+            label(text,at:CGPoint(x:p.x+rx+5,y:p.y),color:color)
         }
         if let p=result.predicted{label("PREVISÃO",at:screen(VisionPoint(p.x/Double(f.width),p.y/Double(f.height))),color:.systemOrange)}
     }
@@ -160,6 +164,7 @@ struct LocalTrainingView: View {
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
                     Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
+                    if !model.active && model.editing==0{Text("O contorno procura a bola na prévia. Iniciar treino ativa a contagem de impactos.").font(.footnote).foregroundStyle(Palette.muted)}
                     if model.editing>0 {
                         Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
                         HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea).accessibilityIdentifier("local.area.save");Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}

@@ -26,6 +26,7 @@
    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="4dp">
     <TextView style="@style/CameraEyebrow" android:text="SEU TREINO, NO CELULAR" />
     <Button android:id="@+id/localStart" style="@style/CameraPrimary" android:layout_marginTop="12dp" android:text="Permitir câmera" />
+    <TextView style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="O contorno procura a bola na prévia. Iniciar treino ativa a contagem de impactos." />
     <Button android:id="@+id/localFraming" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="Enquadramento e detalhe" />
     <Button android:id="@+id/localCourt" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar quadra · 4 cantos" />
     <TextView android:id="@+id/localAreaSummary" style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="Quadra inteira ou meia quadra. Se os dois lados não couberem, ajuste a posição ou a lente." />

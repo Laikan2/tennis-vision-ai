@@ -19,6 +19,7 @@ public struct VisionSettings: Codable, Equatable, Sendable {
 public struct VisionBall: Sendable {
     public var x: Double,y: Double,radius: Double,time: Double,confidence: Double
     public var nearHand=false, blurred=false, luminance=0.0, motionSupport=1.0, occluded=false, colorUncertain=false
+    public var diameterX=0.0,diameterY=0.0
     public var resolved: Bool { !occluded && !colorUncertain && radius>=2.5 && confidence>=0.5 }
 }
 public struct VisionImpact: Codable, Identifiable, Sendable {
@@ -194,6 +195,7 @@ final class VisionDetector {
                 if skinColor(c){skin+=1;if previous.count==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
             var ball=VisionBall(x:x,y:y,radius:radius,time:time,confidence:halo ? min(fill,0.45):min(fill,min(w,h)<5 ? 0.6:0.95))
+            ball.diameterX=Double(w);ball.diameterY=Double(h)
             ball.nearHand=ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
             ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previous.isEmpty ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
             found.append(ball);bounds.append([xmin,ymin,xmax,ymax]);masses.append(tail)
@@ -216,6 +218,7 @@ final class VisionDetector {
                 guard let j=match else{joined.append(found[i]);continue};consumed[j]=true
                 let a=found[i],b=found[j],aa=bounds[i],bb=bounds[j],weight=Double(masses[i])/Double(masses[i]+masses[j])
                 var c=VisionBall(x:a.x*weight+b.x*(1-weight),y:a.y*weight+b.y*(1-weight),radius:Double(min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1))/2,time:time,confidence:min(0.6,min(a.confidence,b.confidence)))
+                c.diameterX=Double(max(aa[2],bb[2])-min(aa[0],bb[0])+1);c.diameterY=Double(max(aa[3],bb[3])-min(aa[1],bb[1])+1)
                 c.nearHand=true;c.occluded=true;c.luminance=a.luminance*weight+b.luminance*(1-weight);c.motionSupport=max(a.motionSupport,b.motionSupport);joined.append(c)
             }
             found=joined
@@ -324,12 +327,16 @@ public final class LocalVision {
         guard settings.surface != .track,path.count>=5 else{return nil}
         let p=Array(path.suffix(5)),a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]
         if c.time-lastImpact<0.18 || e.time-a.time>0.65 || c.nearHand || (d.nearHand && e.nearHand) || zip(p,p.dropFirst()).contains(where:{$0.1.time-$0.0.time>0.25}){return nil}
-        let before=VisionPoint((c.x-a.x)/(c.time-a.time),(c.y-a.y)/(c.time-a.time)),after=VisionPoint((e.x-c.x)/(e.time-c.time),(e.y-c.y)/(e.time-c.time)),travel=max(3,c.radius*0.7)
+        let travel=max(3,c.radius*0.7)
         let floorTurn=c.y-a.y>travel && c.y-e.y>travel && b.y>=a.y && d.y>=e.y && c.y>=b.y && c.y>=d.y
-        let sa=hypot(before.x,before.y),sb=hypot(after.x,after.y)
-        let wallTurn=sa>80 && sb>80 && (before.x*after.x+before.y*after.y)/(sa*sb) < -0.5 && abs(before.x)>abs(before.y)*0.8 && abs(after.x)>abs(after.y)*0.8
+        let incoming=VisionPoint((b.x-a.x)/(b.time-a.time),(b.y-a.y)/(b.time-a.time))
+        let outgoing=VisionPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
+        let sa=hypot(incoming.x,incoming.y),sb=hypot(outgoing.x,outgoing.y)
+        let wallTurn=sa>80 && sb>80 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb) < 0.35
         if settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn{return nil}
-        let fit=settings.surface == .floor ? floorContact(p):nil,t=fit?.time ?? c.time
+        let fit=settings.surface == .floor ? floorContact(p):wallContact(p)
+        if settings.surface == .wall && fit==nil{return nil}
+        let t=fit?.time ?? c.time
         // Tiny colour fragments are common on textured walls and compression edges.
         // A REVIEW is still a contact claim: require a coherent observed trajectory.
         if !c.resolved {
@@ -347,7 +354,7 @@ public final class LocalVision {
         let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
         if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || p.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
         let reason: String
-        if settings.surface == .wall{reason="Retorno lateral observado; confirme contato com a parede."}
+        if settings.surface == .wall{reason="Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."}
         else if p.contains(where:{!$0.resolved}){reason="Detalhe insuficiente na bola. Confira contato e linha."}
         else if !floorKnown{reason="Contato com o piso não comprovado. Confira a superfície e a marca."}
         else if sparse{reason="Quadros ausentes ou espaçados. Posição estimada; revise."}
@@ -360,6 +367,22 @@ public final class LocalVision {
         return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:velocity(Array(p.prefix(3))),uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}
+    private func wallContact(_ p:[VisionBall])->Fit? {
+        let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]
+        let vx=(b.x-a.x)/(b.time-a.time),vy=(b.y-a.y)/(b.time-a.time)
+        let ux=(e.x-d.x)/(e.time-d.time),uy=(e.y-d.y)/(e.time-d.time)
+        let bx=a.x+vx*(c.time-a.time),by=a.y+vy*(c.time-a.time)
+        let ax=d.x+ux*(c.time-d.time),ay=d.y+uy*(c.time-d.time)
+        let dx=vx-ux,dy=vy-uy,den=dx*dx+dy*dy
+        guard den>0.000001 else{return nil}
+        let t=c.time+((ax-bx)*dx+(ay-by)*dy)/den
+        guard t.isFinite,t>=b.time,t<=d.time else{return nil}
+        let x1=a.x+vx*(t-a.time),y1=a.y+vy*(t-a.time),x2=d.x+ux*(t-d.time),y2=d.y+uy*(t-d.time)
+        let mx=c.time<=t ? bx:ax,my=c.time<=t ? by:ay
+        let error=hypot(mx-c.x,my-c.y)+hypot(x1-x2,y1-y2)*0.5
+        guard error.isFinite,error<=max(4,c.radius*2) else{return nil}
+        return Fit(x:(x1+x2)/2,y:(y1+y2)/2,time:t,error:error)
+    }
     private func floorContact(_ p: [VisionBall]) -> Fit? {
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],up=(b.y-a.y)/(b.time-a.time),down=(e.y-d.y)/(e.time-d.time)
         guard up>0,down<0 else{return nil}

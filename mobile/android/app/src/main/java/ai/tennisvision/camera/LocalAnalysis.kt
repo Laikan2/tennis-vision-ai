@@ -22,7 +22,8 @@ data class BallObservation(val x: Double, val y: Double, val radius: Double,
   val time: Double, val confidence: Double, val nearHand: Boolean = false,
   val blurred: Boolean = false, val luminance: Double=0.0,
   val motionSupport: Double=1.0, val occluded: Boolean=false,
-  val colorUncertain: Boolean=false) {
+  val colorUncertain: Boolean=false,
+  val diameterX: Double=0.0,val diameterY: Double=0.0) {
   val resolved get()=!occluded && !colorUncertain && radius>=2.5 && confidence>=.5
 }
 data class LocalImpact(val id: Long, val time: Double, val point: CourtPoint,
@@ -288,7 +289,7 @@ class GreenBallDetector {
         }
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
         ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || prior?.nearHand==true && skin<ring*.85), aspect>1.6,sumLight/tail,
-        if(previous.isEmpty()) 0.0 else changed.toDouble()/tail,colorUncertain=haloOnly))
+        if(previous.isEmpty()) 0.0 else changed.toDouble()/tail,colorUncertain=haloOnly,diameterX=w.toDouble(),diameterY=h.toDouble()))
       bounds.add(intArrayOf(xmin,ymin,xmax,ymax));masses.add(tail)
     }
     // A finger can split one ball into two green components. Join only nearby
@@ -323,7 +324,8 @@ class GreenBallDetector {
         val radius=min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1)/2.0
         joined.add(BallObservation(a.x*weight+b.x*(1-weight),a.y*weight+b.y*(1-weight),radius,time,
           min(.6,min(a.confidence,b.confidence)),nearHand=true,luminance=a.luminance*weight+b.luminance*(1-weight),
-          motionSupport=max(a.motionSupport,b.motionSupport),occluded=true))
+          motionSupport=max(a.motionSupport,b.motionSupport),occluded=true,
+          diameterX=(max(aa[2],bb[2])-min(aa[0],bb[0])+1).toDouble(),diameterY=(max(aa[3],bb[3])-min(aa[1],bb[1])+1).toDouble()))
       }
       found.clear();found.addAll(joined)
     }
@@ -485,20 +487,20 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val a=p[0]; val b=p[1]; val c=p[2]; val d=p[3]; val e=p[4]
     if (c.time-lastImpact < .18 || e.time-a.time > .65 || c.nearHand || (d.nearHand && e.nearHand) ||
       p.zipWithNext().any { (left,right) -> right.time-left.time > .25 }) return null
-    val before= CourtPoint((c.x-a.x)/(c.time-a.time),(c.y-a.y)/(c.time-a.time))
-    val after= CourtPoint((e.x-c.x)/(e.time-c.time),(e.y-c.y)/(e.time-c.time))
     val travel = max(3.0,c.radius*.7)
     val floorTurn = c.y-a.y > travel && c.y-e.y > travel && b.y >= a.y && d.y >= e.y &&
       c.y>=b.y && c.y>=d.y
-    val sa=hypot(before.x,before.y); val sb=hypot(after.x,after.y)
-    val wallTurn = sa>80 && sb>80 && (before.x*after.x+before.y*after.y)/(sa*sb)<-.5 &&
-      abs(before.x)>abs(before.y)*.8 && abs(after.x)>abs(after.y)*.8
+    val incoming=CourtPoint((b.x-a.x)/(b.time-a.time),(b.y-a.y)/(b.time-a.time))
+    val outgoing=CourtPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
+    val sa=hypot(incoming.x,incoming.y);val sb=hypot(outgoing.x,outgoing.y)
+    val wallTurn=sa>80 && sb>80 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb)<.35
     if (settings.surface == ContactSurface.FLOOR && !floorTurn) return null
     if (settings.surface == ContactSurface.WALL && !wallTurn) return null
     // The observed local maximum need not be the instant of contact. Estimate
     // the crossing of the observed incoming/outgoing legs, bounded by b and d.
     // This is two-sided interpolation, never an extrapolation from a lost ball.
-    val fit=if (settings.surface==ContactSurface.FLOOR) floorContact(p) else null
+    val fit=if (settings.surface==ContactSurface.FLOOR) floorContact(p) else wallContact(p)
+    if(settings.surface==ContactSurface.WALL && fit==null) return null
     // REVIEW must have contact evidence too; never accumulate arbitrary tiny colour fragments.
     if(!c.resolved && (p.maxOf{it.radius}/p.minOf{it.radius}>1.65 ||
       p.maxOf{it.luminance}/max(1.0,p.minOf{it.luminance})>1.8 ||
@@ -529,7 +531,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     // Monocular wall turns cannot distinguish a racket/hand return from contact with the wall.
     if (settings.surface == ContactSurface.WALL && call != LineCall.UNMARKED) call=LineCall.REVIEW
     val reason=when {
-      settings.surface == ContactSurface.WALL -> "Retorno lateral observado; confirme contato com a parede."
+      settings.surface == ContactSurface.WALL -> "Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."
       p.any { !it.resolved } -> "Bola pequena demais para uma decisão automática. Confira o contato e a linha."
       !floorKnown && floorDistance==null -> "Marque o limite do piso; trajetória sozinha não comprova chão."
       !floorKnown -> "Contato próximo ao limite do piso. Confirme se a bola tocou o chão."
@@ -549,6 +551,23 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   }
 
   private data class ContactFit(val x: Double,val y: Double,val time: Double,val error: Double)
+  private fun wallContact(p: List<BallObservation>): ContactFit? {
+    val (a,b,c,d,e)=p
+    val vx=(b.x-a.x)/(b.time-a.time);val vy=(b.y-a.y)/(b.time-a.time)
+    val ux=(e.x-d.x)/(e.time-d.time);val uy=(e.y-d.y)/(e.time-d.time)
+    val bx=a.x+vx*(c.time-a.time);val by=a.y+vy*(c.time-a.time)
+    val ax=d.x+ux*(c.time-d.time);val ay=d.y+uy*(c.time-d.time)
+    val dx=vx-ux;val dy=vy-uy;val den=dx*dx+dy*dy
+    if(den<=.000001) return null
+    val time=c.time+((ax-bx)*dx+(ay-by)*dy)/den
+    if(!time.isFinite() || time<b.time || time>d.time) return null
+    val x1=a.x+vx*(time-a.time);val y1=a.y+vy*(time-a.time)
+    val x2=d.x+ux*(time-d.time);val y2=d.y+uy*(time-d.time)
+    val mx=if(c.time<=time)bx else ax;val my=if(c.time<=time)by else ay
+    val error=hypot(mx-c.x,my-c.y)+hypot(x1-x2,y1-y2)*.5
+    if(!error.isFinite() || error>max(4.0,c.radius*2)) return null
+    return ContactFit((x1+x2)/2,(y1+y2)/2,time,error)
+  }
   private fun floorContact(p: List<BallObservation>): ContactFit? {
     val (a,b,c,d,e)=p
     val up=(b.y-a.y)/(b.time-a.time);val down=(e.y-d.y)/(e.time-d.time)

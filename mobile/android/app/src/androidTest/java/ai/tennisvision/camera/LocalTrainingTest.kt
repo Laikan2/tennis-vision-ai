@@ -76,6 +76,62 @@ class LocalTrainingTest {
     drag(scenario,CourtPoint(.05,.28),CourtPoint(.05,.28)); drag(scenario,CourtPoint(.95,.28),CourtPoint(.95,.28))
     tap(scenario,R.id.localSaveArea)
   }
+  @Test fun visiblePreviewBallDoesNotRequireStartingTrainingOrChangeStatistics() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);var before=0;var sounds=0;var key="";var config=LocalSettings()
+      scenario.onActivity {
+        before=it.testSession().events.size;sounds=it.testSoundCount();config=it.testConfig()
+        key=LocalTrainingActivity::class.java.getDeclaredField("cameraKey").apply { isAccessible=true }.get(it) as String
+        (LocalTrainingActivity::class.java.getDeclaredField("camera").apply { isAccessible=true }.get(it) as LocalCamera).stop()
+      }
+      val pixels=IntArray(1280*720){0xff315372.toInt()}
+      for(y in 336..384) for(x in 616..664) if(kotlin.math.hypot(x-640.0,y-360.0)<=24)pixels[y*1280+x]=0xffc7eb4d.toInt()
+      val time=SystemClock.elapsedRealtime()/1e3
+      val result=BallPreview().process(pixels,1280,720,time,config)
+      assertNotNull(result.observed);assertNull(result.impact);assertNull(result.speedKmh)
+      scenario.onActivity { it.receiveFrame(LocalFrame(pixels,1280,720,time,result,0.0,0.0,0,key)) }
+      instrumentation.waitForIdleSync()
+      scenario.onActivity {
+        assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString())
+        assertEquals(before,it.testSession().events.size);assertEquals(sounds,it.testSoundCount())
+      }
+      screenshot("preview-ring-0.6.9-known-pixels")
+    }
+  }
+  @Test fun decodedVerticalReturnsCreateWallMarksWithoutFalseOutAudio() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);area(scenario)
+      tap(scenario,R.id.localWall);tap(scenario,R.id.localRedraw)
+      drag(scenario,CourtPoint(.1,.1),CourtPoint(.9,.95));tap(scenario,R.id.localSaveArea)
+      tap(scenario,R.id.localStart)
+      var config=LocalSettings();var key="";var before=0;var sounds=0;var id=""
+      scenario.onActivity {
+        config=it.testConfig();assertEquals(ContactSurface.WALL,config.surface)
+        before=it.testSession().events.size;sounds=it.testSoundCount();id=it.testSession().id
+        key=LocalTrainingActivity::class.java.getDeclaredField("cameraKey").apply { isAccessible=true }.get(it) as String
+        (LocalTrainingActivity::class.java.getDeclaredField("camera").apply { isAccessible=true }.get(it) as LocalCamera).stop()
+      }
+      val core=LocalAnalysis(config);val events=mutableListOf<LocalImpact>()
+      val recent=ArrayDeque<Pair<Double,IntArray>>();val origin=SystemClock.elapsedRealtime()/1e3
+      // Encoded synthetic vertical reversals exercise the wall algorithm, not physical contact truth.
+      decode("known-bounces.mp4") { pixels,w,h,pts ->
+        val time=origin+pts;val result=core.process(pixels,w,h,time)
+        recent.addLast(time to pixels);while(recent.size>6)recent.removeFirst()
+        val evidence=result.impact?.let { hit -> events.add(hit);recent.minByOrNull { kotlin.math.abs(it.first-hit.time) }?.second }
+        scenario.onActivity { it.receiveFrame(LocalFrame(pixels,w,h,time,result,0.0,0.0,0,key,evidence)) }
+        instrumentation.waitForIdleSync()
+      }
+      assertTrue("Two resolved returns must be found; an uncertain third may require more evidence",events.size in 2..3)
+      assertTrue(events.all { it.surface==ContactSurface.WALL && it.call==LineCall.REVIEW })
+      assertTrue(events.take(2).any { it.speedKmh!=null })
+      scenario.onActivity {
+        assertEquals(before+events.size,it.testSession().events.size);assertEquals(sounds,it.testSoundCount())
+        assertTrue(it.findViewById<TextView>(R.id.localDecision).text.toString().contains("REVISAR"))
+      }
+      waitFor { LocalSessionStore(context).load(id)?.events?.size==before+events.size }
+      screenshot("wall-returns-0.6.9-synthetic")
+    }
+  }
   @Test fun homeFloorWallSetupAndCancellationPreserveSeparateAreas() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
       ready(scenario);area(scenario)

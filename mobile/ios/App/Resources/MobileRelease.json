@@ -1,6 +1,6 @@
 {
-  "version": "0.6.8",
-  "baseline": "green-ball-indoor-0.6.7",
+  "version": "0.6.9",
+  "baseline": "green-ball-wall-0.6.9",
   "platforms": [
     "android",
     "ios"
@@ -34,7 +34,11 @@
     "surface-setup-feedback",
     "home-floor-wall-setup",
     "separate-surface-areas",
-    "guided-floor-boundary"
+    "guided-floor-boundary",
+    "preview-ball-contour",
+    "observed-ellipse-outline",
+    "direction-independent-wall-return",
+    "two-sided-wall-contact-fit"
   ],
   "installation": {
     "android": "apk-confirmation",

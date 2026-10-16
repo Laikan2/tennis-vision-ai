@@ -22,6 +22,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     private let session=AVCaptureSession(),output=AVCaptureVideoDataOutput()
     private let context=CIContext(options:[.cacheIntermediates:false])
     private var core=LocalVision(),device: AVCaptureDevice?,coordinator: AVCaptureDevice.RotationCoordinator?
+    private let preview=VisionPreview()
     private var pixelStorage=[UInt32](),running=false,analyzing=false,key="",generation=UUID()
     private var activeProfile=CaptureProfile.standard,rotation=0,lastFrame=0.0,meter=FrameRateMeter(),lastReport=0.0
     private var timer: DispatchSourceTimer?,observers=[NSObjectProtocol]()
@@ -102,7 +103,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
                 }
                 self.activeProfile=selected.1;self.device=device;self.meter=FrameRateMeter();self.lastFrame=ProcessInfo.processInfo.systemUptime
                 self.key="\(device.uniqueID):\(selected.1.width)x\(selected.1.height):\(self.rotation)"
-                self.core=LocalVision(settings:self.settingsForKey?(self.key) ?? VisionSettings());self.running=true;self.analyzing=false
+                self.core=LocalVision(settings:self.settingsForKey?(self.key) ?? VisionSettings());self.preview.reset();self.running=true;self.analyzing=false
                 // Commit before startRunning, which must never run inside configuration.
                 self.queue.async{[weak self] in
                     guard let self,self.running,self.generation==requestedGeneration else{return}
@@ -113,8 +114,8 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
             } catch{self.fail(error.localizedDescription)}
         }
     }
-    func update(_ settings: VisionSettings){queue.async{[weak self] in self?.core.settings=settings;self?.core.reset();self?.evidence=[]}}
-    func setAnalysis(_ value: Bool){queue.async{[weak self] in self?.analyzing=value;self?.core.clearTrack();self?.evidence=[]}}
+    func update(_ settings: VisionSettings){queue.async{[weak self] in self?.core.settings=settings;self?.core.reset();self?.preview.reset();self?.evidence=[]}}
+    func setAnalysis(_ value: Bool){queue.async{[weak self] in self?.analyzing=value;self?.core.clearTrack();self?.preview.reset();self?.evidence=[]}}
     func stop(completion: (() -> Void)?=nil){queue.async{[weak self] in self?.generation=UUID();self?.closeHardware();if let completion{DispatchQueue.main.async(execute:completion)}}}
     private func closeHardware(){
         running=false;analyzing=false;timer?.cancel();timer=nil
@@ -143,7 +144,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
                 context.render(CIImage(cvPixelBuffer:buffer),toBitmap:base,rowBytes:w*4,bounds:CGRect(x:0,y:0,width:w,height:h),format:.BGRA8,colorSpace:CGColorSpaceCreateDeviceRGB())
             }
             let converted=ProcessInfo.processInfo.systemUptime,time=CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
-            let result=analyzing ? core.process(pixelStorage,width:w,height:h,time:time):VisionResult(message:"Prévia pronta · treino pausado",area:core.activeSettings,cameraOffset:core.offset)
+            let result=analyzing ? core.process(pixelStorage,width:w,height:h,time:time):preview.process(pixelStorage,width:w,height:h,time:time,area:core.activeSettings,offset:core.offset)
             let analyzed=ProcessInfo.processInfo.systemUptime
             let data=pixelStorage.withUnsafeBytes{Data($0)}
             guard let provider=CGDataProvider(data:data as CFData),let image=CGImage(width:w,height:h,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:w*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedFirst.rawValue|CGBitmapInfo.byteOrder32Little.rawValue),provider:provider,decode:nil,shouldInterpolate:true,intent:.defaultIntent) else{return}
