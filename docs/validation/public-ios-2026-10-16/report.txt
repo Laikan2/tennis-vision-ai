@@ -1,0 +1,23 @@
+Tennis Vision mobile 0.6.9 — publicação do iPhone
+16/10/2026 (America/Sao_Paulo)
+
+Entrega
+- Repositório Laikan2/tennis-vision-ai alterado de privado para público por solicitação expressa. Leitura anônima confirmada.
+- Versão iPhone 0.6.9/build10 publicada em mobile-v0.6.9. Fonte AltStore existente atualizada e lida anonimamente na URL original; versão anterior preservada.
+- Fonte validada: 11651300c5807f22690bec50e0fe217b735b68f8. Integrada à main por PR #1, merge 3732c2aafd6eb132fca069f2ad798b1a9720552d.
+- Contorno observado na prévia e no treino, indicação de incerteza, retornos de parede verticais/diagonais/horizontais e posição candidata estimada entre quadros. Contatos de parede continuam para revisão.
+
+Validação
+- Run https://github.com/Laikan2/tennis-vision-ai/actions/runs/38949450791 concluído com sucesso.
+- 85 XCTest nativos passaram. Compilação Release para iPhone arm64 e compilação para simulador passaram. Integração recebeu e decodificou 60 quadros H.264.
+- A etapa opcional de captura da tela do simulador atingiu o limite de dois minutos. O GitHub apresenta conclusão success para essa etapa por continue-on-error, mas a anotação registra timeout. A abertura visual do app ficou sem confirmação e não é contada como teste aprovado de interface.
+- IPA conferido: versão/build, plataforma iPhoneOS, integridade do ZIP, contrato de recursos, áudios IN/OUT e SHA-256. Publicador conferiu os downloads públicos do IPA/APK e preservou Windows latest v0.6.11.
+- 15 testes dos publicadores/feed passaram nesta rodada. Android 0.6.9 já tinha 210 testes JUnit/Robolectric e quatro cenários instrumentados em emulador Android 15 aprovados; seu APK permanece idêntico.
+
+Limites
+- Nenhum iPhone conectado nesta rodada. A versão não foi instalada/testada em aparelho físico nesta entrega.
+- As trajetórias conhecidas são sintéticas. Sem medição nova de precisão em partida, velocidade 3D ou atraso/FPS no iPhone físico. Velocidade lateral e contatos permanecem estimados; parede exige revisão.
+- Publicação no AltStore não equivale a instalação no celular; o AltStore exige confirmação e assinatura pessoal pelo AltServer.
+
+Atualização
+No iPhone, atualize a lista da fonte Tennis Vision e abra My Apps → Update no Tennis Vision Camera. Mantenha o AltServer disponível durante a instalação, preservando a aplicação existente.

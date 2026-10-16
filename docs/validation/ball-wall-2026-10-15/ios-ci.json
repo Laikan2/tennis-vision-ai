@@ -1,0 +1,76 @@
+{
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/38949450791",
+  "sourceCommit": "11651300c5807f22690bec50e0fe217b735b68f8",
+  "conclusion": "success",
+  "xctestCount": 85,
+  "voiceAssetsVerifiedInIPA": true,
+  "voicePack": "elevenlabs-brian-clear-v4-4",
+  "version": "0.6.9",
+  "build": "10",
+  "physicalIPhoneTest": false,
+  "steps": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "success",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  },
+  "ipa": {
+    "version": "0.6.9",
+    "minimumIOS": "17.4",
+    "bundleIdentifier": "ai.tennisvision.camera.ios",
+    "signing": "required-by-installation-tool",
+    "filename": "Tennis-Vision-Camera-iOS-v0.6.9-AltStore.ipa",
+    "bytes": 814514,
+    "sha256": "4ce25a4ac3956d8253ffe73a33781ad46a69b7b73970093df11d62811c2fda8c"
+  },
+  "projectArchiveSource": "11651300c5807f22690bec50e0fe217b735b68f8",
+  "repositoryVisibility": "public",
+  "simulatorScreenshotTimedOut": true,
+  "simulatorLaunchConfirmed": false,
+  "diagnosticAnnotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/11651300c5807f22690bec50e0fe217b735b68f8/.github",
+      "start_line": 3,
+      "start_column": null,
+      "end_line": 3,
+      "end_column": null,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/11651300c5807f22690bec50e0fe217b735b68f8/.github",
+      "start_line": 215,
+      "start_column": null,
+      "end_line": 215,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The action 'Simulator launch and screenshot' has timed out after 2 minutes.",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/11651300c5807f22690bec50e0fe217b735b68f8/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+      "raw_details": ""
+    }
+  ]
+}
