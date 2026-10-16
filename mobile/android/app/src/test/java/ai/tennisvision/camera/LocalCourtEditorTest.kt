@@ -66,7 +66,8 @@ class LocalCourtEditorTest {
     assertEquals(wall,v.draft)
     v.finish();assertEquals(wall,v.settings.polygon)
   }
-  @Test fun previewContourIsDrawnAroundTheObservedBallWithoutCoveringItsCentre() {
+  @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+  fun previewContourIsDrawnAroundTheObservedBallWithoutCoveringItsCentre() {
     val p=IntArray(640*360){0xff315372.toInt()}
     for(y in 174..186) for(x in 94..106) if(kotlin.math.hypot(x-100.0,y-180.0)<=6)p[y*640+x]=0xffc7eb4d.toInt()
     val result=BallPreview().process(p,640,360,0.0,LocalSettings())

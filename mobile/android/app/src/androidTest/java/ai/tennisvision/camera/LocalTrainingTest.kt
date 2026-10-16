@@ -21,6 +21,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.json.JSONObject
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** Executed on Android, not Robolectric. Fixtures are synthetic and explicitly labelled. */
 @RunWith(AndroidJUnit4::class)
@@ -79,6 +81,9 @@ class LocalTrainingTest {
   @Test fun visiblePreviewBallDoesNotRequireStartingTrainingOrChangeStatistics() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
       ready(scenario);var before=0;var sounds=0;var key="";var config=LocalSettings()
+      // Landscape startup may schedule a camera reopen after the first frame.
+      // Let that lifecycle transition settle before replacing the emulated camera.
+      SystemClock.sleep(400);ready(scenario)
       scenario.onActivity {
         before=it.testSession().events.size;sounds=it.testSoundCount();config=it.testConfig()
         key=LocalTrainingActivity::class.java.getDeclaredField("cameraKey").apply { isAccessible=true }.get(it) as String
@@ -91,10 +96,21 @@ class LocalTrainingTest {
       assertNotNull(result.observed);assertNull(result.impact);assertNull(result.speedKmh)
       scenario.onActivity { it.receiveFrame(LocalFrame(pixels,1280,720,time,result,0.0,0.0,0,key)) }
       instrumentation.waitForIdleSync()
+      val drawn=CountDownLatch(1)
       scenario.onActivity {
         assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString())
         assertEquals(before,it.testSession().events.size);assertEquals(sounds,it.testSoundCount())
+        val view=it.findViewById<LocalCourtView>(R.id.localVideo)
+        val shown=LocalCourtView::class.java.getDeclaredField("image").apply { isAccessible=true }.get(view) as Bitmap
+        val overlay=LocalCourtView::class.java.getDeclaredField("result").apply { isAccessible=true }.get(view) as LocalResult
+        assertEquals(pixels[360*1280+640],shown.getPixel(640,360))
+        assertEquals(640.0,overlay.observed!!.x,2.0);assertEquals(360.0,overlay.observed!!.y,2.0)
+        assertTrue("Screenshot verification requires hardware rendering",view.isHardwareAccelerated)
+        view.viewTreeObserver.registerFrameCommitCallback { drawn.countDown() };view.invalidate()
       }
+      // Idle handlers finish before hardware rendering. Wait for its frame commit.
+      assertTrue("Known preview must reach the display",drawn.await(2,TimeUnit.SECONDS))
+      SystemClock.sleep(100) // The emulator compositor presents after RenderThread's commit.
       screenshot("preview-ring-0.6.9-known-pixels")
     }
   }

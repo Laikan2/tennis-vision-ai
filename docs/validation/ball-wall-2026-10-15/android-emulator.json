@@ -1,0 +1,40 @@
+{
+  "version": "0.6.9",
+  "hardware": "Android emulator, AVD TennisVisionTest35, x86_64",
+  "android": "15",
+  "api": 35,
+  "application": "ai.tennisvision.camera.audit",
+  "variant": "audit (debug), separate from personal installed app",
+  "passed": true,
+  "tests": [
+    "visiblePreviewBallDoesNotRequireStartingTrainingOrChangeStatistics",
+    "decodedVerticalReturnsCreateWallMarksWithoutFalseOutAudio",
+    "homeFloorWallSetupAndCancellationPreserveSeparateAreas",
+    "encodedKnownBouncesReachUiStatisticsSoundAndPersistence"
+  ],
+  "previewDisplayTestRepeatedAfterFrameCommitCorrection": true,
+  "syntheticWallMarks": 3,
+  "syntheticWallSpeeds": [
+    12.22642325904346,
+    12.142223878730805,
+    11.330401847764566
+  ],
+  "wallCalls": [
+    "REVIEW",
+    "REVIEW",
+    "REVIEW"
+  ],
+  "noWallOutVoice": true,
+  "releaseAPKManifestVerified": true,
+  "releaseAPKSigningCertificateVerified": true,
+  "releaseAPKInstalledAndLaunched": true,
+  "pythonReleaseTests": 15,
+  "notTested": [
+    "Physical Android camera",
+    "Physical iPhone 0.6.9",
+    "Real floor and wall ball contacts",
+    "Real match precision",
+    "Human confirmation of audio",
+    "New physical FPS or latency measurements"
+  ]
+}
