@@ -1,0 +1,13 @@
+{
+  "version": "0.6.9",
+  "sourceCommit": "feae93937a55d98a5a9a69cebe97e72203192b67",
+  "run": "38844680404",
+  "url": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/38844680404",
+  "jobStarted": false,
+  "testsExecuted": false,
+  "applicationCompiled": false,
+  "ipaProduced": false,
+  "annotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the Billing & plans section in your settings",
+  "physicalDeviceConnected": false,
+  "altstoreReleaseUnchanged": true
+}

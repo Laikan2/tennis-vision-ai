@@ -1,0 +1,41 @@
+Tennis Vision mobile 0.6.9 — contorno e parede
+Validação concluída no Windows em 2026-10-16 (UTC; trabalho iniciado em 2026-10-15).
+
+Problemas reproduzidos
+- A prévia pausada não analisava a bola; o contorno só podia aparecer com o treino ativo.
+- O contato de parede dependia de retorno quase horizontal. Três testes conhecidos falhavam: vertical, diagonal e posição de retorno horizontal.
+
+Correções
+- Detector de prévia local sobre o mesmo quadro, até 640 pixels no lado maior, com coordenadas devolvidas à imagem original. Não emite impacto, velocidade ou áudio. O treino ativo usa a resolução selecionada.
+- Contorno circular/elíptico pelas dimensões observadas, borda escura e cor verde/laranja conforme a evidência. Previsões continuam identificadas separadamente.
+- Mudanças de direção de parede em qualquer orientação da imagem, com encontro temporal dos trechos de chegada/retorno. Ajuste limitado aos quadros ao redor do contato e rejeição de trechos incoerentes.
+- Candidatos na parede permanecem REVISAR; desaparecer sem retorno observado não conta. Mantidos os filtros de mão, oclusão, intervalo entre quadros e duplicidade.
+- Áreas, sessões, áudio offline e assinatura anterior preservados.
+
+Evidência
+- 210/210 testes JUnit/Robolectric, zero falhas/erros/ignorados. Incluem oito cenários de parede, cinco de prévia e desenho do contorno com o renderizador nativo.
+- Os três casos que falhavam passaram. A tolerância dos testes de posição horizontal/diagonal é de 2 pixels na imagem sintética; isso não mede precisão em centímetros ou em partidas.
+- Quatro cenários instrumentados passaram no emulador Android 15/API 35 x86_64: prévia sem contagem, vídeo H.264 sintético de retornos na parede, áreas separadas com cancelamento/reabertura, e IN/OUT/REVISAR no piso com persistência e início do áudio.
+- No vídeo sintético foram persistidas três marcas WALL/REVIEW sem chamada OUT indevida. Uma câmera não comprova que esses retornos sejam contato físico de parede.
+- A captura visual da prévia inicialmente ocorria antes da composição do quadro. O teste foi corrigido para conferir pixels/posição apresentados e aguardar a renderização; repetição passou. preview-ring.png mostra o contorno no quadro conhecido.
+- 15 testes de publicação/feed passaram. APK final 0.6.9/code22 verificado por aapt2/apksigner, com os áudios preservados, instalado e aberto no emulador.
+
+iPhone
+- Implementação equivalente e 13 novos cenários de teste preparados. Nenhum novo teste Swift foi executado e nenhum IPA 0.6.9 foi compilado.
+- GitHub run 38844680404 foi impedido de iniciar: falha de pagamento recente ou necessidade de aumentar o limite de gastos. A solução exige intervenção da conta em Billing & plans ou outro Mac disponível; não é uma falha observada de compilação do código.
+- Nenhum iPhone conectado nesta conferência. AltStore e IPA publicados anteriores preservados.
+
+Limites
+- Sem medição nova de FPS/atraso em câmera física, sem treino neural e sem validação de partida/saques rápidos nesta rodada.
+- Velocidade é lateral aparente estimada pelo diâmetro de 67 mm, não velocidade 3D/radar.
+- Bolas minúsculas, pouco contraste, oclusão e falta de quadros ainda podem impedir observação ou contato. A versão não promete detectar todas as bolas.
+
+Uso
+O contorno procura a bola na prévia. Para marcar retornos: Marcar parede, ajustar/salvar a área e Iniciar treino. Toque nas marcas para revisar o candidato.
+
+Publicação
+- Android android-v0.6.9 publicado e download público conferido por SHA-256. Instalação pelo atualizador exige confirmação do Android.
+- https://github.com/Laikan2/tennis-vision-releases/releases/tag/android-v0.6.9
+- AltStore permaneceu exatamente com o mesmo blob; Windows latest permaneceu v0.6.11.
+- Código e evidências em https://github.com/Laikan2/tennis-vision-ai/pull/1 (rascunho até a validação iOS).
+- A criação do rascunho demorou para aparecer na lista do GitHub. O publicador agora repete somente essa leitura, com espera limitada; a publicação foi retomada no mesmo rascunho, sem substituir arquivos de versões existentes.

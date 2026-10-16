@@ -1,0 +1,13 @@
+{
+  "published": true,
+  "version": "0.6.9",
+  "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/android-v0.6.9/Tennis-Vision-Camera-Android-v0.6.9.apk",
+  "publicDownloadBytes": 3243396,
+  "sha256": "b34f38a49e5c3aab90ae5a39ad0b8fafca4bf69afbf52c5ca0547e425ce65c1d",
+  "windowsLatestUnchanged": "v0.6.11",
+  "altstoreFeedUnchanged": true,
+  "altstoreFeedBlob": "15139bf6cd7cf38f42a4ebf30316803317c5b625",
+  "sourcePullRequest": "https://github.com/Laikan2/tennis-vision-ai/pull/1",
+  "sourceValidationCommit": "81cabbaf2fb1ef057aeeebb0b0c2bf89b46e092e",
+  "iosCompiled": false
+}

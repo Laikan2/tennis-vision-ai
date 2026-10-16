@@ -40,6 +40,7 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
     private set
   @Volatile var analyze=false
   private var core=LocalAnalysis()
+  private val preview=BallPreview()
   private var rotation=0
   private val rateMeter=FrameRateMeter()
   private var rate=0.0
@@ -58,8 +59,8 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
       handler.postDelayed(this,1000)
     }
   }
-  fun update(value: LocalSettings) { handler.post { core.settings=value; core.reset() } }
-  fun reset() { handler.post { core.clearTrack() } }
+  fun update(value: LocalSettings) { handler.post { core.settings=value; core.reset();preview.reset() } }
+  fun reset() { handler.post { core.clearTrack();preview.reset() } }
 
   fun lenses(): List<LocalLens> = manager.cameraIdList.flatMap { id ->
     runCatching {
@@ -111,7 +112,7 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
         // Keep the legacy 1× key so existing areas stay available. Zoom/lens changes
         // get independent calibration, never a stretched copy of another area.
         val key="$id:${size.width}x${size.height}:$rotation"+if(lens.zoom==1f) "" else ":zoom${lens.zoom}"
-        core=LocalAnalysis(settings(key)); recent.clear(); rateMeter.reset(); rate=0.0;exposureMs=null
+        core=LocalAnalysis(settings(key));preview.reset(); recent.clear(); rateMeter.reset(); rate=0.0;exposureMs=null
         val output=ImageReader.newInstance(size.width,size.height,ImageFormat.YUV_420_888,3)
         reader=output
         output.setOnImageAvailableListener({ source ->
@@ -125,7 +126,7 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
               val (pixels,w,h)=convert(image,rotation)
               val converted=SystemClock.elapsedRealtimeNanos()
               val result=if (analyze) core.process(pixels,w,h,time) else
-                LocalResult(null,null,emptyList(),null,false,null,"Prévia pronta · análise pausada",core.activeSettings,core.cameraOffset)
+                preview.process(pixels,w,h,time,core.activeSettings,core.cameraOffset)
               val analyzed=SystemClock.elapsedRealtimeNanos()
               if (analyze) recent.addLast(Evidence(time,pixels,result.cameraOffset)) else recent.clear()
               while (recent.size>6) recent.removeFirst()

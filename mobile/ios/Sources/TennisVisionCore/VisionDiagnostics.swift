@@ -8,12 +8,13 @@ public enum VisionDiagnostics {
         public var chroma=false,clutter=false,bounce=false,blur=1.0
         public var fixedX: Double?
         public var expectedContacts=[VisionCall]()
+        public var wall=false
     }
     public struct Measurement: Codable {
         public var name: String,frames: Int,located: Int,wrong: Int,contacts: [VisionCall],maxError: Double,elapsedMs: Double
     }
     public struct Report: Codable {
-        public var version="0.6.8",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
+        public var version="0.6.9",kind="synthetic-pixel-fixtures-not-real-tennis",date=Date()
         public var results: [Measurement],passed: Bool
     }
     public static var cases: [Case] {
@@ -26,6 +27,7 @@ public enum VisionDiagnostics {
         cases.append(Case(name:"blur3",diameter:4,background:0xff394b59,chroma:true,blur:3))
         cases.append(Case(name:"known_IN",diameter:12,background:0xff394b59,chroma:true,bounce:true,fixedX:280,expectedContacts:[.inside]))
         cases.append(Case(name:"known_OUT",diameter:12,background:0xff394b59,chroma:true,bounce:true,fixedX:580,expectedContacts:[.outside]))
+        cases.append(Case(name:"wall_vertical_review",diameter:12,background:0xff394b59,chroma:true,bounce:true,fixedX:320,expectedContacts:[.review],wall:true))
         return cases
     }
     public static func spot(_ p: inout [UInt32],x: Double,y: Double,diameter: Double,blur: Double=1,color: UInt32=0xffc7eb4d) {
@@ -63,7 +65,7 @@ public enum VisionDiagnostics {
     }
     public static func evaluate(_ c: Case) -> Measurement {
         var settings=VisionSettings();settings.polygon=[VisionPoint(0.15,0.2),VisionPoint(0.75,0.2),VisionPoint(0.75,0.95),VisionPoint(0.15,0.95)]
-        settings.surface=c.bounce ? .floor:.track;settings.court = .full
+        settings.surface=c.wall ? .wall:c.bounce ? .floor:.track;settings.court = .full
         let core=LocalVision(settings:settings);var located=0,wrong=0,maxError=0.0,contacts=[VisionCall](),elapsed=0.0
         for i in 0..<16 {
             let (pixels,known)=frame(c,index:i),started=ProcessInfo.processInfo.systemUptime

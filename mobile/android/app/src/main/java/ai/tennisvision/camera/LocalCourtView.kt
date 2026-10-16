@@ -156,18 +156,21 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24).forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
-      if(events.takeLast(3).any{it.id==e.id}) label(canvas,callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
+      if(events.takeLast(3).any{it.id==e.id}) label(canvas,(if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->
       val iw=image?.width ?: return@let; val ih=image?.height ?: return@let
       line(r.trail.map { CourtPoint(it.x/iw,it.y/ih) },false,lime)
       r.observed?.let { b ->
-        val s=screen(CourtPoint(b.x/iw,b.y/ih)); val radius=(b.radius/iw*rect.width()).toFloat().coerceAtLeast(7*density)
+        val s=screen(CourtPoint(b.x/iw,b.y/ih))
+        val rx=(max(b.diameterX,b.radius*2)/iw*rect.width()/2).toFloat().coerceAtLeast(3*density)
+        val ry=(max(b.diameterY,b.radius*2)/ih*rect.height()/2).toFloat().coerceAtLeast(3*density)
         val color=if(b.resolved) lime else amber
-        paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density
-        canvas.drawRoundRect(s.x-radius,s.y-radius,s.x+radius,s.y+radius,4*density,4*density,paint); paint.style=Paint.Style.FILL
-        label(canvas,if(b.occluded) "BOLA PARCIAL · INCERTA" else if(b.colorUncertain) "SINAL INCERTO" else if(!b.resolved) "BOLA PEQUENA · INCERTO" else r.speedKmh?.let { "≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+radius+5*density,s.y,color)
+        paint.style=Paint.Style.STROKE;paint.color=0xff0a0a0a.toInt();paint.strokeWidth=4*density
+        canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint)
+        paint.color=color;paint.strokeWidth=2*density;canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
+        label(canvas,if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
       r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label(canvas,"PREVISÃO",s.x,s.y,amber) }
     }
