@@ -46,11 +46,16 @@ if(-not $existing){
 # GitHub may not resolve /releases/tags for an unpublished draft/tag. Read the
 # authenticated release collection, which includes drafts, and then use its id.
 function Read-AndroidRelease {
- $releaseText=& $gh api "repos/$repository/releases?per_page=100"
- if($LASTEXITCODE -ne 0){throw 'Não leu as publicações do GitHub.'}
- $found=@(($releaseText -join "`n")|ConvertFrom-Json)|Where-Object tag_name -EQ $tag|Select-Object -First 1
- if(-not $found){throw 'A publicação não foi encontrada na lista autenticada.'}
- return $found
+ # A newly created draft can take a few seconds to appear in the collection.
+ # Retry this read only; never recreate a draft or overwrite a published asset.
+ for($releaseAttempt=0;$releaseAttempt -lt 4;$releaseAttempt++){
+  $releaseText=& $gh api "repos/$repository/releases?per_page=100"
+  if($LASTEXITCODE -ne 0){throw 'Não leu as publicações do GitHub.'}
+  $found=@(($releaseText -join "`n")|ConvertFrom-Json)|Where-Object tag_name -EQ $tag|Select-Object -First 1
+  if($found){return $found}
+  if($releaseAttempt -lt 3){Start-Sleep -Milliseconds (500 * [math]::Pow(2,$releaseAttempt))}
+ }
+ throw 'A publicação não foi encontrada na lista autenticada após novas leituras. Confira o rascunho antes de repetir.'
 }
 $draft=Read-AndroidRelease
 $asset=@($draft.assets)|Where-Object name -EQ $expectedName|Select-Object -First 1

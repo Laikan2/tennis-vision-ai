@@ -32,3 +32,10 @@ Limites
 
 Uso
 O contorno procura a bola na prévia. Para marcar retornos: Marcar parede, ajustar/salvar a área e Iniciar treino. Toque nas marcas para revisar o candidato.
+
+Publicação
+- Android android-v0.6.9 publicado e download público conferido por SHA-256. Instalação pelo atualizador exige confirmação do Android.
+- https://github.com/Laikan2/tennis-vision-releases/releases/tag/android-v0.6.9
+- AltStore permaneceu exatamente com o mesmo blob; Windows latest permaneceu v0.6.11.
+- Código e evidências em https://github.com/Laikan2/tennis-vision-ai/pull/1 (rascunho até a validação iOS).
+- A criação do rascunho demorou para aparecer na lista do GitHub. O publicador agora repete somente essa leitura, com espera limitada; a publicação foi retomada no mesmo rascunho, sem substituir arquivos de versões existentes.
