@@ -1,0 +1,159 @@
+{
+  "scope": "Independent actual detector processing of manually labeled private screen-recording crops; not sensor frames, match benchmark or physical-phone test. Held tolerance 12-16 cropped pixels fixed before corrections. No personal footage added to public source. JVM timing includes different warmup and is not phone FPS.",
+  "before": {
+    "held": [
+      {
+        "time": 12,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 13,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 14,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 40,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 42,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 46,
+        "observed": false,
+        "center_error_cropped_pixels": null,
+        "within_manual_tolerance": false
+      },
+      {
+        "time": 56,
+        "observed": true,
+        "center_error_cropped_pixels": 7.357553233839067,
+        "within_manual_tolerance": true
+      }
+    ],
+    "held_correct": 1,
+    "held_total": 7,
+    "negative": [
+      {
+        "time": 50,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 52,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 54,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 62,
+        "observed": false,
+        "contains_old_overlay": true
+      }
+    ],
+    "negative_false_observations": 0
+  },
+  "after": {
+    "held": [
+      {
+        "time": 12,
+        "observed": true,
+        "center_error_cropped_pixels": 4.111535981553212,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 13,
+        "observed": true,
+        "center_error_cropped_pixels": 8.343140238159513,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 14,
+        "observed": true,
+        "center_error_cropped_pixels": 5.807077659912517,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 40,
+        "observed": true,
+        "center_error_cropped_pixels": 4.373843618753206,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 42,
+        "observed": true,
+        "center_error_cropped_pixels": 10.139888122743825,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 46,
+        "observed": true,
+        "center_error_cropped_pixels": 7.665547708197979,
+        "within_manual_tolerance": true
+      },
+      {
+        "time": 56,
+        "observed": true,
+        "center_error_cropped_pixels": 7.244056732763714,
+        "within_manual_tolerance": true
+      }
+    ],
+    "held_correct": 7,
+    "held_total": 7,
+    "negative": [
+      {
+        "time": 50,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 52,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 54,
+        "observed": false,
+        "contains_old_overlay": false
+      },
+      {
+        "time": 62,
+        "observed": false,
+        "contains_old_overlay": true
+      }
+    ],
+    "negative_false_observations": 0,
+    "mean_center_error_cropped_pixels": 6.812155723154852
+  },
+  "new_regressions": {
+    "Android": 11,
+    "Swift_unexecuted_on_Windows": 10
+  },
+  "targeted_JVM_tests_passed": 85,
+  "physical_device_test": false,
+  "intermediate_Android_JVM_tests_during_detector_development": {
+    "passed": 233,
+    "failed": 0,
+    "errors": 0,
+    "skipped": 0,
+    "note": "Intermediate run before final UI and label regressions. See android-build.json for the final 240-test run."
+  }
+}

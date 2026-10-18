@@ -1,0 +1,21 @@
+{
+  "environment": "Windows JDK17 allocation probe, 16 conversions; not physical phone latency",
+  "measurements": [
+    {
+      "width": 1280,
+      "height": 720,
+      "rounds": 16,
+      "conversionBytesPerFrameWithFreshPlanes": 5530376,
+      "conversionBytesPerFrameWithReusedPlanes": 3686816,
+      "savedBytesPerFrame": 1843560
+    },
+    {
+      "width": 1920,
+      "height": 1080,
+      "rounds": 16,
+      "conversionBytesPerFrameWithFreshPlanes": 12442376,
+      "conversionBytesPerFrameWithReusedPlanes": 8294820,
+      "savedBytesPerFrame": 4147557
+    }
+  ]
+}
