@@ -1,0 +1,78 @@
+{
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39109347874",
+  "sourceCommit": "53704999db2061c01aa3c0b16f8d08d51973b4e2",
+  "conclusion": "success",
+  "xctestCount": 104,
+  "voiceAssetsVerifiedInIPA": true,
+  "voicePack": "elevenlabs-brian-clear-v4-4",
+  "version": "0.6.10",
+  "build": "11",
+  "physicalIPhoneTest": false,
+  "steps": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "success",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  },
+  "ipa": {
+    "version": "0.6.10",
+    "minimumIOS": "17.4",
+    "bundleIdentifier": "ai.tennisvision.camera.ios",
+    "signing": "required-by-installation-tool",
+    "filename": "Tennis-Vision-Camera-iOS-v0.6.10-AltStore.ipa",
+    "bytes": 840142,
+    "sha256": "f518fe41025c6d279618c2c5c87dc8e156c412fe6dc68b9c18636a26395e464f"
+  },
+  "simulatorScreenshotPresent": false,
+  "simulatorRuntimeVerification": {
+    "status": "unverified",
+    "observedDiagnosticOutcome": "timeout-after-2-minutes",
+    "note": "The steps map preserves GitHub's API result for the optional continue-on-error step. Its log and failure annotation show a timeout; no UI runtime pass is claimed."
+  },
+  "diagnosticAnnotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/53704999db2061c01aa3c0b16f8d08d51973b4e2/.github",
+      "start_line": 2,
+      "start_column": null,
+      "end_line": 2,
+      "end_column": null,
+      "annotation_level": "warning",
+      "title": "",
+      "message": "Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/53704999db2061c01aa3c0b16f8d08d51973b4e2/.github",
+      "start_line": 16,
+      "start_column": null,
+      "end_line": 16,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The action 'Simulator launch and screenshot' has timed out after 2 minutes.",
+      "raw_details": ""
+    },
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/Laikan2/tennis-vision-ai/blob/53704999db2061c01aa3c0b16f8d08d51973b4e2/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "notice",
+      "title": "",
+      "message": "Due to capacity constraints, jobs targeting macOS arm64 runners may experience longer queue times.",
+      "raw_details": ""
+    }
+  ]
+}

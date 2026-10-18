@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "title": "Tennis Vision 0.6.10 — Android runtime validation",
+  "date": "2026-10-18",
+  "result": "passed",
+  "appVersion": "0.6.10",
+  "execution": {
+    "runId": 39110834300,
+    "url": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39110834300",
+    "headSha": "01ccd09e7cd88d2c74c521b8d9214e1e11bf082a",
+    "productionSourceSha": "53704999db2061c01aa3c0b16f8d08d51973b4e2",
+    "sourceNote": "Commits after the production source SHA changed Android instrumentation only; this run exercised the same production code in the isolated audit variant.",
+    "conclusion": "success",
+    "completedAt": "2026-10-18T08:23:29Z",
+    "variant": "audit",
+    "applicationId": "ai.tennisvision.camera.audit",
+    "tests": 10,
+    "passed": 10,
+    "failed": 0,
+    "skipped": 0,
+    "trainingSuite": {
+      "tests": 8,
+      "passed": 8,
+      "elapsedSeconds": 120.425,
+      "log": "reports/android-device/device-tests.log"
+    },
+    "permissionGrant": {
+      "tests": 1,
+      "passed": 1,
+      "elapsedSeconds": 7.598,
+      "log": "reports/android-device/allowingCameraActuallyProducesFrames.log"
+    },
+    "permissionDenial": {
+      "tests": 1,
+      "passed": 1,
+      "elapsedSeconds": 11.005,
+      "log": "reports/android-device/deniedCameraNeverPretendsReadyAndCanOpenSettings.log"
+    }
+  },
+  "environment": {
+    "type": "Android emulator on a GitHub-hosted Linux runner",
+    "physicalDevice": false,
+    "androidRelease": "15",
+    "apiLevel": 35,
+    "model": "sdk_gphone64_x86_64",
+    "avdProfile": "pixel_7_pro",
+    "architecture": "x86_64",
+    "systemImage": "google_apis",
+    "emulatedBackCamera": true,
+    "graphics": "swiftshader_indirect",
+    "emulatorAudioDisabled": true,
+    "note": "A computer hosted the emulator and instrumentation. No Windows backend, camera server or inference service participated in the Android runtime tests."
+  },
+  "artifact": {
+    "name": "android-offline-validation",
+    "id": 12129609539,
+    "sizeBytes": 2247746,
+    "apiUrl": "https://api.github.com/repos/Laikan2/tennis-vision-ai/actions/artifacts/12129609539",
+    "archiveUrl": "https://api.github.com/repos/Laikan2/tennis-vision-ai/actions/artifacts/12129609539/zip",
+    "note": "Paths in this report are relative to the downloaded CI artifact or repository. CI artifact retention applies."
+  },
+  "scenarios": [
+    {
+      "test": "decodedVerticalReturnsCreateWallMarksWithoutFalseOutAudio",
+      "result": "passed",
+      "verified": "Decoded synthetic vertical reversals created wall candidates, stored their history and showed REVIEW without an OUT sound. This does not establish physical wall-contact truth."
+    },
+    {
+      "test": "newSessionDiscardsAreasWithoutDeletingEarlierHistory",
+      "result": "passed",
+      "verified": "Starting a new session cleared all area geometry and retained the previous session history."
+    },
+    {
+      "test": "homeFloorWallSetupAndCancellationPreserveSeparateAreas",
+      "result": "passed",
+      "verified": "Real injected taps and drags selected floor and wall separately; cancelling the second floor step preserved the prior configuration; reopening restored the correct draft. Recreating the Activity cleared temporary areas."
+    },
+    {
+      "test": "encodedKnownBouncesReachUiStatisticsSoundAndPersistence",
+      "result": "passed",
+      "verified": "Android MediaCodec decoded 191 known synthetic frames. The production detector emitted IN, OUT, REVIEW in order, with exactly three new persisted events, evidence images and one accepted OUT playback request."
+    },
+    {
+      "test": "lockScreenBatterySaverAndNoNetworkDoNotLoseSettings",
+      "result": "passed",
+      "verified": "With no active network and verified framework battery saver, the screen became noninteractive and then resumed. Settings stayed equal, training returned paused and battery saver remained enabled."
+    },
+    {
+      "test": "cameraAreaTouchesCancellationAndLifecycleWorkOffline",
+      "result": "passed",
+      "verified": "Area setup, invalid tiny selection, cancel, background/resume, ten rapid start/stop taps and Activity recreation completed; preferences persisted while temporary area geometry cleared on recreation."
+    },
+    {
+      "test": "androidAtomicStorageRecoversInterruptedWriteAndPreservesSession",
+      "result": "passed",
+      "verified": "Android filesystem session write/read and backup recovery restored a valid session after an intentionally interrupted JSON write."
+    },
+    {
+      "test": "visiblePreviewBallDoesNotRequireStartingTrainingOrChangeStatistics",
+      "result": "passed",
+      "verified": "Known ball pixels reached a hardware-rendered preview with an observed center within two pixels; preview-only detection created no impact, speed, score or audio."
+    },
+    {
+      "test": "allowingCameraActuallyProducesFrames",
+      "result": "passed",
+      "verified": "After revoking CAMERA, the Android permission dialog was accepted and the emulated camera delivered a frame; permission became granted."
+    },
+    {
+      "test": "deniedCameraNeverPretendsReadyAndCanOpenSettings",
+      "result": "passed",
+      "verified": "After revoking CAMERA, two real system dialog denials preserved the permission-denied state and the app could open Android application settings."
+    }
+  ],
+  "offlineAndLifecycle": {
+    "auditManifestHasInternetPermission": false,
+    "preparation": "Emulator airplane mode, Wi-Fi/data disabled, modem voice/data unregistered, virtual eth interfaces down; active network absence was asserted, not assumed from commands.",
+    "activeDefaultNetworkPreflight": "none",
+    "activeDefaultNetworkAfterTests": "none",
+    "frameworkBatteryPreparation": "dumpsys battery unplug; status DISCHARGING; level 50. Waited for PowerManager mIsPowered=false and sticky ACTION_BATTERY_CHANGED fields, then enabled saver and asserted PowerManager.isPowerSaveMode.",
+    "offlineBeforeLaunch": true,
+    "batterySaverBeforeLaunch": true,
+    "batteryPluggedBeforeLaunch": 0,
+    "batteryStatusBeforeLaunch": 3,
+    "batteryLevelBeforeLaunch": 50,
+    "screenBecameNonInteractive": true,
+    "screenInteractiveAfterWake": true,
+    "batterySaverAfterWake": true,
+    "offlineAfterWake": true,
+    "cleanup": "Battery simulation and battery saver reset in finally.",
+    "evidence": [
+      "reports/android-device/connectivity-preflight.txt",
+      "reports/android-device/connectivity-after.txt",
+      "reports/android-device/offline-proof/lifecycle.json",
+      "reports/android-device/offline-proof/battery-after-lifecycle.txt",
+      "reports/android-device/offline-proof/power-after-lifecycle.txt"
+    ]
+  },
+  "syntheticPipeline": {
+    "source": "Synthetic H.264 MP4 decoded by Android MediaCodec",
+    "frames": 191,
+    "width": 320,
+    "height": 240,
+    "calls": [
+      "IN",
+      "OUT",
+      "REVIEW"
+    ],
+    "persistedEventDelta": 3,
+    "p50AnalysisMs": 6.552521,
+    "p95AnalysisMs": 27.352294,
+    "outAudioRequestsAccepted": 1,
+    "evidence": "reports/android-device/offline-proof/pipeline.json",
+    "limitations": "Detector-call times on an emulator and synthetic small frames. They exclude full capture/render latency and do not measure a phone, tennis serve speed or physical IN/OUT accuracy. SoundPool acceptance does not prove audible sound; this emulator used -noaudio."
+  },
+  "emulatedCameraSnapshot": {
+    "width": 1280,
+    "height": 720,
+    "receivedFps": 11,
+    "requestedMaximumFps": 30,
+    "reportedConversionMs": 144.1,
+    "reportedDetectionMs": 17.2,
+    "reportedCaptureToUiMs": 131,
+    "evidence": "reports/android-device/offline-proof/camera.json",
+    "limitations": "One runtime metrics snapshot of an emulated camera, not a sustained benchmark. These rates and delays are not measurements of an S25 Ultra or iPhone."
+  },
+  "screenshotsReviewed": [
+    {
+      "path": "reports/android-device/offline-proof/02-decoded-fixture-in-out-review.png",
+      "observation": "IN, OUT, REVIEW and estimated speeds are legible without overlapping labels; leader lines preserve each original contact-ring position."
+    },
+    {
+      "path": "reports/android-device/offline-proof/03-offline-after-lock-and-battery-saver.png",
+      "observation": "After wake, the camera preview is visible and the app offers Iniciar treino, matching the paused-state assertion."
+    },
+    {
+      "path": "reports/android-device/offline-proof/preview-ring-0.6.9-known-pixels.png",
+      "observation": "The contour surrounds the known synthetic ball without hiding its center; training remains stopped."
+    },
+    {
+      "path": "reports/android-device/offline-proof/session-floor-restored.png",
+      "observation": "The floor polygon and floor boundary remain visible after switching to wall, cancelling and restoring floor."
+    },
+    {
+      "path": "reports/android-device/offline-proof/wall-returns-0.6.9-synthetic.png",
+      "observation": "Separate wall candidate circles and nonoverlapping REVIEW/speed labels are visible."
+    }
+  ],
+  "screenshotNameNote": "Names containing 0.6.9 are historical test fixture names; the executed source and app version are identified above.",
+  "earlierFailuresAndFixes": [
+    {
+      "runId": 39107421444,
+      "trainingPassed": 6,
+      "trainingTotal": 8,
+      "permissionTestsExecuted": 0,
+      "issues": "A delayed camera frame replaced the editor draft with stale geometry; offline precondition failed; Gradle UTP uninstalled packages before permission checks and evidence collection.",
+      "resolution": "Production area-reference guards were added on Android/iOS. The harness now waits for settled touch coordinates and uses explicit adb install/instrument to retain audit packages and artifacts."
+    },
+    {
+      "runId": 39108434288,
+      "trainingPassed": 7,
+      "trainingTotal": 8,
+      "permissionTestsPassed": 2,
+      "issues": "The virtual modem registered after startup and recreated a cellular default network despite link-down. Captured impact labels overlapped.",
+      "resolution": "Framework airplane mode and emulator modem deregistration made the offline condition explicit; collision-aware label placement was fixed on both platforms and visually rechecked."
+    },
+    {
+      "runId": 39109347901,
+      "trainingPassed": 7,
+      "trainingTotal": 8,
+      "permissionTestsPassed": 2,
+      "issues": "Battery saver did not activate with the initial emulator battery preparation.",
+      "resolution": "Prepared DISCHARGING at 50 percent and waited for the actual framework power transition before requesting saver."
+    },
+    {
+      "runId": 39110161481,
+      "trainingPassed": 7,
+      "trainingTotal": 8,
+      "permissionTestsPassed": 2,
+      "issues": "An added harness precondition read BatteryManager HAL capacity, which did not reflect the framework's dumpsys-simulated level.",
+      "resolution": "Validated the sticky ACTION_BATTERY_CHANGED status, plug state and level instead; retained the actual PowerManager.isPowerSaveMode assertions. All scenarios then passed in the final run."
+    }
+  ],
+  "notVerified": [
+    "Physical Android or iPhone installation, camera accuracy, speaker audibility, thermals or battery consumption.",
+    "Sustained real-camera 60, 120 or 240 FPS, complete end-to-end latency or performance on the user's hardware.",
+    "200 km/h serves, a distant ball across an entire court, physical floor/wall contact ground truth, or real-match IN/OUT accuracy.",
+    "A real phone running with a physical computer powered off; this validation ran the standalone Android code offline inside an emulator."
+  ]
+}

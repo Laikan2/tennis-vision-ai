@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.SystemClock
 import android.util.Range
 import android.util.Size
+import java.nio.ByteBuffer
 import kotlin.math.*
 
 data class LocalFrame(val pixels: IntArray, val width: Int, val height: Int,
@@ -41,6 +42,7 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
   @Volatile var analyze=false
   private var core=LocalAnalysis()
   private val preview=BallPreview()
+  private val yuv=LocalYuvBuffer()
   private var rotation=0
   private val rateMeter=FrameRateMeter()
   private var rate=0.0
@@ -59,8 +61,8 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
       handler.postDelayed(this,1000)
     }
   }
-  fun update(value: LocalSettings) { handler.post { core.settings=value; core.reset();preview.reset() } }
-  fun reset() { handler.post { core.clearTrack();preview.reset() } }
+  fun update(value: LocalSettings) { handler.post { core.settings=value; core.reset();preview.reset();recent.clear() } }
+  fun reset() { handler.post { core.clearTrack();preview.reset();recent.clear() } }
 
   fun lenses(): List<LocalLens> = manager.cameraIdList.flatMap { id ->
     runCatching {
@@ -118,17 +120,22 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
         output.setOnImageAvailableListener({ source ->
           if (token!=epoch || disposed || !running) { runCatching { source.acquireLatestImage()?.close() }; return@setOnImageAvailableListener }
           try {
-            source.acquireLatestImage()?.use { image ->
+            source.acquireLatestImage()?.let { image ->
               val started=SystemClock.elapsedRealtimeNanos()
               lastFrameMs=SystemClock.elapsedRealtime()
-              val time=image.timestamp/1e9
-              rateMeter.frame(image.timestamp)?.let { rate=it }
-              val (pixels,w,h)=convert(image,rotation)
+              // Copy the planes while owned, then return the camera buffer before
+              // RGB conversion, detection and UI delivery. None of those stages
+              // may retain an ImageReader slot or a native plane buffer.
+              val timestamp=image.use { yuv.copy(it); it.timestamp }
+              val time=timestamp/1e9
+              rateMeter.frame(timestamp)?.let { rate=it }
+              val (pixels,w,h)=yuv.convert(rotation)
               val converted=SystemClock.elapsedRealtimeNanos()
-              val result=if (analyze) core.process(pixels,w,h,time) else
+              val scoring=analyze
+              val result=if (scoring) core.process(pixels,w,h,time) else
                 preview.process(pixels,w,h,time,core.activeSettings,core.cameraOffset)
               val analyzed=SystemClock.elapsedRealtimeNanos()
-              if (analyze) recent.addLast(Evidence(time,pixels,result.cameraOffset)) else recent.clear()
+              if (scoring) recent.addLast(Evidence(time,pixels,result.cameraOffset)) else recent.clear()
               while (recent.size>6) recent.removeFirst()
               val evidence=result.impact?.let { event -> recent.minByOrNull { abs(it.time-event.time) } }
               if (token==epoch && running) frame(LocalFrame(pixels,w,h,time,result,
@@ -187,22 +194,48 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
     runCatching { session?.stopRepeating() }; runCatching { session?.close() }; session=null
     runCatching { device?.close() }; device=null
     reader?.setOnImageAvailableListener(null,null); runCatching { reader?.close() }; reader=null
-    recent.clear()
+    recent.clear();yuv.clear()
   }
 
   companion object {
     /** Stride-aware YUV conversion. Output rotation is shared by video, area and detector. */
     fun convert(image: Image, rotation: Int): Triple<IntArray,Int,Int> {
-      val width=image.width; val height=image.height
-      val yPlane=image.planes[0]; val u=image.planes[1]; val v=image.planes[2]
-      // Bulk reads avoid millions of direct ByteBuffer.get JNI/check calls per second.
-      val yb=ByteArray(yPlane.buffer.remaining()).also { yPlane.buffer.duplicate().get(it) }
-      val ub=ByteArray(u.buffer.remaining()).also { u.buffer.duplicate().get(it) }
-      val vb=ByteArray(v.buffer.remaining()).also { v.buffer.duplicate().get(it) }
-      // Image.Plane accessors validate the native Image on every access. Cache
-      // strides once: querying them per pixel caused millions of calls per frame.
-      return Yuv420.convert(yb,ub,vb,width,height,yPlane.rowStride,u.rowStride,v.rowStride,
-        yPlane.pixelStride,u.pixelStride,v.pixelStride,rotation)
+      // The standalone fixture helper leaves Image lifetime with its caller.
+      return LocalYuvBuffer().apply { copy(image) }.convert(rotation)
     }
+  }
+}
+
+/** Temporary owned YUV storage, used serially on the camera handler only.
+ * Reuse stops multi-megabyte plane allocations every frame. The RGB result is
+ * still a new immutable snapshot: later captures cannot change visible evidence.
+ */
+internal class LocalYuvBuffer {
+  internal data class Plane(val bytes: ByteBuffer,val rowStride: Int,val pixelStride: Int)
+  private var bytes=Array(3) { ByteArray(0) }
+  private var rows=IntArray(3)
+  private var steps=IntArray(3)
+  private var width=0
+  private var height=0
+  fun clear() { bytes=Array(3) { ByteArray(0) };width=0;height=0 }
+  fun copy(image: Image) {
+    val planes=image.planes
+    copy(image.width,image.height,planes.map { Plane(it.buffer,it.rowStride,it.pixelStride) })
+  }
+  internal fun copy(width: Int,height: Int,planes: List<Plane>) {
+    require(width>0 && height>0 && planes.size==3)
+    for(i in 0..2) {
+      val source=planes[i].bytes.duplicate()
+      val size=source.remaining()
+      if(bytes[i].size!=size) bytes[i]=ByteArray(size)
+      source.get(bytes[i])
+      rows[i]=planes[i].rowStride;steps[i]=planes[i].pixelStride
+    }
+    this.width=width;this.height=height
+  }
+  fun convert(rotation: Int): Triple<IntArray,Int,Int> {
+    check(width>0 && height>0)
+    return Yuv420.convert(bytes[0],bytes[1],bytes[2],width,height,rows[0],rows[1],rows[2],
+      steps[0],steps[1],steps[2],rotation)
   }
 }

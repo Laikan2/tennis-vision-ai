@@ -14,32 +14,29 @@ data class LocalSession(val id: String = UUID.randomUUID().toString(),
 class LocalSessionStore(context: Context) {
   private val prefs = context.getSharedPreferences("standalone-settings-v1", Context.MODE_PRIVATE)
   private val directory = File(context.filesDir,"local-sessions").apply { mkdirs() }
+  // Geometry belongs to this activity's live session, never to a saved preference.
+  private val areas = mutableMapOf<String,LocalSettings>()
+  init {
+    val migration=prefs.edit()
+    prefs.all.filterKeys { it.startsWith("area:") }.forEach { (key,value) ->
+      val camera=key.removePrefix("area:")
+      val surface=runCatching { ContactSurface.valueOf(JSONObject(value as? String ?: "{}").optString("surface","FLOOR")) }.getOrDefault(ContactSurface.FLOOR)
+      if (!prefs.contains("surface:$camera")) migration.putString("surface:$camera",surface.name)
+      migration.remove(key)
+    }
+    migration.apply()
+  }
   var warning: String? = null
     private set
-  fun settings(camera: String): LocalSettings = runCatching {
-    val j = JSONObject(prefs.getString("area:$camera", "{}") ?: "{}")
-    fun points(key: String): List<CourtPoint> {
-      val array=j.optJSONArray(key) ?: return emptyList()
-      return (0 until array.length()).map { i -> array.getJSONArray(i).let { CourtPoint(it.getDouble(0),it.getDouble(1)) } }
-    }
-    LocalSettings(points("polygon").takeIf(LocalGeometry::valid) ?: emptyList(),
-      points("floor").takeIf(LocalGeometry::validFloorLine) ?: emptyList(),
-      runCatching { ContactSurface.valueOf(j.optString("surface","FLOOR")) }.getOrDefault(ContactSurface.FLOOR),
-      prefs.getBoolean("sound",true),prefs.getBoolean("marks",true),
-      runCatching { CourtLayout.valueOf(j.optString("court","CUSTOM")) }.getOrDefault(CourtLayout.CUSTOM),
-      if(j.has("floorPolygon")) points("floorPolygon").takeIf(LocalGeometry::valid) ?: emptyList() else null,
-      if(j.has("wallPolygon")) points("wallPolygon").takeIf(LocalGeometry::valid) ?: emptyList() else null,
-      runCatching { CourtLayout.valueOf(j.getString("floorCourt")) }.getOrNull())
-  }.getOrElse { warning="Configuração de área inválida; marque novamente."; LocalSettings() }
+  @Synchronized fun settings(camera: String): LocalSettings = (areas[camera] ?: LocalSettings(
+    surface=runCatching { ContactSurface.valueOf(prefs.getString("surface:$camera","FLOOR") ?: "FLOOR") }.getOrDefault(ContactSurface.FLOOR)
+  )).copy(sound=prefs.getBoolean("sound",true),marks=prefs.getBoolean("marks",true))
 
-  fun saveSettings(camera: String, settings: LocalSettings) {
-    fun points(items: List<CourtPoint>) = JSONArray().apply { items.forEach { put(JSONArray().put(it.x).put(it.y)) } }
-    val j=JSONObject().put("polygon",points(settings.polygon)).put("floor",points(settings.floorLine)).put("surface",settings.surface.name).put("court",settings.court.name)
-    settings.floorPolygon?.let { j.put("floorPolygon",points(it)) }
-    settings.wallPolygon?.let { j.put("wallPolygon",points(it)) }
-    settings.floorCourt?.let { j.put("floorCourt",it.name) }
-    prefs.edit().putString("area:$camera",j.toString()).putBoolean("sound",settings.sound).putBoolean("marks",settings.marks).apply()
+  @Synchronized fun saveSettings(camera: String, settings: LocalSettings) {
+    areas[camera]=settings
+    prefs.edit().putString("surface:$camera",settings.surface.name).putBoolean("sound",settings.sound).putBoolean("marks",settings.marks).apply()
   }
+  @Synchronized fun clearAreas() { areas.clear() }
   fun current(): LocalSession {
     val id = prefs.getString("current",null) ?: return LocalSession()
     return load(id) ?: LocalSession()

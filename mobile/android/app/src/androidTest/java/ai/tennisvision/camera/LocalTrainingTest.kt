@@ -42,9 +42,21 @@ class LocalTrainingTest {
   }
   private fun tap(scenario: ActivityScenario<LocalTrainingActivity>,id: Int) {
     var x=0f; var y=0f
-    scenario.onActivity { activity -> val view=activity.findViewById<View>(id); view.requestRectangleOnScreen(android.graphics.Rect(0,0,view.width,view.height),true) }
-    instrumentation.waitForIdleSync()
-    scenario.onActivity { activity -> val v=activity.findViewById<View>(id); val p=IntArray(2); v.getLocationOnScreen(p); x=p[0]+v.width/2f; y=p[1]+v.height/2f }
+    // Hiding the editor schedules a new layout. Main-thread idle alone can run
+    // before the next traversal, when a button still has its former coordinates.
+    waitFor {
+      var visible=false
+      scenario.onActivity { activity ->
+        val view=activity.findViewById<View>(id)
+        view.requestRectangleOnScreen(android.graphics.Rect(0,0,view.width,view.height),true)
+        val p=IntArray(2);view.getLocationOnScreen(p)
+        x=p[0]+view.width/2f;y=p[1]+view.height/2f
+        val rect=android.graphics.Rect()
+        visible=view.isShown && view.isLaidOut && !view.isLayoutRequested && !view.rootView.isLayoutRequested &&
+          view.getGlobalVisibleRect(rect) && rect.contains(x.toInt(),y.toInt())
+      }
+      visible
+    }
     touch(x,y,x,y)
   }
   private fun touch(x: Float,y: Float,endX: Float,endY: Float) {
@@ -168,11 +180,13 @@ class LocalTrainingTest {
       scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
       tap(scenario,R.id.localCancelArea)
       scenario.onActivity { assertEquals(wall,it.testConfig()) }
-      scenario.recreate();ready(scenario)
-      scenario.onActivity { assertEquals(wall,it.testConfig()) }
-      // Reopening floor uses its saved corners and line, rather than the wall's.
+      // Switching surfaces in this session uses its own corners and boundary.
       tap(scenario,R.id.localArea)
-      scenario.onActivity { assertEquals(floor.polygon,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
+      scenario.onActivity {
+        val view=it.findViewById<LocalCourtView>(R.id.localVideo)
+        assertEquals("Floor editor must be open before checking its restored area",1,view.editing)
+        assertEquals(floor.polygon,view.draft)
+      }
       tap(scenario,R.id.localSaveArea)
       scenario.onActivity { assertEquals(floor.floorLine,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
       tap(scenario,R.id.localSaveArea)
@@ -180,7 +194,14 @@ class LocalTrainingTest {
         assertEquals(floor.polygon,it.testConfig().polygon)
         assertEquals(wall.polygon,it.testConfig().wallPolygon)
       }
-      screenshot("home-areas-0.6.8-floor-restored")
+      screenshot("session-floor-restored")
+      scenario.recreate();ready(scenario)
+      scenario.onActivity {
+        assertTrue("A new Activity/session must not restore old geometry",it.testConfig().polygon.isEmpty())
+        assertTrue(it.testConfig().floorLine.isEmpty())
+        assertTrue(it.testConfig().floorPolygon.isNullOrEmpty())
+        assertTrue(it.testConfig().wallPolygon.isNullOrEmpty())
+      }
     }
   }
   @Test fun cameraAreaTouchesCancellationAndLifecycleWorkOffline() {
@@ -200,8 +221,12 @@ class LocalTrainingTest {
       repeat(10) { tap(scenario,R.id.localStart) }
       scenario.onActivity { assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString()) }
       scenario.recreate(); ready(scenario); Thread.sleep(1500)
-      scenario.onActivity { assertEquals(saved,it.testConfig()) }
-      screenshot("01-local-camera-and-saved-area")
+      scenario.onActivity {
+        assertTrue(it.testConfig().polygon.isEmpty());assertTrue(it.testConfig().floorLine.isEmpty())
+        assertEquals(saved.sound,it.testConfig().sound);assertEquals(saved.marks,it.testConfig().marks)
+        assertEquals(saved.surface,it.testConfig().surface)
+      }
+      screenshot("01-local-camera-area-cleared-on-restart")
       scenario.onActivity { activity ->
         val report=JSONObject().put("kind","camera UI exercise; scene is not labelled tennis footage")
           .put("device",android.os.Build.MODEL).put("android",android.os.Build.VERSION.RELEASE)
@@ -211,7 +236,26 @@ class LocalTrainingTest {
     }
   }
 
-  private fun shell(command: String) { instrumentation.uiAutomation.executeShellCommand(command).use { descriptor -> java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } } }
+  @Test fun newSessionDiscardsAreasWithoutDeletingEarlierHistory() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);area(scenario)
+      var oldId="";var oldCount=0
+      scenario.onActivity {
+        oldId=it.testSession().id;oldCount=it.testSession().events.size
+        assertTrue(LocalGeometry.valid(it.testConfig().polygon))
+        it.beginNewSession()
+        assertNotEquals(oldId,it.testSession().id)
+        assertTrue(it.testConfig().polygon.isEmpty());assertTrue(it.testConfig().floorLine.isEmpty())
+        assertTrue(it.testConfig().floorPolygon.isNullOrEmpty());assertTrue(it.testConfig().wallPolygon.isNullOrEmpty())
+      }
+      waitFor { LocalSessionStore(context).load(oldId)?.events?.size==oldCount }
+      screenshot("new-session-empty-area")
+    }
+  }
+
+  private fun shell(command: String):String = instrumentation.uiAutomation.executeShellCommand(command).use { descriptor ->
+    java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+  }
 
   @Test fun androidAtomicStorageRecoversInterruptedWriteAndPreservesSession() {
     // Atomic rename/overwrite has different filesystem semantics on Windows/JVM.
@@ -229,25 +273,63 @@ class LocalTrainingTest {
 
   @Test fun lockScreenBatterySaverAndNoNetworkDoNotLoseSettings() {
     val power=context.getSystemService(android.os.PowerManager::class.java)
+    fun batteryState()=context.registerReceiver(null,android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
     val connectivity=context.getSystemService(android.net.ConnectivityManager::class.java)
     assertNull("Run offline test with emulator Wi-Fi and data disabled",connectivity.activeNetwork)
     try {
-      shell("dumpsys battery unplug"); shell("cmd power set-mode 1")
+      // Unplug broadcasts asynchronously. The power service rejects battery
+      // saver while it still sees the emulator's former charging state.
+      shell("dumpsys battery unplug")
+      shell("dumpsys battery set status 3") // BATTERY_STATUS_DISCHARGING
+      shell("dumpsys battery set level 50")
+      waitFor {
+        shell("dumpsys power").lineSequence().any { it.trim()=="mIsPowered=false" }
+      }
+      // Read the framework's simulated battery broadcast. HAL properties still
+      // report the virtual hardware's original battery despite dumpsys overrides.
+      waitFor {
+        val state=batteryState()
+        state!=null && state.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED,-1)==0 &&
+          state.getIntExtra(android.os.BatteryManager.EXTRA_STATUS,-1)==android.os.BatteryManager.BATTERY_STATUS_DISCHARGING &&
+          state.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL,-1)==50
+      }
+      shell("cmd power set-mode 1")
       waitFor { power.isPowerSaveMode }
+      val proof=JSONObject().put("kind","Android emulator lifecycle test")
+        .put("offlineBeforeLaunch",connectivity.activeNetwork==null)
+        .put("batterySaverBeforeLaunch",power.isPowerSaveMode)
+        .put("batteryPluggedBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED,-1))
+        .put("batteryStatusBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS,-1))
+        .put("batteryLevelBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL,-1))
       ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
         ready(scenario); var config=LocalSettings()
         scenario.onActivity { config=it.testConfig() }
         tap(scenario,R.id.localStart); Thread.sleep(250)
         shell("input keyevent 223"); waitFor { !power.isInteractive }; Thread.sleep(300)
+        proof.put("screenBecameNonInteractive",!power.isInteractive)
         shell("input keyevent 224"); shell("wm dismiss-keyguard")
         ready(scenario)
+        proof.put("screenInteractiveAfterWake",power.isInteractive)
+          .put("batterySaverAfterWake",power.isPowerSaveMode)
+          .put("offlineAfterWake",connectivity.activeNetwork==null)
+        assertTrue(power.isInteractive);assertTrue(power.isPowerSaveMode);assertNull(connectivity.activeNetwork)
         scenario.onActivity {
           assertEquals(config,it.testConfig())
           assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString())
         }
         screenshot("03-offline-after-lock-and-battery-saver")
+        File(context.getExternalFilesDir(null),"offline-proof/lifecycle.json").writeText(proof.toString(2))
       }
-    } finally { shell("input keyevent 224"); shell("wm dismiss-keyguard"); shell("cmd power set-mode 0"); shell("dumpsys battery reset") }
+    } finally {
+      // Preserve the actual state even when a precondition times out, before
+      // resetting the emulator so later tests do not inherit our settings.
+      runCatching {
+        val directory=File(context.getExternalFilesDir(null),"offline-proof").apply { mkdirs() }
+        File(directory,"battery-after-lifecycle.txt").writeText(shell("dumpsys battery"))
+        File(directory,"power-after-lifecycle.txt").writeText(shell("dumpsys power"))
+      }
+      shell("input keyevent 224"); shell("wm dismiss-keyguard"); shell("cmd power set-mode 0"); shell("dumpsys battery reset")
+    }
   }
 
   @Test fun encodedKnownBouncesReachUiStatisticsSoundAndPersistence() {

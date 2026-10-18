@@ -21,6 +21,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     private let queue=DispatchQueue(label:"ai.tennisvision.ios.local-camera",qos:.userInitiated)
     private let session=AVCaptureSession(),output=AVCaptureVideoDataOutput()
     private let context=CIContext(options:[.cacheIntermediates:false])
+    private let colorSpace=CGColorSpaceCreateDeviceRGB()
     private var core=LocalVision(),device: AVCaptureDevice?,coordinator: AVCaptureDevice.RotationCoordinator?
     private let preview=VisionPreview()
     private var pixelStorage=[UInt32](),running=false,analyzing=false,key="",generation=UUID()
@@ -130,7 +131,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     private func watchdog(){
         guard running else{return};let age=ProcessInfo.processInfo.systemUptime-lastFrame
         if age>5{fail("A câmera parou de produzir imagens. Toque em Reabrir câmera.")}
-        else if age>0.5 && !statusWasStale{statusWasStale=true;core.clearTrack();DispatchQueue.main.async{[weak self] in self?.onNotice?("Aguardando imagem · o treino retoma quando os quadros voltarem") }}
+        else if age>0.5 && !statusWasStale{statusWasStale=true;core.clearTrack();preview.reset();evidence=[];DispatchQueue.main.async{[weak self] in self?.onNotice?("Aguardando imagem · o treino retoma quando os quadros voltarem") }}
     }
     func captureOutput(_ output: AVCaptureOutput,didOutput sampleBuffer: CMSampleBuffer,from connection: AVCaptureConnection){
         guard running,let buffer=CMSampleBufferGetImageBuffer(sampleBuffer) else{return}
@@ -141,13 +142,13 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
             if pixelStorage.count != w*h{pixelStorage=Array(repeating:0,count:w*h)}
             pixelStorage.withUnsafeMutableBytes{raw in
                 guard let base=raw.baseAddress else{return}
-                context.render(CIImage(cvPixelBuffer:buffer),toBitmap:base,rowBytes:w*4,bounds:CGRect(x:0,y:0,width:w,height:h),format:.BGRA8,colorSpace:CGColorSpaceCreateDeviceRGB())
+                context.render(CIImage(cvPixelBuffer:buffer),toBitmap:base,rowBytes:w*4,bounds:CGRect(x:0,y:0,width:w,height:h),format:.BGRA8,colorSpace:colorSpace)
             }
             let converted=ProcessInfo.processInfo.systemUptime,time=CMTimeGetSeconds(CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
             let result=analyzing ? core.process(pixelStorage,width:w,height:h,time:time):preview.process(pixelStorage,width:w,height:h,time:time,area:core.activeSettings,offset:core.offset)
             let analyzed=ProcessInfo.processInfo.systemUptime
             let data=pixelStorage.withUnsafeBytes{Data($0)}
-            guard let provider=CGDataProvider(data:data as CFData),let image=CGImage(width:w,height:h,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:w*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedFirst.rawValue|CGBitmapInfo.byteOrder32Little.rawValue),provider:provider,decode:nil,shouldInterpolate:true,intent:.defaultIntent) else{return}
+            guard let provider=CGDataProvider(data:data as CFData),let image=CGImage(width:w,height:h,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:w*4,space:colorSpace,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedFirst.rawValue|CGBitmapInfo.byteOrder32Little.rawValue),provider:provider,decode:nil,shouldInterpolate:true,intent:.defaultIntent) else{return}
             if analyzing{evidence.append(Evidence(time:time,image:image,offset:result.cameraOffset));if evidence.count>6{evidence.removeFirst()}}else{evidence=[]}
             let contact=result.impact.flatMap{hit in evidence.min{abs($0.time-hit.time)<abs($1.time-hit.time)}}
             deliver(LocalCameraFrame(image:image,width:w,height:h,time:time,result:result,key:key,generation:generation,fps:meter.value(now:started),requestedFPS:activeProfile.fps,conversionMs:(converted-started)*1000,analysisMs:(analyzed-converted)*1000,startedAt:started,exposureMs:device.map{CMTimeGetSeconds($0.exposureDuration)*1000} ?? 0,profile:activeProfile.label,lens:device?.localizedName ?? "Câmera",evidence:contact?.image,evidenceOffset:contact?.offset))

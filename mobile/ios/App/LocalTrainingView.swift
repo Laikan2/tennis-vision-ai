@@ -6,7 +6,23 @@ extension VisionCall {
     var color: UIColor{switch self{case .inside:return UIColor(red:0.78,green:0.96,blue:0.31,alpha:1);case .outside:return .systemRed;default:return .systemOrange}}
 }
 final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
-    var frameValue: LocalCameraFrame?,result: VisionResult?,config=VisionSettings(),events=[VisionImpact]()
+    var frameValue: LocalCameraFrame?,result: VisionResult?,config=VisionSettings()
+    var arrivalTimes=[Int:TimeInterval]()
+    var events=[VisionImpact](){didSet{
+        let previous=Set(oldValue.map{$0.id}),now=ProcessInfo.processInfo.systemUptime
+        let live=Set(events.map{$0.id});pulses=pulses.filter{live.contains($0.key)}
+        for hit in events where !previous.contains(hit.id) && hit.decision != .rejected {
+            if let arrival=arrivalTimes[hit.id],now-arrival<0.48{pulses[hit.id]=arrival}
+        }
+        if !pulses.isEmpty && pulseTimer==nil{
+            let timer=Timer(timeInterval:1.0/30,repeats:true){[weak self] _ in self?.animateContacts()}
+            pulseTimer=timer;RunLoop.main.add(timer,forMode:.common)
+        }
+    }}
+    private var pulses=[Int:TimeInterval](),pulseTimer:Timer?
+    private var labelObstacles=[CGRect]()
+    private struct PlacedLabel{let text:String,color:UIColor,box:CGRect,anchor:CGPoint?}
+    private var placedLabels=[PlacedLabel]()
     var confirmed=false,editing=0,draft=[VisionPoint](),onDraft: (([VisionPoint])->Void)?,onImpact: ((Int)->Void)?
     private var movingCorner: Int?,anchor: VisionPoint?,touchPoint: VisionPoint?
     private lazy var pan=UIPanGestureRecognizer(target:self,action:#selector(handlePan(_:)))
@@ -20,7 +36,12 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     override init(frame: CGRect){super.init(frame:frame);backgroundColor = .black;isMultipleTouchEnabled=false;accessibilityLabel="Imagem do treino; selecione e ajuste os cantos no modo de área";pan.delegate=self;addGestureRecognizer(pan);addGestureRecognizer(tap);tap.require(toFail:pan)}
     required init?(coder: NSCoder){fatalError("init(coder:) has not been implemented")}
     override func didMoveToSuperview(){super.didMoveToSuperview();attachScrollGesture()}
-    override func didMoveToWindow(){super.didMoveToWindow();attachScrollGesture()}
+    override func didMoveToWindow(){super.didMoveToWindow();attachScrollGesture();if window==nil{pulseTimer?.invalidate();pulseTimer=nil;pulses.removeAll()}}
+    private func animateContacts(){
+        let now=ProcessInfo.processInfo.systemUptime;pulses=pulses.filter{now-$0.value<0.48}
+        setNeedsDisplay()
+        if pulses.isEmpty{pulseTimer?.invalidate();pulseTimer=nil}
+    }
     private func attachScrollGesture(){var parent=superview;while let p=parent{if let scroll=p as? UIScrollView{scroll.panGestureRecognizer.require(toFail:pan);break};parent=p.superview}}
     override func gestureRecognizerShouldBegin(_ recognizer: UIGestureRecognizer)->Bool{
         if recognizer === pan{let p=pan.location(in:self),d=pan.translation(in:self);return editing>0 && point(CGPoint(x:p.x-d.x,y:p.y-d.y)) != nil};return true
@@ -31,18 +52,38 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     private func line(_ points: [VisionPoint],closed: Bool,color: UIColor,width: CGFloat=2){
         guard let first=points.first else{return};let path=UIBezierPath();path.move(to:screen(first));points.dropFirst().forEach{path.addLine(to:screen($0))};if closed{path.close()};color.setStroke();path.lineWidth=width;path.stroke()
     }
-    private func label(_ text: String,at p: CGPoint,color: UIColor){
+    private func label(_ text: String,at p: CGPoint,color: UIColor,anchor:CGPoint?=nil){
         let attributes: [NSAttributedString.Key:Any]=[.font:UIFont.monospacedSystemFont(ofSize:11,weight:.semibold),.foregroundColor:color]
         let size=(text as NSString).size(withAttributes:attributes),r=imageRect
-        let x=max(r.minX+4,min(p.x,r.maxX-size.width-8)),y=max(r.minY+4,min(p.y,r.maxY-size.height-8))
-        let rect=CGRect(x:x-3,y:y-2,width:size.width+6,height:size.height+4)
-        UIColor(white:0.04,alpha:0.9).setFill();UIBezierPath(roundedRect:rect,cornerRadius:4).fill()
-        (text as NSString).draw(at:CGPoint(x:x,y:y),withAttributes:attributes)
+        guard let rect=VisionOverlayLayout.place(viewport:r.insetBy(dx:2,dy:2),size:CGSize(width:size.width+6,height:size.height+4),preferred:CGPoint(x:p.x-3,y:p.y-2),gap:3,occupied:labelObstacles) else{return}
+        labelObstacles.append(rect)
+        placedLabels.append(PlacedLabel(text:text,color:color,box:rect,anchor:anchor))
+    }
+    private func drawLabels(){
+        // Leaders sit behind all labels, including labels belonging to newer contacts.
+        for label in placedLabels{if let anchor=label.anchor {
+            let rect=label.box
+            let end=CGPoint(x:max(rect.minX,min(anchor.x,rect.maxX)),y:max(rect.minY,min(anchor.y,rect.maxY)))
+            let distance=hypot(end.x-anchor.x,end.y-anchor.y)
+            if distance>10 {
+                let path=UIBezierPath();path.move(to:CGPoint(x:anchor.x+(end.x-anchor.x)*9/distance,y:anchor.y+(end.y-anchor.y)*9/distance));path.addLine(to:end)
+                label.color.withAlphaComponent(0.6).setStroke();path.lineWidth=1;path.stroke()
+            }
+        }}
+        for label in placedLabels{
+            let rect=label.box
+            UIColor(white:0.04,alpha:0.96).setFill();UIBezierPath(roundedRect:rect,cornerRadius:4).fill()
+            let attributes:[NSAttributedString.Key:Any]=[.font:UIFont.monospacedSystemFont(ofSize:11,weight:.semibold),.foregroundColor:label.color]
+            (label.text as NSString).draw(at:CGPoint(x:rect.minX+3,y:rect.minY+2),withAttributes:attributes)
+        }
     }
     override func draw(_ rect: CGRect){
+        labelObstacles.removeAll(keepingCapacity:true)
+        placedLabels.removeAll(keepingCapacity:true)
+        defer{drawLabels()}
         guard let f=frameValue else{return};UIImage(cgImage:f.image).draw(in:imageRect)
         let lime=VisionCall.inside.color
-        let area=editing>0 ? config:(result?.area ?? f.result.area)
+        let area=editing>0 ? config:(result?.area ?? config)
         let cyan=area.surface == .wall ? UIColor.systemPurple:UIColor.systemCyan
         line(area.polygon,closed:true,color:cyan)
         for guide in VisionGeometry.guides(area.polygon,court:area.court){line(guide,closed:false,color:cyan.withAlphaComponent(0.6),width:1)}
@@ -53,11 +94,21 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             if let p=touchPoint{magnifier(p,image:f.image)}
             return
         }
-        if confirmed && config.marks && !f.result.movingCamera{for event in events.suffix(24) where event.decision != .rejected{
-            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? f.result.cameraOffset)),color=event.decision.color
+        let visibleMarks=config.marks && !f.result.movingCamera ? Array(events.filter{$0.decision != .rejected}.suffix(24)):[]
+        for event in visibleMarks{
+            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color=event.decision.color
+            labelObstacles.append(CGRect(x:c.x-9,y:c.y-9,width:18,height:18))
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
-            if events.suffix(3).contains(where:{$0.id==event.id}){label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)}
-        }}
+            if let start=pulses[event.id]{
+                let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-start)/0.48)),radius=CGFloat(9+23*progress)
+                color.withAlphaComponent(CGFloat((1-progress)*0.82)).setStroke()
+                let pulse=UIBezierPath(ovalIn:CGRect(x:c.x-radius,y:c.y-radius,width:radius*2,height:radius*2));pulse.lineWidth=3;pulse.stroke()
+            }
+        }
+        for event in visibleMarks.suffix(3).reversed(){
+            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0)))
+            label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
+        }
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
         if let ball=result.observed {
@@ -85,12 +136,13 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     @objc private func handleTap(_ gesture: UITapGestureRecognizer){
         let location=gesture.location(in:self);guard let p=point(location) else{return}
         if editing==0 {
-            guard confirmed,config.marks,let f=frameValue else{return}
+            guard config.marks,let f=frameValue,!f.result.movingCamera else{return}
+            let offset=result?.cameraOffset ?? VisionPoint(0,0)
             let candidates=events.filter{$0.decision != .rejected}
             if let event=candidates.min(by:{a,b in
-                let x=screen(VisionGeometry.impactPoint(a,offset:f.result.cameraOffset)),y=screen(VisionGeometry.impactPoint(b,offset:f.result.cameraOffset))
+                let x=screen(VisionGeometry.impactPoint(a,offset:offset)),y=screen(VisionGeometry.impactPoint(b,offset:offset))
                 return hypot(x.x-location.x,x.y-location.y)<hypot(y.x-location.x,y.y-location.y)
-            }){let q=screen(VisionGeometry.impactPoint(event,offset:f.result.cameraOffset));if hypot(q.x-location.x,q.y-location.y)<=32{onImpact?(event.id)}}
+            }){let q=screen(VisionGeometry.impactPoint(event,offset:offset));if hypot(q.x-location.x,q.y-location.y)<=32{onImpact?(event.id)}}
         }else if editing != 1 && draft.count<(editing==2 ? 2:4){draft.append(p);onDraft?(draft);setNeedsDisplay()}
     }
     private func beginTouch(_ location: CGPoint){
@@ -123,7 +175,8 @@ struct LocalCourtCanvas: UIViewRepresentable {
     @ObservedObject var model: LocalTrainingModel
     func makeUIView(context: Context) -> LocalCourtSurface{LocalCourtSurface()}
     func updateUIView(_ view: LocalCourtSurface,context: Context){
-        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.editingArea ?? model.config;view.events=model.visibleEvents
+        view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.editingArea ?? model.config
+        view.arrivalTimes=model.contactAnimationTimes;view.events=model.visibleEvents
         view.confirmed=model.confirmed;view.editing=model.editing;view.draft=model.draft;view.onDraft={model.draft=$0}
         view.onImpact={id in if let hit=model.session.events.first(where:{$0.id==id}){model.review(hit)}}
         view.refreshGestures();view.setNeedsDisplay()
@@ -158,9 +211,10 @@ struct LocalTrainingView: View {
                 VStack(alignment:.leading,spacing:12){
                     HStack{Label(model.active ? "TREINO ATIVO":model.editing>0 ? "EDITANDO ÁREA":"CÂMERA LOCAL",systemImage:"camera.fill").font(.caption.weight(.semibold));Spacer();Button{fullScreen=true}label:{Image(systemName:"arrow.up.left.and.arrow.down.right")}.accessibilityLabel("Ampliar imagem e editor")}
                     ZStack{
-                        LocalCourtCanvas(model:model).aspectRatio(max(ratio,0.85),contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:16))
+                        LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).clipShape(RoundedRectangle(cornerRadius:16))
                         if model.visibleFrame==nil{VStack(spacing:12){Image(systemName:"camera").font(.largeTitle);Text(model.denied ? "Permita a câmera":model.cameraUnavailable ? "Câmera indisponível":"Preparando sua câmera");if model.denied{Button("Abrir Ajustes"){UIApplication.shared.open(URL(string:UIApplication.openSettingsURLString)!)}}}.padding(20)}
                     }.background(.black,in:RoundedRectangle(cornerRadius:16))
+                    Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan).padding(.horizontal,10).padding(.vertical,7).background(Palette.background,in:Capsule()).accessibilityIdentifier("local.surface.mode")
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
                     Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
@@ -174,7 +228,7 @@ struct LocalTrainingView: View {
                             Button{model.editHome(.floor)}label:{Label("Marcar chão",systemImage:"square.dashed")}.buttonStyle(.bordered).tint(.cyan).accessibilityIdentifier("local.home.floor")
                             Button{model.editHome(.wall)}label:{Label("Marcar parede",systemImage:"rectangle.portrait")}.buttonStyle(.bordered).tint(.purple).accessibilityIdentifier("local.home.wall")
                         }.disabled(!model.ready)
-                        Text("Chão: área e limite do piso, em dois passos. Parede: área de contato. As marcações são salvas separadamente; mova o celular somente antes de marcar.").font(.footnote).foregroundStyle(Palette.muted)
+                        Text("Chão: área e limite do piso, em dois passos. Parede: área de contato. As marcações são temporárias e separadas por lente. Nova sessão ou fechar o app limpa as áreas.").font(.footnote).foregroundStyle(Palette.muted)
                         HStack{Button{model.pause();areaMenu=true}label:{Label("Marcar área",systemImage:"viewfinder")}.buttonStyle(.bordered).disabled(!model.ready).accessibilityIdentifier("local.area");Button{history=true;model.history=model.store.history()}label:{Label("Histórico",systemImage:"clock")}.buttonStyle(.bordered);Spacer()}
                         HStack{Button("Enquadramento"){model.pause();framing=true}.buttonStyle(.bordered);Button("Tela cheia"){fullScreen=true}.buttonStyle(.bordered);Button{updates=true}label:{Image(systemName:"arrow.down.circle")}.buttonStyle(.bordered).accessibilityLabel("Atualizações")}
                     }
@@ -193,6 +247,7 @@ struct LocalTrainingView: View {
                 .buttonStyle(.borderedProminent).tint(Palette.lime).foregroundStyle(Palette.background).disabled(model.denied || model.editing>0 || model.testing).padding(16).background(Palette.background).accessibilityIdentifier("local.start")
         }
         .task{model.prepare();await model.checkUpdate()}
+        .onChange(of:model.editing){_,value in if value>0{fullScreen=true}}
         .onChange(of:phase){_,phase in if phase == .active{model.prepare()}else if phase == .background{model.suspend()}}
         .confirmationDialog("Área da superfície",isPresented:$areaMenu,titleVisibility:.visible){
             Button("Marcar chão · teste em casa"){model.editHome(.floor)}
@@ -200,10 +255,10 @@ struct LocalTrainingView: View {
             Button("Quadra inteira · 4 cantos"){model.edit(3,court:.full)}
             Button("Meia quadra · 4 cantos"){model.edit(3,court:.half)}
             Button("Área livre · arrastar"){model.edit(1,court:.custom)}
-            Button("Ajustar área salva"){model.edit(3)}
+            Button("Ajustar área desta sessão"){model.edit(3)}
             Button("Ajustar limite parede/chão"){model.edit(2)}
-        }message:{Text("Em casa, escolha Chão ou Parede. Para tênis, marque a quadra inteira ou metade. Cada superfície mantém sua área nesta lente.")}
-        .alert("Confira a área salva",isPresented:Binding(get:{!fullScreen && model.confirmArea},set:{model.confirmArea=$0})){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os quatro cantos ainda coincidem com a superfície marcada? Mover ou girar o iPhone exige ajustar a área.")}
+        }message:{Text("Em casa, escolha Chão ou Parede. Para tênis, marque a quadra inteira ou metade. Áreas temporárias: nova sessão ou fechar o app limpa todas as marcações.")}
+        .alert("Confira a área desta sessão",isPresented:Binding(get:{!fullScreen && model.confirmArea},set:{model.confirmArea=$0})){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os quatro cantos ainda coincidem com a superfície marcada? Mover ou girar o iPhone exige ajustar a área.")}
         .alert("Atenção",isPresented:Binding(get:{!fullScreen && model.error != nil},set:{if !$0{model.error=nil}})){Button("Entendi"){model.error=nil}}message:{Text(model.error ?? "")}
         .sheet(isPresented:$settings){settingsView}
         .sheet(isPresented:$history){historyView}
@@ -228,7 +283,7 @@ struct LocalTrainingView: View {
             }
             Section("Impactos"){
                 Picker("Superfície",selection:Binding(get:{model.config.surface},set:{model.changeSurface($0)})){Text("Chão · quicadas").tag(VisionSurface.floor);Text("Parede · revisão").tag(VisionSurface.wall);Text("Somente rastrear").tag(VisionSurface.track)}
-                Text("Trocar a superfície recupera a marcação salva de chão ou parede. Use Marcar chão/parede na tela do treino para criar ou ajustar.").font(.footnote)
+                Text("Trocar a superfície recupera a marcação de chão ou parede desta sessão. Nova sessão ou fechar o app limpa as áreas; histórico e preferências continuam salvos.").font(.footnote)
                 Toggle("Mostrar marcas de impacto",isOn:Binding(get:{model.config.marks},set:{var s=model.config;s.marks=$0;model.persist(s)}))
                 Toggle("Som OUT",isOn:Binding(get:{model.config.sound},set:{var s=model.config;s.sound=$0;model.persist(s)}))
                 Toggle("Som IN · opcional",isOn:Binding(get:{model.inVoice},set:{model.setInVoice($0)}))
@@ -296,7 +351,8 @@ struct LocalTrainingView: View {
     private var fullScreenView: some View{
         VStack(spacing:12){
             HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}.padding(.horizontal,20)
-            LocalCourtCanvas(model:model).frame(maxWidth:.infinity,maxHeight:.infinity).background(.black)
+            LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).frame(maxWidth:.infinity,maxHeight:.infinity)
+            Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
             Text(model.status).font(.footnote).foregroundStyle(Palette.muted).padding(.horizontal,16)
             if model.editing>0{
                 Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
@@ -312,7 +368,7 @@ struct LocalTrainingView: View {
             }
         }.padding(.vertical,12).background(Palette.background).tint(Palette.lime).preferredColorScheme(.dark)
         .sheet(item:$model.reviewing){event in reviewView(event)}
-        .alert("Confira a área salva",isPresented:$model.confirmArea){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os cantos ainda coincidem com a superfície marcada? Ajuste se moveu o iPhone.")}
+        .alert("Confira a área desta sessão",isPresented:$model.confirmArea){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os cantos ainda coincidem com a superfície marcada? Ajuste se moveu o iPhone.")}
         .alert("Atenção",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("Entendi"){model.error=nil}}message:{Text(model.error ?? "")}
     }
     private func reviewView(_ event: VisionImpact) -> some View{

@@ -66,6 +66,36 @@ class LocalCourtEditorTest {
     assertEquals(wall,v.draft)
     v.finish();assertEquals(wall,v.settings.polygon)
   }
+  @Test fun delayedFrameCannotRestorePriorSurfaceOrRemoveAnotherSavedArea() {
+    val floor=listOf(CourtPoint(.1,.6),CourtPoint(.9,.6),CourtPoint(.9,.95),CourtPoint(.1,.95))
+    val wall=listOf(CourtPoint(.2,.1),CourtPoint(.8,.1),CourtPoint(.8,.5),CourtPoint(.2,.5))
+    val current=LocalSettings(polygon=wall,surface=ContactSurface.WALL,floorPolygon=floor,wallPolygon=wall,floorCourt=CourtLayout.CUSTOM)
+    val v=view();v.settings=current
+    for(stale in listOf(LocalSettings(),current.copy(floorPolygon=null),current.selectingSurface(ContactSurface.FLOOR))) {
+      v.present(LocalFrame(IntArray(1280*720),1280,720,0.0,
+        LocalResult(null,null,emptyList(),null,false,null,"Old frame",activeArea=stale),0.0,60.0,60,"fixture"))
+      assertEquals(current,v.visibleSettings)
+      v.begin(1,v.visibleSettings.selectingSurface(ContactSurface.FLOOR))
+      assertEquals(floor,v.draft);v.finish()
+    }
+  }
+  @Test fun currentCameraTranslationIsRetainedWithoutRevertingSoundOrMarks() {
+    val current=LocalSettings(polygon=listOf(CourtPoint(.1,.5),CourtPoint(.9,.5),CourtPoint(.9,.9),CourtPoint(.1,.9)),sound=false,marks=false).rememberingArea()
+    val offset=CourtPoint(.03,-.02)
+    val result=LocalResult(null,null,emptyList(),null,false,null,"Current frame",activeArea=current.translated(offset).copy(sound=true,marks=true),cameraOffset=offset)
+    val v=view();v.settings=current;v.present(LocalFrame(IntArray(1280*720),1280,720,0.0,result,0.0,60.0,60,"fixture"))
+    assertEquals(current.translated(offset),v.visibleSettings)
+    assertEquals(offset,result.referencedTo(current).cameraOffset)
+    assertFalse(current.acceptsFrameArea(result.activeArea,CourtPoint(Double.NaN,0.0)))
+  }
+  @Test fun staleAreaImpactAndConfirmationCannotAffectTheCurrentSession() {
+    val current=LocalSettings(surface=ContactSurface.WALL)
+    val hit=LocalImpact(1,1.0,CourtPoint(.2,.8),5.0,LineCall.OUT,null,1.0,"old floor",ContactSurface.FLOOR)
+    val result=LocalResult(null,null,emptyList(),hit,false,null,"Old floor event",activeArea=LocalSettings(),cameraOffset=CourtPoint(.03,.02),areaNeedsConfirmation=true)
+    val safe=result.referencedTo(current)
+    assertNull(safe.impact);assertFalse(safe.areaNeedsConfirmation)
+    assertEquals(current,safe.activeArea);assertEquals(CourtPoint(0.0,0.0),safe.cameraOffset)
+  }
   @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
   fun previewContourIsDrawnAroundTheObservedBallWithoutCoveringItsCentre() {
     val p=IntArray(640*360){0xff315372.toInt()}
@@ -78,6 +108,42 @@ class LocalCourtEditorTest {
     v.draw(android.graphics.Canvas(image))
     assertEquals("The outline must leave the actual ball centre visible",p[180*640+100],image.getPixel(100,180))
     assertNotEquals("The contour needs contrast outside the ball",p[180*640+108],image.getPixel(108,180))
+    image.recycle()
+  }
+  @Test fun portraitAndLandscapeFramesUseTheirOwnRatioAndMapEveryCorner() {
+    for((iw,ih) in listOf(720 to 1280,1280 to 720,1920 to 1080)) {
+      val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context)
+      v.present(LocalFrame(IntArray(iw*ih){0xff315372.toInt()},iw,ih,0.0,
+        LocalResult(null,null,emptyList(),null,false,null,"Fixture"),0.0,60.0,60,"ratio-$iw"))
+      v.measure(android.view.View.MeasureSpec.makeMeasureSpec(500,android.view.View.MeasureSpec.AT_MOST),android.view.View.MeasureSpec.makeMeasureSpec(400,android.view.View.MeasureSpec.AT_MOST))
+      v.layout(0,0,v.measuredWidth,v.measuredHeight)
+      assertTrue(v.width<=500 && v.height<=400)
+      assertEquals(iw.toDouble()/ih,v.width.toDouble()/v.height,.004)
+      val origin=v.pointOnScreen(CourtPoint(0.0,0.0));val end=v.pointOnScreen(CourtPoint(1.0,1.0))
+      assertEquals(0f,origin.x,.6f);assertEquals(0f,origin.y,.6f)
+      assertEquals(v.width.toFloat(),end.x,.6f);assertEquals(v.height.toFloat(),end.y,.6f)
+      v.begin(3);val p=CourtPoint(.8,.7);tap(v,p)
+      assertEquals(p.x,v.draft.single().x,1e-6);assertEquals(p.y,v.draft.single().y,1e-6)
+    }
+  }
+  @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+  fun contactPulseAppearsAtMappedContactThenExpiresWithoutRemovingTheMark() {
+    val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context);v.layout(0,0,640,360)
+    val background=0xff315372.toInt()
+    v.present(LocalFrame(IntArray(640*360){background},640,360,0.0,
+      LocalResult(null,null,emptyList(),null,false,null,"Fixture",activeArea=LocalSettings(),cameraOffset=CourtPoint(.04,.03)),0.0,60.0,60,"impact"))
+    val hit=LocalImpact(1,1.0,CourtPoint(.25,.75),5.0,LineCall.OUT,30.0,1.0,"Known test contact",ContactSurface.FLOOR,cameraOffset=CourtPoint(.01,.02))
+    v.events=listOf(hit)
+    org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(240))
+    val image=android.graphics.Bitmap.createBitmap(640,360,android.graphics.Bitmap.Config.ARGB_8888)
+    v.draw(android.graphics.Canvas(image))
+    val centre=v.pointOnScreen(LocalGeometry.impactPoint(hit,CourtPoint(.04,.03)))
+    val x=(centre.x+20).toInt();val y=centre.y.toInt()
+    assertNotEquals("An arrival pulse must be visible at the same camera-offset contact coordinate",background,image.getPixel(x,y))
+    org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(400))
+    v.draw(android.graphics.Canvas(image))
+    assertEquals("The pulse is transient",background,image.getPixel(x,y))
+    assertNotEquals("The contact ring remains after the pulse",background,image.getPixel((centre.x+7).toInt(),y))
     image.recycle()
   }
 }

@@ -5,13 +5,63 @@ import android.graphics.*
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
 import kotlin.math.*
+
+/** Camera updates are asynchronous: a late frame must not restore an older area. */
+internal fun LocalSettings.acceptsFrameArea(area: LocalSettings?,offset: CourtPoint): Boolean {
+  if(area==null || !offset.x.isFinite() || !offset.y.isFinite()) return false
+  val expected=translated(offset)
+  fun same(a: List<CourtPoint>?,b: List<CourtPoint>?): Boolean {
+    if(a==null || b==null) return a==b
+    return a.size==b.size && a.zip(b).all { (p,q)->abs(p.x-q.x)<1e-6 && abs(p.y-q.y)<1e-6 }
+  }
+  return expected.surface==area.surface && expected.court==area.court && expected.floorCourt==area.floorCourt &&
+    same(expected.polygon,area.polygon) && same(expected.floorLine,area.floorLine) &&
+    same(expected.floorPolygon,area.floorPolygon) && same(expected.wallPolygon,area.wallPolygon)
+}
+internal fun LocalResult.referencedTo(settings: LocalSettings): LocalResult =
+  if(settings.acceptsFrameArea(activeArea,cameraOffset)) copy(activeArea=settings.translated(cameraOffset))
+  else copy(activeArea=settings,cameraOffset=CourtPoint(0.0,0.0),impact=null,areaNeedsConfirmation=false,
+    message="Atualizando área · aguardando quadro atual")
+
+/** Wrap the image and its controls; do not reserve a tall empty video panel. */
+class LocalVideoPanel(context: Context,attrs: AttributeSet?=null): LinearLayout(context,attrs) {
+  var heightFraction=1.0
+  override fun onMeasure(widthMeasureSpec: Int,heightMeasureSpec: Int) {
+    val limit=if(MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.UNSPECIFIED) Int.MAX_VALUE/4
+      else (MeasureSpec.getSize(heightMeasureSpec)*heightFraction).toInt()
+    var controls=paddingTop+paddingBottom
+    var preview: LocalCourtView?=null
+    for(i in 0 until childCount) {
+      val child=getChildAt(i)
+      if(child is LocalCourtView){preview=child;continue}
+      if(child.visibility==GONE) continue
+      val lp=child.layoutParams as MarginLayoutParams
+      val childWidth=ViewGroup.getChildMeasureSpec(widthMeasureSpec,paddingLeft+paddingRight+lp.leftMargin+lp.rightMargin,lp.width)
+      child.measure(childWidth,MeasureSpec.makeMeasureSpec(0,MeasureSpec.UNSPECIFIED))
+      controls+=child.measuredHeight+lp.topMargin+lp.bottomMargin
+    }
+    preview?.viewportHeightLimit=max(1,limit-controls)
+    super.onMeasure(widthMeasureSpec,MeasureSpec.makeMeasureSpec(limit,MeasureSpec.AT_MOST))
+  }
+}
 
 /** One fitted coordinate system for pixels, touches, trajectories and saved areas. */
 class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,attrs) {
+  var viewportHeightLimit=Int.MAX_VALUE
   var settings=LocalSettings()
-  val visibleSettings get()=result?.activeArea ?: settings
+  val visibleSettings get()=result?.referencedTo(settings)?.activeArea ?: settings
   var events: List<LocalImpact> = emptyList()
+    set(value) {
+      val previous=field.map { it.id }.toSet()
+      val now=android.os.SystemClock.elapsedRealtime()
+      value.filter { it.id !in previous && it.decision!=LineCall.REJECTED }.forEach { pulses[it.id]=now }
+      pulses.keys.retainAll(value.map { it.id }.toSet())
+      field=value
+      invalidate()
+    }
   var editing=0 // 1: dragged area; 2: room floor boundary; 3: four court corners
     private set
   var draft: List<CourtPoint> = emptyList()
@@ -27,7 +77,11 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   private var anchor: CourtPoint?=null
   private var age=0L
   private var loupePoint: CourtPoint?=null
-  private var cameraOffset=CourtPoint(0.0,0.0)
+  private val cameraOffset get()=result?.referencedTo(settings)?.cameraOffset ?: CourtPoint(0.0,0.0)
+  private val pulses=mutableMapOf<Long,Long>()
+  private val labelObstacles=mutableListOf<RectF>()
+  private data class PlacedLabel(val text:String,val color:Int,val box:RectF,val anchor:PointF?)
+  private val placedLabels=mutableListOf<PlacedLabel>()
   var editorLayout=CourtLayout.CUSTOM
   private val lime=Color.rgb(197,250,100)
   private val cyan=Color.rgb(97,211,238)
@@ -38,17 +92,29 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     if (editing!=0) return // explicit frozen reference for precise editing; camera still drains frames
     if (image?.width!=frame.width || image?.height!=frame.height) {
       image?.recycle(); image=Bitmap.createBitmap(frame.width,frame.height,Bitmap.Config.ARGB_8888)
+      requestLayout()
     }
     image!!.setPixels(frame.pixels,0,frame.width,0,0,frame.width,frame.height)
-    result=frame.result;cameraOffset=frame.result.cameraOffset; age=android.os.SystemClock.elapsedRealtime(); invalidate()
+    result=frame.result;age=android.os.SystemClock.elapsedRealtime(); invalidate()
   }
   fun clearTracking() { result=null; invalidate() }
-  fun resetReference() { cameraOffset=CourtPoint(0.0,0.0);result=null;events=emptyList();invalidate() }
+  fun resetReference() { result=null;events=emptyList();invalidate() }
   fun begin(mode: Int,reference: LocalSettings=visibleSettings) { editing=mode; draft=if (mode==2) reference.floorLine.toList() else reference.polygon.toList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun redraw() { draft=emptyList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun finish() { editing=0; draft=emptyList(); result=null; loupePoint=null; invalidate() }
   private fun changed() { onDraft?.invoke(if (editing==2) LocalGeometry.validFloorLine(draft) else LocalGeometry.valid(draft)); invalidate() }
   override fun performClick(): Boolean { super.performClick(); return true }
+  override fun onMeasure(widthMeasureSpec: Int,heightMeasureSpec: Int) {
+    val availableWidth=MeasureSpec.getSize(widthMeasureSpec)
+    val availableHeight=MeasureSpec.getSize(heightMeasureSpec)
+    val iw=(image?.width ?: 16).toDouble();val ih=(image?.height ?: 9).toDouble()
+    val widthLimit=if(MeasureSpec.getMode(widthMeasureSpec)==MeasureSpec.UNSPECIFIED) iw else availableWidth.toDouble()
+    val heightLimit=min(viewportHeightLimit.toDouble(),if(MeasureSpec.getMode(heightMeasureSpec)==MeasureSpec.UNSPECIFIED) Double.MAX_VALUE else availableHeight.toDouble())
+    val scale=min(widthLimit/iw,heightLimit/ih)
+    // The canvas itself has the source ratio. Keep every source pixel and corner;
+    // the surrounding layout can use the remaining space without a black viewport.
+    setMeasuredDimension(max(1,(iw*scale).roundToInt()),max(1,(ih*scale).roundToInt()))
+  }
   private fun fitted() {
     val iw=(image?.width ?: 16).toFloat(); val ih=(image?.height ?: 9).toFloat()
     val scale=min(width/iw,height/ih)
@@ -111,7 +177,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   }
 
   override fun onDraw(canvas: Canvas) {
-    super.onDraw(canvas); fitted(); canvas.drawColor(Color.rgb(6,13,16))
+    super.onDraw(canvas); fitted();labelObstacles.clear();placedLabels.clear();canvas.drawColor(Color.rgb(6,13,16))
     paint.reset(); paint.isAntiAlias=true; paint.isFilterBitmap=true
     image?.let { canvas.drawBitmap(it,null,rect,paint) }
     val density=resources.displayMetrics.density
@@ -153,10 +219,24 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       }
       return
     }
-    if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24).forEach { e ->
+    val visibleMarks=if(settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24) else emptyList()
+    visibleMarks.forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
+      labelObstacles.add(RectF(s.x-9*density,s.y-9*density,s.x+9*density,s.y+9*density))
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
-      if(events.takeLast(3).any{it.id==e.id}) label(canvas,(if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
+      pulses[e.id]?.let { started ->
+        val progress=(android.os.SystemClock.elapsedRealtime()-started)/480f
+        if (progress in 0f..1f) {
+          paint.color=color;paint.alpha=((1-progress)*210).toInt();paint.style=Paint.Style.STROKE;paint.strokeWidth=3*density
+          canvas.drawCircle(s.x,s.y,(9+23*progress)*density,paint)
+          paint.alpha=255;paint.style=Paint.Style.FILL
+          postInvalidateOnAnimation()
+        } else pulses.remove(e.id)
+      }
+    }
+    visibleMarks.takeLast(3).asReversed().forEach { e ->
+      val s=screen(LocalGeometry.impactPoint(e,cameraOffset))
+      label((if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,callColor(e.decision),s)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->
@@ -170,18 +250,35 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
         paint.style=Paint.Style.STROKE;paint.color=0xff0a0a0a.toInt();paint.strokeWidth=4*density
         canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint)
         paint.color=color;paint.strokeWidth=2*density;canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
-        label(canvas,if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
+        label(if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
-      r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label(canvas,"PREVISÃO",s.x,s.y,amber) }
+      r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label("PREVISÃO",s.x,s.y,amber) }
     }
+    drawLabels(canvas)
   }
-  private fun label(canvas: Canvas,text: String,x: Float,y: Float,color: Int) {
+  private fun label(text: String,x: Float,y: Float,color: Int,anchor:PointF?=null) {
     val d=resources.displayMetrics.density; paint.textSize=11*d; paint.typeface=Typeface.DEFAULT_BOLD; paint.textAlign=Paint.Align.LEFT
-    val width=paint.measureText(text); val px=x.coerceIn(rect.left+4*d,max(rect.left+4*d,rect.right-width-6*d)); val py=y.coerceIn(rect.top+18*d,rect.bottom-5*d)
-    paint.color=0xdd0b1115.toInt(); canvas.drawRoundRect(px-4*d,py-14*d,px+width+4*d,py+4*d,4*d,4*d,paint)
-    paint.color=color; canvas.drawText(text,px,py,paint)
+    val viewport=RectF(rect).apply { inset(2*d,2*d) }
+    val box=LocalOverlayLayout.place(viewport,paint.measureText(text)+8*d,18*d,x-4*d,y-14*d,3*d,labelObstacles) ?: return
+    labelObstacles.add(box)
+    placedLabels.add(PlacedLabel(text,color,box,anchor))
+  }
+  private fun drawLabels(canvas:Canvas) {
+    val d=resources.displayMetrics.density
+    // Leaders go behind every label so they never run over another decision's text.
+    placedLabels.forEach { label -> label.anchor?.let { p ->
+      val box=label.box
+      val endX=p.x.coerceIn(box.left,box.right);val endY=p.y.coerceIn(box.top,box.bottom)
+      val distance=hypot(endX-p.x,endY-p.y)
+      if(distance>10*d) {paint.color=label.color;paint.alpha=150;paint.strokeWidth=d;canvas.drawLine(p.x+(endX-p.x)*9*d/distance,p.y+(endY-p.y)*9*d/distance,endX,endY,paint);paint.alpha=255}
+    }}
+    paint.style=Paint.Style.FILL;paint.textSize=11*d;paint.typeface=Typeface.DEFAULT_BOLD;paint.textAlign=Paint.Align.LEFT
+    placedLabels.forEach { label ->
+      paint.color=0xf50b1115.toInt();canvas.drawRoundRect(label.box,4*d,4*d,paint)
+      paint.color=label.color;canvas.drawText(label.text,label.box.left+4*d,label.box.top+14*d,paint)
+    }
   }
   fun callColor(call: LineCall)=when(call) { LineCall.IN->lime; LineCall.OUT->red; else->amber }
   fun callLabel(call: LineCall)=when(call) { LineCall.REVIEW->"REVISAR"; LineCall.UNMARKED->"SEM ÁREA"; LineCall.REJECTED->"DESCARTADO"; else->call.name }
-  override fun onDetachedFromWindow() { super.onDetachedFromWindow(); image?.recycle(); image=null }
+  override fun onDetachedFromWindow() { super.onDetachedFromWindow(); image?.recycle(); image=null; pulses.clear() }
 }

@@ -1,0 +1,38 @@
+{
+  "version": "0.6.10",
+  "jvmTests": {
+    "tests": 240,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "voiceAssetsVerifiedInAPK": true,
+  "voicePack": "elevenlabs-brian-clear-v4-4",
+  "physicalAndroidTest": false,
+  "apk": {
+    "version": "0.6.10",
+    "versionCode": 23,
+    "filename": "Tennis-Vision-Camera-Android-v0.6.10.apk",
+    "bytes": 3247156,
+    "sha256": "2a67b2879341bfc58af3a951d5dac4fc645a93ded84ed0df843c23506c6ffbcb",
+    "certificateSha256": "faf843630ad0a52fef6ca4f844cae592e3da1e266b7b823f481c34d3b2049ce9",
+    "sourceCommit": "53704999db2061c01aa3c0b16f8d08d51973b4e2"
+  },
+  "sourceCommit": "53704999db2061c01aa3c0b16f8d08d51973b4e2",
+  "lint": {
+    "Error": 0,
+    "Warning": 151,
+    "Fatal": 0
+  },
+  "buildElapsedSeconds": 114,
+  "buildTasks": [
+    "testDebugUnitTest",
+    "lintRelease",
+    "assembleRelease"
+  ],
+  "verification": {
+    "apksigner": true,
+    "packageManifest": true,
+    "releaseSigningIdentityPreserved": true
+  }
+}
