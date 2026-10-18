@@ -1,5 +1,22 @@
 import Foundation
 
+public enum VisionFloorBoundaryDraft {
+    public static func hint(_ points:[VisionPoint])->String {
+        if points.count<2{return "\(points.count)/2 pontos · marque um ponto à esquerda e outro à direita, onde a parede encontra o chão."}
+        if !VisionGeometry.validLine(points){return "Os pontos estão próximos demais na horizontal. Toque mais à esquerda ou à direita para ajustar um extremo; depois salve."}
+        return "2/2 pontos · limite pronto. O piso fica abaixo da linha. Toque em Salvar área para concluir."
+    }
+    public static func placing(_ point:VisionPoint,in points:[VisionPoint],width:Double,height:Double)->[VisionPoint] {
+        guard point.x.isFinite,point.y.isFinite,(0...1).contains(point.x),(0...1).contains(point.y),width>0,height>0 else{return points}
+        if points.count<2{return points+[point]}
+        var updated=Array(points.prefix(2))
+        let nearest=updated.indices.min{a,b in
+            hypot((updated[a].x-point.x)*width,(updated[a].y-point.y)*height)<hypot((updated[b].x-point.x)*width,(updated[b].y-point.y)*height)
+        }!
+        updated[nearest]=point;return updated
+    }
+}
+
 public extension VisionSettings {
     func rememberingArea() -> VisionSettings {
         var value=self

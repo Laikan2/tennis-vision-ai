@@ -29,8 +29,18 @@ jobs:
       - name: Optimized release timings
         working-directory: mobile/ios
         run: swift run -c release VisionBenchmark /tmp/candidate.json > /tmp/candidate.log
+      - name: Repeat in reverse order with both binaries already built
+        run: |
+          set -euo pipefail
+          (cd mobile/ios && swift run --skip-build -c release VisionBenchmark /tmp/candidate-repeat.json > /tmp/candidate-repeat.log)
+          (cd /tmp/tennis-baseline/mobile/ios && swift run --skip-build -c release VisionBenchmark /tmp/baseline-repeat.json > /tmp/baseline-repeat.log)
       - name: Check identical detections and compare timings
-        run: python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json
+        run: |
+          python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json
+          python3 scripts/compare-ios-throughput.py /tmp/baseline-repeat.json /tmp/candidate-repeat.json /tmp/comparison-repeat.json
+      - name: Check borrowed-buffer memory safety
+        working-directory: mobile/ios
+        run: swift test --sanitize=address --filter DetectorBufferSafetyTests
       - name: Upload timings and frame signatures
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -40,5 +50,8 @@ jobs:
             /tmp/baseline.json
             /tmp/candidate.json
             /tmp/comparison.json
+            /tmp/baseline-repeat.json
+            /tmp/candidate-repeat.json
+            /tmp/comparison-repeat.json
             /tmp/baseline.log
             /tmp/candidate.log

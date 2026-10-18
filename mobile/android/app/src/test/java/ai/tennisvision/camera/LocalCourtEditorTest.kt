@@ -55,6 +55,15 @@ class LocalCourtEditorTest {
     assertTrue(LocalGeometry.validFloorLine(v.draft))
     assertEquals(2,v.draft.size)
   }
+  @Test fun twoCloseFloorPointsCanBeCorrectedWithAThirdTapWithoutRestarting() {
+    val v=view();v.begin(2)
+    tap(v,CourtPoint(.48,.5));tap(v,CourtPoint(.52,.5))
+    assertEquals(2,v.draft.size);assertFalse(LocalGeometry.validFloorLine(v.draft))
+    assertTrue(floorBoundaryHint(v.draft).contains("horizontal"))
+    tap(v,CourtPoint(.95,.5))
+    assertEquals(2,v.draft.size);assertTrue(LocalGeometry.validFloorLine(v.draft))
+    assertEquals(.48,v.draft[0].x,1e-6);assertTrue(floorBoundaryHint(v.draft).contains("Salvar área"))
+  }
   @Test fun openingWallEditorUsesItsOwnAreaRatherThanTheLastFloorFrame() {
     val v=view()
     val floor=listOf(CourtPoint(.1,.6),CourtPoint(.9,.6),CourtPoint(.9,.95),CourtPoint(.1,.95))

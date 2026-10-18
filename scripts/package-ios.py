@@ -14,7 +14,7 @@ def package_ios():
     destination.parent.mkdir(parents=True,exist_ok=True)
     allowed=[IOS/'Package.swift',IOS/'project.py',IOS/'README.md',
              *sorted((IOS/'App').rglob('*')),*sorted((IOS/'Sources').rglob('*')),
-             *sorted((IOS/'Tests').rglob('*')),*sorted((IOS/'Smoke').rglob('*')),
+             *sorted((IOS/'Tests').rglob('*')),*sorted((IOS/'Smoke').rglob('*')),*sorted((IOS/'Performance').rglob('*')),
              IOS/'TennisVisionCamera.xcodeproj/project.pbxproj',
              IOS/'TennisVisionCamera.xcodeproj/xcshareddata/xcschemes/TennisVisionCamera.xcscheme']
     with ZipFile(destination,'w',ZIP_DEFLATED) as archive:

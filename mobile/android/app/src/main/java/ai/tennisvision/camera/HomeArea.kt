@@ -1,5 +1,11 @@
 package ai.tennisvision.camera
 
+fun floorBoundaryHint(points: List<CourtPoint>): String = when {
+  points.size<2 -> "${points.size}/2 pontos · marque um ponto à esquerda e outro à direita, onde a parede encontra o chão."
+  !LocalGeometry.validFloorLine(points) -> "Os pontos estão próximos demais na horizontal. Toque mais à esquerda ou à direita para ajustar um extremo; depois salve."
+  else -> "2/2 pontos · limite pronto. O piso fica abaixo da linha. Toque em Salvar área para concluir."
+}
+
 fun LocalSettings.rememberingArea(): LocalSettings = when(surface) {
   ContactSurface.FLOOR -> copy(floorPolygon=polygon,floorCourt=court)
   ContactSurface.WALL -> copy(wallPolygon=polygon)
