@@ -1,6 +1,6 @@
 {
-  "version": "0.6.10",
-  "baseline": "green-ball-session-0.6.10",
+  "version": "0.6.11",
+  "baseline": "green-ball-throughput-0.6.11",
   "platforms": [
     "android",
     "ios"
@@ -45,7 +45,9 @@
     "owned-yuv-buffer",
     "felt-separation-from-warm-floor",
     "temporal-floor-contact-window",
-    "weak-target-temporal-confirmation"
+    "weak-target-temporal-confirmation",
+    "full-resolution-detector-buffer-borrow",
+    "floor-boundary-draft-feedback"
   ],
   "installation": {
     "android": "apk-confirmation",

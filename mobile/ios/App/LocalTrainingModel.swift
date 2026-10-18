@@ -99,10 +99,10 @@ final class LocalTrainingStore {
     var saveAreaTitle:String{homeSetup?.stage == .area && homeSetup?.surface == .floor ? "Próximo: limite do piso":"Salvar área"}
     var editorHint:String{
         if homeSetup?.surface == .floor {
-            return editing==2 ? "Passo 2/2 · toque em dois pontos onde a parede encontra o chão. O piso fica abaixo da linha.":"Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
+            return editing==2 ? "Passo 2/2 · "+VisionFloorBoundaryDraft.hint(draft):"Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
         }
         if homeSetup?.surface == .wall{return "Parede · arraste sobre a área da parede e ajuste os quatro cantos. A marcação do chão será mantida."}
-        return editing==2 ? "Toque em dois pontos entre parede e chão. O piso fica abaixo da linha.":editing==1 ? "Arraste para expandir; depois ajuste os quatro cantos.":"\(draft.count) / 4 pontos · arraste para ajustar"
+        return editing==2 ? VisionFloorBoundaryDraft.hint(draft):editing==1 ? "Arraste para expandir; depois ajuste os quatro cantos.":"\(draft.count) / 4 pontos · arraste para ajustar"
     }
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
@@ -131,7 +131,7 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.10"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.11"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleResult?.cameraOffset ?? VisionPoint(0,0)}

@@ -10,8 +10,8 @@ android {
     applicationId = "ai.tennisvision.camera"
     minSdk = 26
     targetSdk = 37
-    versionCode = 23
-    versionName = "0.6.10"
+    versionCode = 24
+    versionName = "0.6.11"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

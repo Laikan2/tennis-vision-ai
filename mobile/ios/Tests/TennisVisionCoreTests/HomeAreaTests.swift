@@ -5,6 +5,22 @@ final class HomeAreaTests:XCTestCase {
     let floor=[VisionPoint(0.1,0.6),VisionPoint(0.9,0.6),VisionPoint(0.9,0.95),VisionPoint(0.1,0.95)]
     let wall=[VisionPoint(0.2,0.1),VisionPoint(0.8,0.1),VisionPoint(0.8,0.5),VisionPoint(0.2,0.5)]
     let boundary=[VisionPoint(0.05,0.55),VisionPoint(0.95,0.55)]
+    func testCloseFloorEndpointsExplainWhySaveIsBlockedAndCanBeReplacedByTap(){
+        var points=VisionFloorBoundaryDraft.placing(VisionPoint(0.48,0.5),in:[],width:390,height:690)
+        points=VisionFloorBoundaryDraft.placing(VisionPoint(0.52,0.5),in:points,width:390,height:690)
+        XCTAssertEqual(points.count,2);XCTAssertFalse(VisionGeometry.validLine(points))
+        XCTAssertTrue(VisionFloorBoundaryDraft.hint(points).contains("horizontal"))
+        points=VisionFloorBoundaryDraft.placing(VisionPoint(0.95,0.5),in:points,width:390,height:690)
+        XCTAssertEqual(points.count,2);XCTAssertTrue(VisionGeometry.validLine(points))
+        XCTAssertEqual(points[0],VisionPoint(0.48,0.5));XCTAssertTrue(VisionFloorBoundaryDraft.hint(points).contains("Salvar área"))
+        var setup=VisionHomeAreaSetup(settings:VisionSettings(),surface:.floor)
+        XCTAssertTrue(setup.accept(floor));XCTAssertTrue(setup.accept(points));XCTAssertNotNil(setup.completedSettings)
+    }
+    func testFloorBoundaryDraftRejectsInvalidTouchWithoutChangingGoodPoints(){
+        XCTAssertEqual(VisionFloorBoundaryDraft.placing(VisionPoint(.nan,0.5),in:boundary,width:390,height:690),boundary)
+        XCTAssertEqual(VisionFloorBoundaryDraft.placing(VisionPoint(-0.1,0.5),in:boundary,width:390,height:690),boundary)
+        XCTAssertEqual(VisionFloorBoundaryDraft.placing(VisionPoint(0.5,0.5),in:boundary,width:0,height:690),boundary)
+    }
     func testFloorNeedsAreaAndBoundaryBeforeSaving(){
         var setup=VisionHomeAreaSetup(settings:VisionSettings(),surface:.floor)
         XCTAssertFalse(setup.accept([floor[0],floor[1]]));XCTAssertNil(setup.completedSettings)

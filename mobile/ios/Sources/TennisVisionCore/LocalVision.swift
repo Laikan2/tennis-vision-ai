@@ -145,6 +145,27 @@ final class VisionDetector {
             cutoffs[gy*cols+gx]=outer && lowest != Int.max ? lowest+12:-1
             weakCutoffs[gy*cols+gx]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
         }}
+        // Borrow each buffer once for this synchronous frame. Repeated writes to
+        // stored Swift Arrays otherwise repeat uniqueness/exclusivity work for
+        // every pixel and every flood-fill neighbour. The original arrays stay
+        // alive for the entire borrow; pointers never escape this call.
+        let previousCount=previous.count
+        let detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
+        let pixels=pixelBuffer.baseAddress!
+        return previous.withUnsafeBufferPointer { previousBuffer in
+        let previous=previousBuffer.baseAddress ?? pixels
+        return mask.withUnsafeMutableBufferPointer { maskBuffer in
+        let mask=maskBuffer.baseAddress!
+        return strong.withUnsafeMutableBufferPointer { strongBuffer in
+        let strong=strongBuffer.baseAddress!
+        return chroma.withUnsafeMutableBufferPointer { chromaBuffer in
+        let chroma=chromaBuffer.baseAddress!
+        return rawGreen.withUnsafeMutableBufferPointer { rawBuffer in
+        let rawGreen=rawBuffer.baseAddress!
+        return oldGreen.withUnsafeBufferPointer { oldBuffer in
+        let oldGreen=oldBuffer.baseAddress!
+        return queue.withUnsafeMutableBufferPointer { queueBuffer in
+        let queue=queueBuffer.baseAddress!
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
@@ -152,9 +173,9 @@ final class VisionDetector {
             chroma[i]=UInt8(max(0,green-blue)*255/max(1,max(red,green)))
             var selected=s || weakGreen(c);rawGreen[i]=selected ? 1:0
             if selected {
-                let y=i/width,x=i-y*width,old=previous.count==count ? previous[i]:0
+                let y=i/width,x=i-y*width,old=previousCount==count ? previous[i]:0
                 let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
-                if !tracked && (previous.isEmpty || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
+                if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
                     let tile=(y>>3)*cols+(x>>3),cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
                     if visionLight(c)<cutoff{selected=false}
                 }
@@ -181,7 +202,7 @@ final class VisionDetector {
                 if strong[i]==1{strongCount+=1;sxmin=min(sxmin,x);sxmax=max(sxmax,x);symin=min(symin,y);symax=max(symax,y)}
                 let weight=Double(max(1,Int((pixels[i]>>8)&255)-Int(pixels[i]&255)))
                 weights+=weight;wx+=Double(x)*weight;wy+=Double(y)*weight
-                if previous.count==count && abs(visionLight(pixels[i])-visionLight(previous[i])-lightShift)>12{changed+=1}
+                if previousCount==count && abs(visionLight(pixels[i])-visionLight(previous[i])-lightShift)>12{changed+=1}
                 func add(_ n: Int){if mask[n]==1 && (pass==1 || chroma[n]>=71 || abs(n%width-seed%width)<=4 && abs(n/width-seed/width)<=4){mask[n]=0;queue[tail]=n;tail+=1}}
                 if x>0{add(i-1)};if x+1<width{add(i+1)};if y>0{add(i-width)};if y+1<height{add(i+width)}
             }
@@ -203,7 +224,7 @@ final class VisionDetector {
             for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
                 if hypot(Double(px)-x,Double(py)-y)<radius*1.2{continue};ring+=1
                 let i=py*width+px,c=pixels[i]
-                if skinColor(c){skin+=1;if previous.count==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
+                if skinColor(c){skin+=1;if previousCount==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
             if closePartial && (ring==0 || Double(skin)<Double(ring)*0.12 || Double(skin)>Double(ring)*0.85){continue}
             var ball=VisionBall(x:x,y:y,radius:radius,time:time,confidence:halo ? min(fill,0.45):min(fill,min(w,h)<5 ? 0.6:0.95))
@@ -218,7 +239,7 @@ final class VisionDetector {
             }}
             let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
             ball.nearHand=closePartial || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
-            ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previous.isEmpty ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
+            ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previousCount==0 ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
             found.append(ball);bounds.append([xmin,ymin,xmax,ymax]);masses.append(tail)
         }}
         if (2...48).contains(found.count) {
@@ -257,8 +278,10 @@ final class VisionDetector {
             }
             found=joined
         }
-        previous=pixels;swap(&oldGreen,&rawGreen)
         return (found,moving)
+        }}}}}}}}
+        previous=pixels;swap(&oldGreen,&rawGreen)
+        return detected
     }
 }
 

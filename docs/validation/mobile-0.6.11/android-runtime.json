@@ -1,0 +1,70 @@
+{
+  "version": "0.6.11",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39146037729",
+  "executionSource": "d76d5e321d620e2e3c9fbd3c46a0db72bf014c3f",
+  "productionSource": "f8760bf8cdfdc81633e1a0e1361f7ca613021062",
+  "sourceNote": "The later commit changes only the emulator workflow build-daemon lifetime.",
+  "result": "passed",
+  "tests": 10,
+  "failures": 0,
+  "physicalDevice": false,
+  "android": "15",
+  "api": 35,
+  "model": "sdk_gphone64_x86_64",
+  "auditHasInternetPermission": false,
+  "activeDefaultNetworkBefore": "none",
+  "activeDefaultNetworkAfter": "none",
+  "pipeline": {
+    "source": "synthetic H264 MP4 decoded by Android MediaCodec; no lens ground-truth claim",
+    "frames": 191,
+    "calls": "IN, OUT, REVIEW",
+    "p50AnalysisMs": 3.794287,
+    "p95AnalysisMs": 22.646488,
+    "outAudioEnqueued": 1,
+    "note": "SoundPool accepted playback; human audibility on a physical phone not verified",
+    "android": "15"
+  },
+  "lifecycle": {
+    "kind": "Android emulator lifecycle test",
+    "offlineBeforeLaunch": true,
+    "batterySaverBeforeLaunch": true,
+    "batteryPluggedBeforeLaunch": 0,
+    "batteryStatusBeforeLaunch": 3,
+    "batteryLevelBeforeLaunch": 50,
+    "screenBecameNonInteractive": true,
+    "screenInteractiveAfterWake": true,
+    "batterySaverAfterWake": true,
+    "offlineAfterWake": true
+  },
+  "cameraSnapshot": {
+    "kind": "camera UI exercise; scene is not labelled tennis footage",
+    "device": "sdk_gphone64_x86_64",
+    "android": "15",
+    "metrics": "1280 Ã— 720 Â· 19 FPS recebidos Â· atÃ© 30 solicitados\nConversÃ£o 128.7 ms Â· detecÃ§Ã£o 75.8 ms\nEquilibrada Â· campo 51Â° Â· cÃ¢mera 1 Â· sem computador\nExposiÃ§Ã£o recente 4.5 ms Â· captura â†’ UI â‰ˆ264 ms"
+  },
+  "screenshotReviewed": "reports/android-device/offline-proof/02-decoded-fixture-in-out-review.png",
+  "screenshotObservation": "IN, OUT and REVIEW labels with estimated speeds are legible, with leader lines to their original contact circles.",
+  "scenarios": [
+    "decoded synthetic floor IN/OUT/REVIEW, statistics, accepted OUT playback and persisted events",
+    "wall return candidates without false OUT audio",
+    "floor/wall editing, cancellation and separate areas",
+    "new session clears temporary geometry and keeps history",
+    "rapid taps, background/resume and Activity recreation",
+    "atomic-storage recovery",
+    "preview-only ball contour without impacts or statistics",
+    "screen lock, wake and verified battery saver while offline",
+    "camera permission grant produces a frame",
+    "camera permission denial and Android settings"
+  ],
+  "previousRun": {
+    "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39145040139",
+    "result": "failed",
+    "note": "The emulator showed a Pixel Launcher not responding dialog. Six UI tests could not inject touches into the app window; permission tests were also obstructed. This run is not counted as passed. A fresh emulator and a build without a retained Gradle daemon completed all scenarios; no app assertion was removed."
+  },
+  "limitations": [
+    "No physical Android test.",
+    "Synthetic decoded clips are not real-ball contact truth.",
+    "Emulated camera and detector timings are not phone FPS or complete physical latency.",
+    "SoundPool accepted playback; emulator audio was disabled, so audibility was not tested."
+  ]
+}

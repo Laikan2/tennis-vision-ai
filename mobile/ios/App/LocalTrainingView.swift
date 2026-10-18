@@ -89,7 +89,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         for guide in VisionGeometry.guides(area.polygon,court:area.court){line(guide,closed:false,color:cyan.withAlphaComponent(0.6),width:1)}
         if area.surface == .floor{line(area.floorLine,closed:false,color:.systemOrange)}
         if editing>0 {
-            line(draft,closed:editing != 2 && draft.count==4,color:lime,width:3)
+            line(draft,closed:editing != 2 && draft.count==4,color:editing==2 && draft.count==2 && !VisionGeometry.validLine(draft) ? .systemOrange:lime,width:3)
             for (i,p) in draft.enumerated(){let c=screen(p);lime.setFill();UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14)).fill();label("\(i+1)",at:CGPoint(x:c.x+11,y:c.y-18),color:lime)}
             if let p=touchPoint{magnifier(p,image:f.image)}
             return
@@ -143,7 +143,10 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
                 let x=screen(VisionGeometry.impactPoint(a,offset:offset)),y=screen(VisionGeometry.impactPoint(b,offset:offset))
                 return hypot(x.x-location.x,x.y-location.y)<hypot(y.x-location.x,y.y-location.y)
             }){let q=screen(VisionGeometry.impactPoint(event,offset:offset));if hypot(q.x-location.x,q.y-location.y)<=32{onImpact?(event.id)}}
-        }else if editing != 1 && draft.count<(editing==2 ? 2:4){draft.append(p);onDraft?(draft);setNeedsDisplay()}
+        }else if editing==2{
+            draft=VisionFloorBoundaryDraft.placing(p,in:draft,width:Double(imageRect.width),height:Double(imageRect.height))
+            onDraft?(draft);setNeedsDisplay()
+        }else if editing != 1 && draft.count<4{draft.append(p);onDraft?(draft);setNeedsDisplay()}
     }
     private func beginTouch(_ location: CGPoint){
         guard editing>0,let p=point(location) else{return};touchPoint=p
@@ -151,7 +154,11 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         if let i=movingCorner,hypot(screen(draft[i]).x-location.x,screen(draft[i]).y-location.y)>30{movingCorner=nil}
         if movingCorner==nil {
             if editing==1{anchor=p;draft=[p,p,p,p]}
-            else if draft.count<(editing==2 ? 2:4){draft.append(p);movingCorner=draft.count-1}
+            else if editing==2{
+                draft=VisionFloorBoundaryDraft.placing(p,in:draft,width:Double(imageRect.width),height:Double(imageRect.height))
+                movingCorner=draft.indices.min{hypot(screen(draft[$0]).x-location.x,screen(draft[$0]).y-location.y)<hypot(screen(draft[$1]).x-location.x,screen(draft[$1]).y-location.y)}
+            }
+            else if draft.count<4{draft.append(p);movingCorner=draft.count-1}
         }
         onDraft?(draft);setNeedsDisplay()
     }

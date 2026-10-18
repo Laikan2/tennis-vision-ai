@@ -1,0 +1,153 @@
+{
+  "scope": "Same-host release-build synthetic benchmark; not physical camera FPS or match accuracy",
+  "allFrameOutputsIdentical": true,
+  "scenes": [
+    {
+      "scene": "small-ball",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 44.06187499998282,
+      "candidateMedianMs": 5.838541666662422,
+      "speedup": 7.546726137379885,
+      "baselineP95Ms": 46.88466666667068,
+      "candidateP95Ms": 6.4289166666640085,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 42.48341666666988,
+      "candidateMedianMs": 6.332666666679643,
+      "speedup": 6.708614064625144,
+      "baselineP95Ms": 48.60183333335044,
+      "candidateP95Ms": 6.773208333328284,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 45.03433333331941,
+      "candidateMedianMs": 9.153208333344764,
+      "speedup": 4.920059906127251,
+      "baselineP95Ms": 54.21458333333362,
+      "candidateP95Ms": 9.75462499999935,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 47.170375000007425,
+      "candidateMedianMs": 5.77912500000366,
+      "speedup": 8.162200160054947,
+      "baselineP95Ms": 48.6173750000205,
+      "candidateP95Ms": 6.904416666657198,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "small-ball",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 49.7372916666734,
+      "candidateMedianMs": 6.017208333332746,
+      "speedup": 8.265841717852812,
+      "baselineP95Ms": 52.20366666668497,
+      "candidateP95Ms": 6.422583333346665,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 47.631499999994276,
+      "candidateMedianMs": 6.5329583333380015,
+      "speedup": 7.29095420017122,
+      "baselineP95Ms": 49.34487500000273,
+      "candidateP95Ms": 7.142416666653162,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 44.5515000000114,
+      "candidateMedianMs": 9.187499999995907,
+      "speedup": 4.8491428571462585,
+      "baselineP95Ms": 52.814208333330726,
+      "candidateP95Ms": 9.745208333328037,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 40.24200000000633,
+      "candidateMedianMs": 5.7680416666698875,
+      "speedup": 6.976717979091782,
+      "baselineP95Ms": 46.56316666665816,
+      "candidateP95Ms": 6.355708333330767,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "small-ball",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 97.80945833335863,
+      "candidateMedianMs": 13.736458333340806,
+      "speedup": 7.120427693938971,
+      "baselineP95Ms": 104.64516666667123,
+      "candidateP95Ms": 15.396958333326438,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 94.66745833333334,
+      "candidateMedianMs": 13.371666666671445,
+      "speedup": 7.079705222482826,
+      "baselineP95Ms": 99.051750000001,
+      "candidateP95Ms": 14.555833333332657,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 106.17816666666613,
+      "candidateMedianMs": 20.787916666648698,
+      "speedup": 5.107686757134934,
+      "baselineP95Ms": 116.5216250000185,
+      "candidateP95Ms": 22.88229166666156,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 93.83104166667522,
+      "candidateMedianMs": 14.00641666666047,
+      "speedup": 6.699146819616014,
+      "baselineP95Ms": 96.98066666666705,
+      "candidateP95Ms": 14.956791666662639,
+      "identicalOutputs": true
+    }
+  ],
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39145040158",
+  "sourceCommit": "f8760bf8cdfdc81633e1a0e1361f7ca613021062",
+  "baselineSource": "76ffd74374a2ffbb4f538aa9b57af83106a3692b"
+}

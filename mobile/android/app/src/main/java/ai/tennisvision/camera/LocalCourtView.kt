@@ -151,8 +151,8 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       MotionEvent.ACTION_DOWN -> {
         if (p==null) return false
         parent?.requestDisallowInterceptTouchEvent(true)
-        selected=if(editing==3 && draft.size<4) -1 else draft.indices.minByOrNull { i -> val s=screen(draft[i]); hypot(s.x-event.x,s.y-event.y) } ?: -1
-        if (selected>=0) { val s=screen(draft[selected]); if (hypot(s.x-event.x,s.y-event.y)>36*resources.displayMetrics.density) selected=-1 }
+        selected=if(editing==3 && draft.size<4 || editing==2 && draft.size<2) -1 else draft.indices.minByOrNull { i -> val s=screen(draft[i]); hypot(s.x-event.x,s.y-event.y) } ?: -1
+        if (selected>=0 && editing!=2) { val s=screen(draft[selected]); if (hypot(s.x-event.x,s.y-event.y)>36*resources.displayMetrics.density) selected=-1 }
         if (selected<0) {
           if (editing==2) { draft=if (draft.size>=2) listOf(p) else draft+p; selected=draft.lastIndex }
           else if(editing==3 && draft.size<4) { draft=draft+p;selected=draft.lastIndex }

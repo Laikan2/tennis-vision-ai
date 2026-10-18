@@ -36,7 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           sdkmanager 'platforms;android-37.0' 'build-tools;37.0.0'
-          bash gradlew -PauditDevice=true assembleAudit assembleAuditAndroidTest --console=plain
+          # Do not retain the build JVM heap while booting and exercising the AVD.
+          bash gradlew --no-daemon -PauditDevice=true assembleAudit assembleAuditAndroidTest --console=plain
       - name: Exercise offline Android 15 app
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
         with:

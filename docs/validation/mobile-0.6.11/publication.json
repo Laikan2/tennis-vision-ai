@@ -1,0 +1,23 @@
+{
+  "version": "0.6.11",
+  "release": "https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.11",
+  "publicDownloadsVerified": [
+    {
+      "filename": "Tennis-Vision-Camera-Android-v0.6.11.apk",
+      "bytes": 3247468,
+      "sha256": "96314a1970377c58c8be28a0df380c0af6842e8d2d49deda67c1ec1f25ee12fc",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.11/Tennis-Vision-Camera-Android-v0.6.11.apk"
+    },
+    {
+      "filename": "Tennis-Vision-Camera-iOS-v0.6.11-AltStore.ipa",
+      "bytes": 841761,
+      "sha256": "5552557ab6ba7ead97020693e742b3b368ba2392c950eb6d16afd3de2aca6bc1",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.11/Tennis-Vision-Camera-iOS-v0.6.11-AltStore.ipa"
+    }
+  ],
+  "altStoreSource": "https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json",
+  "altStoreVersion": "0.6.11",
+  "newestStableAndroidVersion": "0.6.11",
+  "windowsLatestUnchanged": "v0.6.11",
+  "physicalPhoneInstallationVerified": false
+}

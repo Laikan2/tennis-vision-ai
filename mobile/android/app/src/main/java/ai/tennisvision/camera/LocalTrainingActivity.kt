@@ -316,7 +316,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     findViewById<Button>(R.id.localSaveArea).text=if(homeSetup?.surface==ContactSurface.FLOOR && homeSetup?.stage==HomeAreaSetup.Stage.AREA) "Próximo: limite do piso" else "Salvar área"
     val hint=when {
       homeSetup?.surface==ContactSurface.FLOOR && court.editing==1 -> "Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
-      homeSetup?.surface==ContactSurface.FLOOR -> "Passo 2/2 · toque em dois pontos onde a parede encontra o chão. O piso fica abaixo da linha."
+      court.editing==2 -> "Passo 2/2 · "+floorBoundaryHint(court.draft)
       homeSetup?.surface==ContactSurface.WALL -> "Parede · arraste sobre a área de contato e ajuste os quatro cantos. A marcação do chão será mantida."
       else -> when(court.editing) {
       3 -> if(court.draft.size<4) {
