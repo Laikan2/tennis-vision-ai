@@ -112,10 +112,15 @@ class GreenBallDetector {
   private var weakContrastCutoffs=IntArray(0)
   private var lastWidth = 0
   private var lastHeight = 0
-  private val contrastReaches=intArrayOf(24,64)
+  private var contrastReaches=intArrayOf(24,64)
   private fun skin(c: Int): Boolean {
     val r=(c shr 16) and 255;val g=(c shr 8) and 255;val b=c and 255
     return r>=32 && g>=18 && b>=10 && r>g*1.12 && g>b*1.08 && r-g>7
+  }
+  private fun gripSkin(c: Int): Boolean {
+    val r=(c shr 16)and 255;val g=(c shr 8)and 255;val b=c and 255
+    // A bounded pink/red grip is different from a uniformly warm wood surround.
+    return r>=32 && g>=18 && b>=10 && r*100>g*110 && r*100>b*120 && r-g>10 && g-b<=max(10,(r-g)*4/5)
   }
   var alignment=FrameAlignment()
     private set
@@ -128,6 +133,8 @@ class GreenBallDetector {
       mask = ByteArray(pixels.size); queue = IntArray(pixels.size); previous = IntArray(0)
       previousGreen=ByteArray(pixels.size);rawGreen=ByteArray(pixels.size);strongGreen=ByteArray(pixels.size);chroma=ByteArray(pixels.size)
       lastWidth = width; lastHeight = height
+      val outerReach=max(64,min(width,height)/3)
+      contrastReaches=if(outerReach==64)intArrayOf(24,64)else intArrayOf(24,64,outerReach)
     }
     fun luminance(c: Int): Int = (((c shr 16) and 255) + 2 * ((c shr 8) and 255) + (c and 255)) / 4
     var moving = false
@@ -180,12 +187,14 @@ class GreenBallDetector {
         sample(y*width+max(0,x-reach));sample(y*width+min(width-1,x+reach))
         sample(max(0,y-reach)*width+x);sample(min(height-1,y+reach)*width+x)
         if(greens>=2) lowest=min(lowest,sum/greens)
-        if(reach==64) outerGreen=greens>=2
+        if(reach==contrastReaches.last()) outerGreen=greens>=2
         if(weakGreens>=2)weakLowest=min(weakLowest,weakSum/weakGreens)
-        if(reach==64)outerWeak=weakGreens>=2
+        if(reach==contrastReaches.last())outerWeak=weakGreens>=2
       }
       // A hand or a resolved ball can fill the nearer samples. Only enforce a
       // green-background cutoff when the wider surroundings support it too.
+      // The outer ring scales with resolution: a close ball wider than 128px
+      // must not be erased by samples that are still inside its own silhouette.
       contrastCutoffs[gy*columns+gx]=if(!outerGreen || lowest==Int.MAX_VALUE) -1 else lowest+12
       // A desaturated green court can match only the expansion colour. Do not
       // connect its entire surface to the strong ball. Keep this cutoff separate
@@ -285,15 +294,33 @@ class GreenBallDetector {
       val haloOnly=weak || (min(w,h)>=5 && min(strongXmax-strongXmin+1,strongYmax-strongYmin+1)<5)
       if(weak && (max(w,h)>12 || aspect>4))continue
       if (xmin == 0 || ymin == 0 || xmax == width-1 || ymax == height-1) continue
+      if(radius<=12) {
+        // Tiny bright felt inside a much larger dark silhouette is a highlight,
+        // not a separate resolved ball. Keep far balls without that surround.
+        val reach=max(16,ceil(radius*4).toInt());var samples=0;var dimFelt=0;var warmFelt=0
+        for(py in max(0,y.toInt()-reach)..min(height-1,y.toInt()+reach) step 2)
+          for(px in max(0,x.toInt()-reach)..min(width-1,x.toInt()+reach) step 2) {
+            if(hypot(px-x,py-y)<radius*1.5)continue
+            samples++
+            val c=pixels[py*width+px];val r=(c shr 16)and 255;val g=(c shr 8)and 255;val b=c and 255
+            if(g>=18 && g*100>=r*70 && g*100<=r*90 && g*10>b*24 && g-b>=16){warmFelt++;if(g<45)dimFelt++}
+          }
+        if(samples>0 && warmFelt>samples*.40 && dimFelt>samples*.25)continue
+      }
       val followed = prior != null && time-prior.time < .14 && hypot(x-prior.x,y-prior.y) < max(30.0, prior.radius*6)
       if(aspect>4.5 && changed<tail*.25 && !followed) continue
-      var skin = 0; var movingSkin = 0; var ring = 0
+      var skin = 0; var movingSkin = 0; var ring = 0;var closeRing=0;var closeGrip=0
       val reach = max(6, (radius*2.4).toInt())
       for (py in max(0,y.toInt()-reach)..min(height-1,y.toInt()+reach) step 2)
         for (px in max(0,x.toInt()-reach)..min(width-1,x.toInt()+reach) step 2) {
-          if (hypot(px-x,py-y) < radius*1.2) continue
+          val distance=hypot(px-x,py-y)
+          if (distance < radius*1.2) continue
           val c = pixels[py*width+px]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
           ring++
+          if(radius>=6 && distance<=radius*1.8) {
+            closeRing++
+            if(gripSkin(c) && strongGreen[py*width+px].toInt()==0)closeGrip++
+          }
           if (skin(c)) {
             skin++
             // Wooden floors can share skin colors. A uniformly skin-colored
@@ -315,8 +342,9 @@ class GreenBallDetector {
         if(skin(pixels[py*width+px]))skinSides++
       }
       val boundedGrip=skin>ring*.30 && skin<ring*.80 && skinSides<=1
+      val closeGripPresent=closeRing>0 && closeGrip>=closeRing*.08 && closeGrip<=closeRing*.65
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
-        closePartial || ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || boundedGrip || prior?.nearHand==true && skin<ring*.85), aspect>1.6,sumLight/tail,
+        closePartial || closeGripPresent || ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || boundedGrip || prior?.nearHand==true && skin<ring*.85), aspect>1.6,sumLight/tail,
         if(previous.isEmpty()) 0.0 else changed.toDouble()/tail,colorUncertain=haloOnly,diameterX=w.toDouble(),diameterY=h.toDouble(),
         distinctFelt=closePartial || radius>=2.5 && aspect<=1.6 && fill>=.55 && saturated,occluded=closePartial || seamFragment,
         feltChroma=sumChroma.toDouble()/tail,greenDominant=sumGreen>=sumRed*1.05))

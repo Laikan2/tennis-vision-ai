@@ -116,6 +116,23 @@
     "floorBecameVisibleAfterHumanReadinessConfirmation": true,
     "realFloorInOutValidation": "pending known physical bounces"
   },
+  "physicalBounceAttempt": {
+    "humanReportedActualBounces": 5,
+    "newCandidateContacts": 4,
+    "calls": {
+      "review": 4,
+      "inside": 0,
+      "outside": 0
+    },
+    "validSpeeds": 0,
+    "privateEvidenceImagesInspected": 4,
+    "allEvidenceStillsShowBallInHand": true,
+    "notAValidatedFourOutOfFiveDetectionResult": true,
+    "error": "Small felt fragments inside a large held ball were followed; still images are inconsistent with claiming confirmed floor contact",
+    "actualInOutLocationLabelsAndTimeAlignedBounceVideo": "not available",
+    "previousFortyEventsUnchanged": true,
+    "cameraBackgroundedIntoAltStoreAfterAttempt": true
+  },
   "limits": [
     "Camera probes used portrait 720x1280, requested 60 FPS; no sustained 120/240 FPS test.",
     "Analysis mean is per delivered UI frame; one initial preview frame activates full analysis.",

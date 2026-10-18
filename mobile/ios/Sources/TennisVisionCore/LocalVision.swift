@@ -107,6 +107,11 @@ public enum VisionGeometry {
     let r=Int((c>>16)&255),g=Int((c>>8)&255),b=Int(c&255)
     return r>=32 && g>=18 && b>=10 && r*100>g*112 && g*100>b*108 && r-g>7
 }
+@inline(__always) private func gripSkin(_ c: UInt32) -> Bool {
+    let r=Int((c>>16)&255),g=Int((c>>8)&255),b=Int(c&255)
+    // Red/pink skin has less yellow cast than warm timber or shaded felt.
+    return r>=32 && g>=18 && b>=10 && r*100>g*110 && r*100>b*120 && r-g>10 && g-b<=max(10,(r-g)*4/5)
+}
 final class VisionDetector {
     private var mask=[UInt8](),strong=[UInt8](),chroma=[UInt8](),previous=[UInt32](),oldGreen=[UInt8](),rawGreen=[UInt8]()
     private var queue=[Int](),cutoffs=[Int](),weakCutoffs=[Int]()
@@ -133,15 +138,19 @@ final class VisionDetector {
             moving=Double(changed)>Double(samples.count)*0.28 && Double(borderChanged)>Double(border)*0.30 && (0..<4).filter{Double(changes[$0])>Double(counts[$0])*0.30}.count>=3 && !alignment.reliable
         } else{alignment=VisionAlignment()}
         let cols=(width+7)/8,rows=(height+7)/8
+        // Samples 64px away can still be inside a close tennis ball. Resolve
+        // its wider surroundings before treating its own felt as a background.
+        let outerReach=max(64,min(width,height)/3)
+        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
         if cutoffs.count != cols*rows {cutoffs=Array(repeating:-1,count:cols*rows);weakCutoffs=cutoffs}
         for gy in 0..<rows {for gx in 0..<cols {
             let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
-            for reach in [24,64] {
+            for reach in contrastReaches {
                 var sum=0,greens=0,weakSum=0,weakCount=0
                 let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
                 for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
                 if greens>=2{lowest=min(lowest,sum/greens)};if weakCount>=2{weakLowest=min(weakLowest,weakSum/weakCount)}
-                if reach==64{outer=greens>=2;weakOuter=weakCount>=2}
+                if reach==outerReach{outer=greens>=2;weakOuter=weakCount>=2}
             }
             cutoffs[gy*cols+gx]=outer && lowest != Int.max ? lowest+12:-1
             weakCutoffs[gy*cols+gx]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
@@ -219,12 +228,25 @@ final class VisionDetector {
             let weak=Double(strongCount)<Double(tail)*0.25,halo=weak || (min(w,h)>=5 && min(sxmax-sxmin+1,symax-symin+1)<5)
             if weak && (max(w,h)>12 || aspect>4){continue}
             if xmin==0 || ymin==0 || xmax==width-1 || ymax==height-1{continue}
+            if radius<=12 {
+                // A highlight on a large, underexposed yellow ball is not a
+                // separate tiny ball. Do not derive a contact from that patch.
+                let reach=max(16,Int(ceil(radius*4)));var samples=0,dimFelt=0,warmFelt=0
+                for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
+                    if hypot(Double(px)-x,Double(py)-y)<radius*1.5{continue};samples+=1
+                    let c=pixels[py*width+px],r=Int((c>>16)&255),g=Int((c>>8)&255),b=Int(c&255)
+                    if g>=18 && g*100>=r*70 && g*100<=r*90 && g*10>b*24 && g-b>=16{warmFelt+=1;if g<45{dimFelt+=1}}
+                }}
+                if samples>0 && Double(warmFelt)>Double(samples)*0.40 && Double(dimFelt)>Double(samples)*0.25{continue}
+            }
             let followed=prior.map{time-$0.time<0.14 && hypot(x-$0.x,y-$0.y)<max(30,$0.radius*6)} ?? false
             if aspect>4.5 && Double(changed)<Double(tail)*0.25 && !followed{continue}
-            var skin=0,movingSkin=0,ring=0;let reach=max(6,Int(radius*2.4))
+            var skin=0,movingSkin=0,ring=0,closeRing=0,closeGrip=0;let reach=max(6,Int(radius*2.4))
             for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
-                if hypot(Double(px)-x,Double(py)-y)<radius*1.2{continue};ring+=1
+                let distance=hypot(Double(px)-x,Double(py)-y)
+                if distance<radius*1.2{continue};ring+=1
                 let i=py*width+px,c=pixels[i]
+                if radius>=6 && distance<=radius*1.8 {closeRing+=1;if gripSkin(c) && strong[i]==0{closeGrip+=1}}
                 if skinColor(c){skin+=1;if previousCount==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
             if closePartial && (ring==0 || Double(skin)<Double(ring)*0.12 || Double(skin)>Double(ring)*0.85){continue}
@@ -239,7 +261,8 @@ final class VisionDetector {
                 if skinColor(pixels[py*width+px]){skinSides+=1}
             }}
             let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
-            ball.nearHand=closePartial || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
+            let closeGripPresent=closeRing>0 && Double(closeGrip)>=Double(closeRing)*0.08 && Double(closeGrip)<=Double(closeRing)*0.65
+            ball.nearHand=closePartial || closeGripPresent || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
             ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previousCount==0 ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
             found.append(ball);bounds.append([xmin,ymin,xmax,ymax]);masses.append(tail)
         }}

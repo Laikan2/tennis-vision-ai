@@ -118,7 +118,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             let outline=UIBezierPath(ovalIn:CGRect(x:p.x-rx,y:p.y-ry,width:rx*2,height:ry*2))
             UIColor(white:0.04,alpha:0.95).setStroke();outline.lineWidth=4;outline.stroke()
             color.setStroke();outline.lineWidth=2;outline.stroke()
-            let text=ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈\(Int($0)) km/h lateral"} ?? "BOLA"
+            let text=ball.nearHand ? "BOLA · PRÓXIMA À MÃO":ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈\(Int($0)) km/h lateral"} ?? "BOLA"
             label(text,at:CGPoint(x:p.x+rx+5,y:p.y),color:color)
         }
         if let p=result.predicted{label("PREVISÃO",at:screen(VisionPoint(p.x/Double(f.width),p.y/Double(f.height))),color:.systemOrange)}

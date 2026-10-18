@@ -250,7 +250,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
         paint.style=Paint.Style.STROKE;paint.color=0xff0a0a0a.toInt();paint.strokeWidth=4*density
         canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint)
         paint.color=color;paint.strokeWidth=2*density;canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
-        label(if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
+        label(if(b.nearHand) "BOLA · PRÓXIMA À MÃO" else if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
       r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label("PREVISÃO",s.x,s.y,amber) }
     }
