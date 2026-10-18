@@ -32,7 +32,9 @@ O Android MediaCodec decodificou 191 quadros sintéticos e o fluxo gerou IN, OUT
 
 ## Verificação física pendente
 
-A 0.6.13 ainda precisa ser instalada e medida no iPhone. Os 60 FPS e 4,20–5,96 ms da medição anterior pertencem à **0.6.12**, em outro ensaio. A taxa solicitada não garante essa taxa de análise, e processamento→interface não é atraso total câmera→olho.
+A [0.6.13 foi publicada para Android e iPhone](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.13). A leitura da fonte pública confirmou 0.6.13/build 14, e os downloads tiveram a integridade conferida. O marcador latest do Windows permaneceu em v0.6.11. Veja a [verificação da publicação](mobile-0.6.13/publication.json).
+
+A 0.6.13 ainda precisa ser instalada e medida no iPhone: na tentativa posterior à publicação, o aparelho deixou de ser enumerado pela conexão USB. O usuário foi solicitado a reconectar e abrir o AltStore. Os 60 FPS e 4,20–5,96 ms da medição anterior pertencem à **0.6.12**, em outro ensaio. A taxa solicitada não garante essa taxa de análise, e processamento→interface não é atraso total câmera→olho.
 
 Não estão comprovados: contagem de todas as quicadas reais, precisão física de IN/OUT, posição exata dos impactos, velocidade 3D de saques, 200 km/h ou 120/240 FPS sustentados. Fotografias isoladas de evidência não permitem reconstruir uma quicada no tempo. É necessário repetir quedas com contagem conhecida e vídeo contínuo anotado para medir acertos, perdas e falsos contatos.
 
