@@ -1,0 +1,114 @@
+{
+  "date": "2026-10-18",
+  "version": "0.6.11",
+  "build": "12",
+  "sourceCommit": "f8760bf8cdfdc81633e1a0e1361f7ca613021062",
+  "hardware": "iPhone 15 Pro",
+  "physicalDevice": true,
+  "os": "27.2",
+  "osBuild": "24B5110a",
+  "installedVersionVerified": true,
+  "cameraProbes": [
+    {
+      "candidateContacts": 0,
+      "framesDeliveredToUI": 1202,
+      "height": 720,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 1.8719999970926438,
+      "maxAnalysisMs": 7.895999999163905,
+      "meanAnalysisMs": 4.316518302788875,
+      "observations": 27,
+      "os": "27.2",
+      "processingToUIAgeMs": 6.912249999004416,
+      "receivedFPS": 59.98404188592963,
+      "requestedFPS": 60,
+      "seconds": 20.01373441666874,
+      "sessionWrites": 0,
+      "version": "0.6.11",
+      "width": 1280
+    },
+    {
+      "candidateContacts": 0,
+      "framesDeliveredToUI": 1201,
+      "height": 720,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 2.3207916674437,
+      "maxAnalysisMs": 8.34795833361568,
+      "meanAnalysisMs": 4.526621669413799,
+      "observations": 161,
+      "os": "27.2",
+      "processingToUIAgeMs": 8.278375000372762,
+      "receivedFPS": 60.001970289449424,
+      "requestedFPS": 60,
+      "seconds": 20.00102500000139,
+      "sessionWrites": 0,
+      "version": "0.6.11",
+      "width": 1280
+    }
+  ],
+  "initialExposureMs": 16.4,
+  "fullAnalysisEnabledAfterFirstFrame": true,
+  "comparison": {
+    "baselineVersion": "0.6.10",
+    "baselineMeanAnalysisMs": 43.53509382148648,
+    "baselineReceivedFPS": 19.516071526950572,
+    "baselineDimensions": [
+      720,
+      1280
+    ],
+    "afterDimensions": [
+      1280,
+      720
+    ],
+    "samePixelCount": true,
+    "sameRecordedScene": false,
+    "limit": "Live scenes and orientation differ. This is not a controlled before/after recording; measured device rates do not establish match accuracy."
+  },
+  "syntheticOnPhysicalDevice": {
+    "cases": 18,
+    "frames": 288,
+    "locatedWithinTolerance": 276,
+    "wrongLocations": 2,
+    "unlocated": 10,
+    "acceptanceCriteriaPassed": true,
+    "recordedOutputsMatchInstalledBaseline": true,
+    "contacts": [
+      {
+        "case": "small_bounce_review",
+        "contacts": [
+          "review"
+        ]
+      },
+      {
+        "case": "known_IN",
+        "contacts": [
+          "inside"
+        ]
+      },
+      {
+        "case": "known_OUT",
+        "contacts": [
+          "outside"
+        ]
+      },
+      {
+        "case": "wall_vertical_review",
+        "contacts": [
+          "review"
+        ]
+      }
+    ],
+    "scope": "Generated pixel fixtures executed on the actual phone. No physical ball or bounce ground truth."
+  },
+  "archiveUnchangedThroughAutomatedChecks": true,
+  "existingSessions": 1,
+  "existingEvents": 30,
+  "normalPreviewRestored": true,
+  "floorSavePhysicalVerification": "Awaiting human drawing; automatic tests cannot establish that the real floor was marked correctly.",
+  "limits": [
+    "Two 20-second full-analysis runs at 60 FPS; not a long thermal endurance test.",
+    "Probe counts are not known ball detections or true impact counts.",
+    "Processing-to-UI age excludes exposure, sensor readout and final physical screen presentation.",
+    "Physical bounces, line-call accuracy, fast serves and sustained 120/240 FPS are not validated by these runs."
+  ]
+}
