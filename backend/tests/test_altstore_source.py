@@ -55,3 +55,11 @@ def test_common_mobile_release_preserves_old_versions_and_platform_installation(
 @pytest.mark.parametrize('tag',['main','ios-v0.3.0/extra','android-v0.6.4','v0.3.0-beta'])
 def test_source_rejects_unrelated_and_unstable_tags(tmp_path,tag):
     with pytest.raises(ValueError,match='stable version tag'): SOURCE(ipa(tmp_path),tag)
+
+def test_color_support_release_explains_false_contacts_without_match_accuracy_claim(tmp_path):
+    app=SOURCE(ipa(tmp_path,'0.6.12'),'mobile-v0.6.12')['apps'][0]
+    release=app['versions'][0]
+    assert release['version']=='0.6.12'
+    assert 'falsos candidatos' in release['localizedDescription']
+    assert 'antes e depois' in release['localizedDescription']
+    assert 'validação real' in release['localizedDescription']

@@ -1,6 +1,6 @@
 {
-  "version": "0.6.11",
-  "baseline": "green-ball-throughput-0.6.11",
+  "version": "0.6.12",
+  "baseline": "green-ball-color-support-0.6.12",
   "platforms": [
     "android",
     "ios"
@@ -47,7 +47,9 @@
     "temporal-floor-contact-window",
     "weak-target-temporal-confirmation",
     "full-resolution-detector-buffer-borrow",
-    "floor-boundary-draft-feedback"
+    "floor-boundary-draft-feedback",
+    "color-anchored-weak-tracking",
+    "two-leg-contact-color-support"
   ],
   "installation": {
     "android": "apk-confirmation",
