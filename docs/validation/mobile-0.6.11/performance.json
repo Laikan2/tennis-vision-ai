@@ -13,6 +13,7 @@
     "tests": 2,
     "failures": 0
   },
-  "physicalIPhoneMeasurementAfterChange": false,
-  "scope": "Release builds on the same Apple CI host, with generated fixtures and unchanged full resolution. Same-host timing gains are not phone FPS or match accuracy."
+  "physicalIPhoneMeasurementAfterChange": true,
+  "scope": "Release builds on the same Apple CI host, with generated fixtures and unchanged full resolution. Same-host timing gains are not phone FPS or match accuracy.",
+  "physicalIPhoneEvidence": "iphone-after.json"
 }
