@@ -273,7 +273,7 @@ class LocalTrainingTest {
 
   @Test fun lockScreenBatterySaverAndNoNetworkDoNotLoseSettings() {
     val power=context.getSystemService(android.os.PowerManager::class.java)
-    val battery=context.getSystemService(android.os.BatteryManager::class.java)
+    fun batteryState()=context.registerReceiver(null,android.content.IntentFilter(android.content.Intent.ACTION_BATTERY_CHANGED))
     val connectivity=context.getSystemService(android.net.ConnectivityManager::class.java)
     assertNull("Run offline test with emulator Wi-Fi and data disabled",connectivity.activeNetwork)
     try {
@@ -285,14 +285,22 @@ class LocalTrainingTest {
       waitFor {
         shell("dumpsys power").lineSequence().any { it.trim()=="mIsPowered=false" }
       }
-      waitFor { !battery.isCharging && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)==50 }
+      // Read the framework's simulated battery broadcast. HAL properties still
+      // report the virtual hardware's original battery despite dumpsys overrides.
+      waitFor {
+        val state=batteryState()
+        state!=null && state.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED,-1)==0 &&
+          state.getIntExtra(android.os.BatteryManager.EXTRA_STATUS,-1)==android.os.BatteryManager.BATTERY_STATUS_DISCHARGING &&
+          state.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL,-1)==50
+      }
       shell("cmd power set-mode 1")
       waitFor { power.isPowerSaveMode }
       val proof=JSONObject().put("kind","Android emulator lifecycle test")
         .put("offlineBeforeLaunch",connectivity.activeNetwork==null)
         .put("batterySaverBeforeLaunch",power.isPowerSaveMode)
-        .put("batteryChargingBeforeLaunch",battery.isCharging)
-        .put("batteryLevelBeforeLaunch",battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY))
+        .put("batteryPluggedBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_PLUGGED,-1))
+        .put("batteryStatusBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_STATUS,-1))
+        .put("batteryLevelBeforeLaunch",batteryState()?.getIntExtra(android.os.BatteryManager.EXTRA_LEVEL,-1))
       ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
         ready(scenario); var config=LocalSettings()
         scenario.onActivity { config=it.testConfig() }
