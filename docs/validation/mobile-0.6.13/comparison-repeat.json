@@ -1,0 +1,150 @@
+{
+  "scope": "Same-host release-build synthetic benchmark; not physical camera FPS or match accuracy",
+  "allFrameOutputsIdentical": true,
+  "scenes": [
+    {
+      "scene": "small-ball",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 50.70166666666864,
+      "candidateMedianMs": 6.676958333343919,
+      "speedup": 7.593527491922584,
+      "baselineP95Ms": 62.148416666673256,
+      "candidateP95Ms": 8.726833333355444,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 64.2395416666659,
+      "candidateMedianMs": 6.839333333317654,
+      "speedup": 9.392661321787674,
+      "baselineP95Ms": 77.23824999999351,
+      "candidateP95Ms": 7.8893333333383,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 61.219791666644596,
+      "candidateMedianMs": 10.567958333325578,
+      "speedup": 5.792963005313028,
+      "baselineP95Ms": 86.33004166665614,
+      "candidateP95Ms": 12.10554166667066,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 1280,
+      "height": 720,
+      "frames": 24,
+      "baselineMedianMs": 49.33049999999639,
+      "candidateMedianMs": 6.622375000006286,
+      "speedup": 7.449064723750854,
+      "baselineP95Ms": 66.80208333332871,
+      "candidateP95Ms": 8.468666666658464,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "small-ball",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 53.30387500001166,
+      "candidateMedianMs": 6.232291666663059,
+      "speedup": 8.552853083744077,
+      "baselineP95Ms": 64.45320833333312,
+      "candidateP95Ms": 6.9638333333443825,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 43.36233333333439,
+      "candidateMedianMs": 6.902916666660985,
+      "speedup": 6.281740810049387,
+      "baselineP95Ms": 54.75074999998242,
+      "candidateP95Ms": 10.045916666683752,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 49.525833333348146,
+      "candidateMedianMs": 10.404458333340472,
+      "speedup": 4.76005878889875,
+      "baselineP95Ms": 61.27354166667942,
+      "candidateP95Ms": 13.06045833334224,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 720,
+      "height": 1280,
+      "frames": 24,
+      "baselineMedianMs": 46.859333333344466,
+      "candidateMedianMs": 6.6559166666877445,
+      "speedup": 7.040252406985675,
+      "baselineP95Ms": 57.04945833332431,
+      "candidateP95Ms": 8.012750000006008,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "small-ball",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 102.25475000001438,
+      "candidateMedianMs": 15.550291666670546,
+      "speedup": 6.575744827936595,
+      "baselineP95Ms": 114.50133333335089,
+      "candidateP95Ms": 21.661124999980075,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "warm-floor",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 113.20208333333426,
+      "candidateMedianMs": 15.980833333316014,
+      "speedup": 7.0836157897558705,
+      "baselineP95Ms": 151.3001250000059,
+      "candidateP95Ms": 20.708666666678255,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "green-court",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 111.26645833334692,
+      "candidateMedianMs": 23.324624999986554,
+      "speedup": 4.770342860106478,
+      "baselineP95Ms": 131.1077500000124,
+      "candidateP95Ms": 32.02724999999873,
+      "identicalOutputs": true
+    },
+    {
+      "scene": "negative",
+      "width": 1920,
+      "height": 1080,
+      "frames": 24,
+      "baselineMedianMs": 108.49945833334118,
+      "candidateMedianMs": 15.073791666679881,
+      "speedup": 7.197887613982065,
+      "baselineP95Ms": 133.22129166667196,
+      "candidateP95Ms": 17.067791666647736,
+      "identicalOutputs": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "version": "0.6.13",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39154939849",
+  "sourceCommit": "39b1034ef53b9d0278d807726b108b3c46ed31a6",
+  "baselineVersion": "0.6.10",
+  "scope": "Same Apple CI host and Release builds; reference generated scenes, not physical camera FPS or match accuracy.",
+  "comparisons": [
+    {
+      "order": "comparison.json",
+      "scenes": 12,
+      "minSpeedup": 4.221786215260924,
+      "maxSpeedup": 7.328574206095937
+    },
+    {
+      "order": "comparison-repeat.json",
+      "scenes": 12,
+      "minSpeedup": 4.76005878889875,
+      "maxSpeedup": 9.392661321787674
+    }
+  ],
+  "allReferenceOutputsIdenticalInBothOrders": true,
+  "changedCloseHeldAndUnderexposedCasesTestedSeparately": true,
+  "addressSanitizerTests": {
+    "tests": 2,
+    "failures": 0,
+    "scope": "borrowed-buffer regression cases"
+  }
+}
