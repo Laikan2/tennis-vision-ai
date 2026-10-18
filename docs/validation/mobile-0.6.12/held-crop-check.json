@@ -1,0 +1,11 @@
+{
+  "version": "0.6.12",
+  "sourceCommit": "4fa7bd72309f31758247981ca4d4eeb6adbba994",
+  "heldCorrect": 7,
+  "heldTotal": 7,
+  "negativeFalseObservations": 0,
+  "negativeTotal": 4,
+  "meanCenterErrorCroppedPixels": 6.812155723154852,
+  "scope": "Private compressed screen recording, manually reviewed ball centers in displayed-camera crops; not sensor frames or match benchmark",
+  "limit": "Fixed manual tolerances of 12\u201316 cropped pixels from an older compressed screen recording. Three overlaid held frames were excluded before this change. One negative contains an old overlay. These are independent display crops, not sensor video or ground truth for contacts, speed or match accuracy."
+}
