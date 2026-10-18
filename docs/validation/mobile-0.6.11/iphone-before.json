@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-18",
+  "version": "0.6.10",
+  "build": "11",
+  "hardware": "iPhone 15 Pro",
+  "physicalDevice": true,
+  "os": "27.2",
+  "osBuild": "24B5110a",
+  "installedVersionVerified": true,
+  "archiveUnchangedThroughAutomatedChecks": true,
+  "existingSessions": 1,
+  "existingEvents": 30,
+  "cameraProbe": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 437,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 2.6055416674353182,
+    "maxAnalysisMs": 57.903708333469694,
+    "meanAnalysisMs": 43.53509382148648,
+    "observations": 410,
+    "os": "27.2",
+    "processingToUIAgeMs": 51.54591666723718,
+    "receivedFPS": 19.516071526950572,
+    "requestedFPS": 60,
+    "seconds": 20.03653420833143,
+    "sessionWrites": 0,
+    "version": "0.6.10",
+    "width": 720
+  },
+  "cameraProbeLimit": "Live scene with no annotated ball or contact truth. Requested rate is not analysis throughput; processing-to-UI age excludes sensor exposure/readout and final display presentation.",
+  "initialPreviewSnapshot": {
+    "receivedFPS": 57,
+    "requestedFPS": 60,
+    "analysisMs": 15.8,
+    "processingToUIAgeMs": 21,
+    "source": "accessibility snapshot before the full-analysis probe"
+  },
+  "syntheticOnPhysicalDevice": {
+    "cases": 18,
+    "frames": 288,
+    "locatedWithinTolerance": 276,
+    "wrongLocations": 2,
+    "unlocated": 10,
+    "acceptanceCriteriaPassed": true,
+    "contacts": [
+      {
+        "case": "small_bounce_review",
+        "contacts": [
+          "review"
+        ]
+      },
+      {
+        "case": "known_IN",
+        "contacts": [
+          "inside"
+        ]
+      },
+      {
+        "case": "known_OUT",
+        "contacts": [
+          "outside"
+        ]
+      },
+      {
+        "case": "wall_vertical_review",
+        "contacts": [
+          "review"
+        ]
+      }
+    ],
+    "scope": "Known synthetic pixels executed by the installed app on the actual phone. This does not measure real-ball detection accuracy."
+  },
+  "scope": "Physical iPhone BEFORE this optimization, version 0.6.10. No annotated physical ball or impact truth. No new-version phone measurement yet."
+}

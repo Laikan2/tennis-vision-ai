@@ -1,0 +1,18 @@
+{
+  "version": "0.6.11",
+  "sourceCommit": "f8760bf8cdfdc81633e1a0e1361f7ca613021062",
+  "comparisonRun": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39145040158",
+  "reverseOrderSpeedupRange": [
+    4.781199043482042,
+    7.197794411673298
+  ],
+  "matchingSequencesPerRun": 12,
+  "matchingFrameSignaturesPerRun": 144,
+  "allComparedFieldsIdentical": true,
+  "addressSanitizer": {
+    "tests": 2,
+    "failures": 0
+  },
+  "physicalIPhoneMeasurementAfterChange": false,
+  "scope": "Release builds on the same Apple CI host, with generated fixtures and unchanged full resolution. Same-host timing gains are not phone FPS or match accuracy."
+}
