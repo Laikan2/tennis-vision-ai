@@ -1,0 +1,15 @@
+{
+  "version": "0.6.12",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39150687796",
+  "sourceCommit": "4fa7bd72309f31758247981ca4d4eeb6adbba994",
+  "matchingSequencesPerOrder": 12,
+  "matchingFrameSignaturesPerOrder": 144,
+  "allComparedFieldsIdentical": true,
+  "reverseOrderSpeedupRange": [
+    3.543750343075401,
+    7.788884696840952
+  ],
+  "addressSanitizerTests": 2,
+  "addressSanitizerFailures": 0,
+  "scope": "Release builds of baseline 0.6.10 and new 0.6.12 on one Apple CI host with identical generated fixtures. This is not phone FPS or a match precision claim. Negative warm-fragment behavior intentionally differs and is tested separately."
+}

@@ -104,7 +104,20 @@
   "existingSessions": 1,
   "existingEvents": 30,
   "normalPreviewRestored": true,
-  "floorSavePhysicalVerification": "Awaiting human drawing; automatic tests cannot establish that the real floor was marked correctly.",
+  "floorSavePhysicalVerification": {
+    "date": "2026-10-18",
+    "userReportedSaveSucceeded": true,
+    "activeFloorModeObserved": true,
+    "areaPolygonAndFloorBoundaryVisibleAfterSave": true,
+    "screenshotInspected": true,
+    "areaPersistenceScope": "Current app session; areas are temporary and cleared on restart.",
+    "originalSessionAnd30EventsPreserved": true,
+    "newSessionReviewCandidates": 7,
+    "knownPhysicalBounceCount": 0,
+    "limit": "The user confirmed zero bounces for the seven reported contacts, establishing seven false REVIEW claims. Three more candidates appeared by pause; their physical truth was not independently confirmed. Save/apply succeeded but impact accuracy failed in this negative control.",
+    "confirmedFalseCandidates": 7,
+    "candidatesRecordedByPause": 10
+  },
   "limits": [
     "Two 20-second full-analysis runs at 60 FPS; not a long thermal endurance test.",
     "Probe counts are not known ball detections or true impact counts.",

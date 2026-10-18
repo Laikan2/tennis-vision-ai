@@ -21,6 +21,7 @@ public struct VisionBall: Sendable {
     public var nearHand=false, blurred=false, luminance=0.0, motionSupport=1.0, occluded=false, colorUncertain=false
     public var diameterX=0.0,diameterY=0.0,distinctFelt=false,feltChroma=0.0,greenDominant=false
     public var resolved: Bool { !occluded && !colorUncertain && radius>=2.5 && confidence>=0.5 }
+    var supportsBallColor: Bool { greenDominant || feltChroma>=107 }
 }
 public struct VisionImpact: Codable, Identifiable, Sendable {
     public var id: Int,time: Double,point: VisionPoint,radius: Double,call: VisionCall
@@ -303,7 +304,7 @@ public final class LocalVision {
         if width != w || height != h{reset();width=w;height=h}
         guard time>lastFrame else{return VisionResult(message:"Timestamp repetido · quadro descartado")}
         if lastFrame>=0 && time-lastFrame>0.25{path=[]};lastFrame=time
-        let (candidates,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
+        let (components,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
         let motion=detector.alignment
         var sceneChanged=cameraMoved || motion.large
         if motion.reliable && (motion.dx != 0 || motion.dy != 0) {
@@ -314,6 +315,21 @@ public final class LocalVision {
         if cameraMoved || motion.large{unstableUntil=time+0.25;clearTrack()}
         scene.update(pixels,width:w,height:h,time:time,changed:sceneChanged,compensated:motion.reliable && !sceneChanged && (motion.dx != 0 || motion.dy != 0))
         let blocked=time<unstableUntil || scene.blocked
+        // Warm wood can pass the broad yellow mask. Motion alone does not turn
+        // those low-chroma components into a tennis ball. A weak observation
+        // may bridge a short gap only near an already colour-supported track.
+        let anchor=path.last(where:{$0.supportsBallColor}),last=path.last
+        var weakReference: VisionPoint?
+        if let anchor,let last,time-anchor.time<=0.10,time-last.time<=0.10 {
+            weakReference=VisionPoint(last.x,last.y)
+            if path.count>=2 {
+                let before=path[path.count-2],dt=last.time-before.time
+                if dt>0{let f=min(2,max(0,(time-last.time)/dt));weakReference=VisionPoint(last.x+(last.x-before.x)*f,last.y+(last.y-before.y)*f)}
+            }
+        }
+        let candidates=components.filter{b in
+            b.supportsBallColor || (weakReference.map{hypot(b.x-$0.x,b.y-$0.y)<=max(12,(last?.radius ?? 0)*3)} ?? false)
+        }
         var previous=path.last
         let still=previous.flatMap{b in !b.nearHand && !b.occluded && path.suffix(4).allSatisfy{hypot($0.x-b.x,$0.y-b.y)<max(2,b.radius*0.5)} ? b:nil}
         let alternatives=candidates.filter{b in b.motionSupport>=0.25 && !b.nearHand && (still.map{hypot(b.x-$0.x,b.y-$0.y)>max(12,$0.radius*3)} ?? true)}
@@ -357,11 +373,12 @@ public final class LocalVision {
             let consistent=acquisition.map{time-$0.time<0.075 && (0.6...1.65).contains(b.radius/$0.radius) && hypot(b.x-$0.x,b.y-$0.y)<Double(w)*0.12} ?? false
             if !near && (!consistent || b.motionSupport<0.20){acquisition=b;ball=nil}
         }
-        guard let b=ball else {
+        guard var b=ball else {
             let age=previous.map{time-$0.time} ?? 1
             if age>0.10{lost=previous ?? lost;path=[]}
             return VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Treino ativo · confira a área; impactos suspensos":blocked ? "Treino ativo · aguardando imagem estável":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation)
         }
+        if !b.supportsBallColor{b.colorUncertain=true}
         path.append(b);lost=nil;acquisition=nil
         while path.count>40 || (path.first.map{time-$0.time>0.6} ?? false){path.removeFirst()}
         let impact = !blocked ? contact():nil,speed=velocity(Array(path.suffix(4)))
@@ -386,6 +403,10 @@ public final class LocalVision {
         guard settings.surface != .track,path.count>=5 else{return nil}
         guard let p=settings.surface == .floor ? floorEvidence():Array(path.suffix(5)) else{return nil}
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],evidence=path.filter{$0.time>=p[0].time && $0.time<=p[4].time}
+        // Even REVIEW needs ball-colour evidence on both observed legs.
+        // One coloured sample at the turn cannot certify a whole trajectory.
+        guard evidence.contains(where:{$0.time<c.time && $0.supportsBallColor}),
+              evidence.contains(where:{$0.time>c.time && $0.supportsBallColor}) else{return nil}
         if c.time-lastImpact<0.18 || e.time-a.time>0.65 || c.nearHand || (d.nearHand && e.nearHand) || zip(evidence,evidence.dropFirst()).contains(where:{$0.1.time-$0.0.time>0.25}){return nil}
         let travel=max(3,c.radius*0.7)
         let floorTurn=c.y-a.y>travel && c.y-e.y>travel && b.y>=a.y && d.y>=e.y && c.y>=b.y && c.y>=d.y

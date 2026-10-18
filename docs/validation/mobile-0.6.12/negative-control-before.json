@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-18",
+  "versionWithFailure": "0.6.11",
+  "hardware": "iPhone 15 Pro",
+  "os": "27.2",
+  "saveSucceededReportedByUser": true,
+  "areaAndFloorBoundaryObserved": true,
+  "knownBouncesReportedByUser": 0,
+  "confirmedFalseReviewEvents": 7,
+  "eventsByPause": 10,
+  "additionalEventsGroundTruth": "not independently confirmed",
+  "originalSessionAnd30EventsPreserved": true,
+  "newVersion": "0.6.12",
+  "baselineCode": "a633c755f8d8365a0d16118d24e2884eaf489b0d",
+  "candidateCode": "4fa7bd72309f31758247981ca4d4eeb6adbba994",
+  "knownPixelRegressionBefore": {
+    "tests": 4,
+    "failed": 2,
+    "failedNames": [
+      "movingWarmFloorFragmentsCannotAcquireOrCreateReviewContacts",
+      "warmFragmentsCannotMakeWallContactCandidatesEither"
+    ]
+  },
+  "knownPixelRegressionAfter": {
+    "tests": 6,
+    "failed": 0,
+    "skipped": 0
+  },
+  "inputLimits": "The saved JPEGs are contact snapshots, not a continuous annotated video or the original raw camera stream. Independent still-image analysis is not an impact replay. Private images, archive content and device identifiers are not published."
+}

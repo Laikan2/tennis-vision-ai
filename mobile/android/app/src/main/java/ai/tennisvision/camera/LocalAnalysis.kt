@@ -26,6 +26,7 @@ data class BallObservation(val x: Double, val y: Double, val radius: Double,
   val diameterX: Double=0.0,val diameterY: Double=0.0,val distinctFelt: Boolean=false,val feltChroma: Double=0.0,
   val greenDominant: Boolean=false) {
   val resolved get()=!occluded && !colorUncertain && radius>=2.5 && confidence>=.5
+  val supportsBallColor get()=greenDominant || feltChroma>=107
 }
 data class LocalImpact(val id: Long, val time: Double, val point: CourtPoint,
   val radius: Double, val call: LineCall, val speedKmh: Double?,
@@ -403,7 +404,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     if (!time.isFinite() || time <= lastFrame) return LocalResult(null,null,emptyList(),null,false,null,"Timestamp repetido: quadro descartado")
     if (lastFrame >= 0 && time-lastFrame > .25) path.clear()
     lastFrame = time
-    val (candidates, cameraMoved) = detector.detect(pixels,width,height,time,path.lastOrNull(),activeSettings.polygon)
+    val (components, cameraMoved) = detector.detect(pixels,width,height,time,path.lastOrNull(),activeSettings.polygon)
     val motion=detector.alignment
     var sceneChanged=cameraMoved || motion.large
     if(motion.reliable && (motion.dx!=0 || motion.dy!=0)) {
@@ -417,6 +418,19 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     if (cameraMoved || motion.large) { unstableUntil = time+.25; clearTrack() }
     scene.update(pixels,width,height,time,sceneChanged,motion.reliable && !sceneChanged && (motion.dx!=0 || motion.dy!=0))
     val blocked=time<unstableUntil || scene.blocked
+    // Warm wood passes the broad yellow mask too. A moving weak component
+    // cannot acquire a ball; allow only a brief, spatially gated continuation
+    // of a trajectory that already has independent colour support.
+    val anchor=path.lastOrNull{it.supportsBallColor};val last=path.lastOrNull()
+    val weakReference=if(anchor!=null && last!=null && time-anchor.time<=.10 && time-last.time<=.10) {
+      val before=path.getOrNull(path.size-2)
+      if(before!=null && last.time>before.time) {
+        val f=((time-last.time)/(last.time-before.time)).coerceIn(0.0,2.0)
+        CourtPoint(last.x+(last.x-before.x)*f,last.y+(last.y-before.y)*f)
+      } else CourtPoint(last.x,last.y)
+    } else null
+    val candidates=components.filter { b -> b.supportsBallColor || weakReference!=null &&
+      hypot(b.x-weakReference.x,b.y-weakReference.y)<=max(12.0,(last?.radius ?: 0.0)*3) }
     var previous = path.lastOrNull()
     // An unconfirmed stationary spare ball/logo must not hide a tiny moving
     // ball forever. Require two moving observations of the alternative, plus
@@ -500,6 +514,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     }
     if (previous != null && (time-previous.time > .25 || ball.radius/previous.radius !in
       (if(previous.nearHand || previous.occluded) .35..3.5 else .48..2.1))) path.clear()
+    if(!ball.supportsBallColor)ball=ball.copy(colorUncertain=true)
     path.add(ball)
     lost=null;acquisition=null
     while (path.size > 40 || (path.isNotEmpty() && time-path.first().time > .6)) path.removeAt(0)
@@ -534,6 +549,10 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val p = if(settings.surface==ContactSurface.FLOOR) floorEvidence() ?: return null else path.takeLast(5)
     val evidence=path.filter{it.time>=p.first().time && it.time<=p.last().time}
     val a=p[0]; val b=p[1]; val c=p[2]; val d=p[3]; val e=p[4]
+    // REVIEW is a contact claim too: require colour-supported observations
+    // before and after the turn, not just one coloured sample at its centre.
+    if(evidence.none{it.time<c.time && it.supportsBallColor} ||
+      evidence.none{it.time>c.time && it.supportsBallColor}) return null
     if (c.time-lastImpact < .18 || e.time-a.time > .65 || c.nearHand || (d.nearHand && e.nearHand) ||
       evidence.zipWithNext().any { (left,right) -> right.time-left.time > .25 }) return null
     val travel = max(3.0,c.radius*.7)
