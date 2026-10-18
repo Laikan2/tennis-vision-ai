@@ -7,10 +7,12 @@ let package = Package(
     products: [
         .library(name: "TennisVisionCore", targets: ["TennisVisionCore"]),
         .executable(name: "TransportSmoke", targets: ["TransportSmoke"]),
+        .executable(name: "VisionBenchmark", targets: ["VisionBenchmark"]),
     ],
     targets: [
         .target(name: "TennisVisionCore"),
         .executableTarget(name: "TransportSmoke", dependencies: ["TennisVisionCore"], path: "Smoke"),
+        .executableTarget(name: "VisionBenchmark", dependencies: ["TennisVisionCore"], path: "Performance"),
         .testTarget(name: "TennisVisionCoreTests", dependencies: ["TennisVisionCore"],resources:[.copy("Fixtures")]),
     ]
 )
