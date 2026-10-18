@@ -1,0 +1,127 @@
+{
+  "date": "2026-10-18",
+  "device": "iPhone 15 Pro",
+  "os": "27.2",
+  "installedVersion": "0.6.12",
+  "installedBuild": "13",
+  "installation": "Observed AltStore UPDATE activated; installed manifest read afterward",
+  "preservation": {
+    "sessions": 2,
+    "events": 40,
+    "archiveByteIdenticalAfterInstallationCameraProbesAndDiagnostics": true,
+    "oldFalseReviewsRemovedOrReclassified": false
+  },
+  "negativeCondition": {
+    "humanPreparedFloorViewWithoutBall": true,
+    "privateScreenshotsInspected": 2,
+    "surfaceDuringProbes": "wall",
+    "areaDuringProbes": "not marked after application restart",
+    "reasonNotAnInOutValidation": "No ball contacts with known location occurred; no floor polygon/reference applied during these probes"
+  },
+  "cameraRuns": [
+    {
+      "candidateContacts": 0,
+      "framesDeliveredToUI": 1200,
+      "height": 1280,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 1.897666668810416,
+      "maxAnalysisMs": 7.541750001109904,
+      "meanAnalysisMs": 4.1968853820192935,
+      "observations": 2,
+      "os": "27.2",
+      "processingToUIAgeMs": 8.140000001731096,
+      "receivedFPS": 60.01418930991832,
+      "requestedFPS": 60,
+      "seconds": 20.00346725000054,
+      "sessionWrites": 0,
+      "version": "0.6.12",
+      "width": 720
+    },
+    {
+      "candidateContacts": 0,
+      "framesDeliveredToUI": 1201,
+      "height": 1280,
+      "kind": "physical-camera-probe-not-known-ball-ground-truth",
+      "lastConversionMs": 1.6998749997583218,
+      "maxAnalysisMs": 10.808166669448838,
+      "meanAnalysisMs": 5.962583125097183,
+      "observations": 0,
+      "os": "27.2",
+      "processingToUIAgeMs": 7.275125000887783,
+      "receivedFPS": 60.00446199848469,
+      "requestedFPS": 60,
+      "seconds": 20.01048670833552,
+      "sessionWrites": 0,
+      "version": "0.6.12",
+      "width": 720
+    }
+  ],
+  "negativeSummary": {
+    "seconds": 40.01395395833606,
+    "candidateContacts": 0,
+    "rawObservationsWithoutBall": [
+      2,
+      0
+    ],
+    "note": "Two brief false ball observations occurred in the first run; none in the second. Neither run produced a candidate contact. This is not a general false-positive rate."
+  },
+  "normalFloorNegativeControl": {
+    "version": "0.6.12",
+    "surface": "floor",
+    "condition": "User prepared visible floor, without ball; normal app training with saved area and top boundary",
+    "observedIntervalSeconds": 22.35585909999918,
+    "minimumWaitingSeconds": 20,
+    "eventsBefore": 40,
+    "eventsAfter": 40,
+    "addedEvents": 0,
+    "sessionDataUnchanged": true,
+    "archiveByteUnchanged": true,
+    "liveUiAtStart": "Pausar treino; Bola não localizada · sem inventar posição",
+    "liveUiAfterInterval": "CHÃO · QUICADAS; Bola não localizada · sem inventar posição; Pausar treino",
+    "notPositiveBounceOrInOutAccuracy": true,
+    "pausedAfterInterval": true
+  },
+  "syntheticDiagnosticsOnDevice": {
+    "kind": "synthetic-pixel-fixtures-not-real-tennis",
+    "criteriaPassed": true,
+    "cases": 18,
+    "frames": 288,
+    "locationsWithinFixtureTolerance": 276,
+    "wrongLocations": 2,
+    "missingLocations": 10,
+    "knownContactOutputs": {
+      "small_bounce_review": [
+        "review"
+      ],
+      "known_IN": [
+        "inside"
+      ],
+      "known_OUT": [
+        "outside"
+      ],
+      "wall_vertical_review": [
+        "review"
+      ]
+    },
+    "notRealBounceOrServeGroundTruth": true
+  },
+  "normalModeRestoredAfterDiagnostics": true,
+  "floorSaveFollowup": {
+    "initiallyBlockedByVerticalTwoPointLine": true,
+    "afterWiderEndpointsSaveButtonEnabled": true,
+    "saveActivatedAndFloorModeApplied": true,
+    "horizontalBoundaryAtTopSavedAfterFullscreenAdjustment": true,
+    "initialDiagonalBoundaryRequiredCorrection": true,
+    "sceneBecameVeryDarkInFollowupScreenshot": true,
+    "floorBecameVisibleAfterHumanReadinessConfirmation": true,
+    "realFloorInOutValidation": "pending known physical bounces"
+  },
+  "limits": [
+    "Camera probes used portrait 720x1280, requested 60 FPS; no sustained 120/240 FPS test.",
+    "Analysis mean is per delivered UI frame; one initial preview frame activates full analysis.",
+    "Processing-to-UI age excludes exposure, sensor readout and physical display presentation.",
+    "No same-scene controlled before/after comparison with the earlier 0.6.10 physical measurement.",
+    "No physical fast serve, 200 km/h, wall contact precision or centimetre accuracy established.",
+    "Synthetic acceptance tolerates some missing/wrong locations; pass does not mean all 288 frames were correct."
+  ]
+}

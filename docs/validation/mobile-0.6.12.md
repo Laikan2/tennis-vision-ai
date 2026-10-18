@@ -28,7 +28,28 @@ A política e seis regressões correspondentes foram implementadas nos dois moto
 - Dois testes com AddressSanitizer passaram sem erro de memória detectado nos cenários executados.
 - **114 testes Swift** passaram na [CI Apple](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39150687780). Compilações para iPhone físico sem assinatura e para simulador concluíram; 60 quadros H.264 recebidos foram decodificados. O IPA 0.6.12/build 13 foi conferido, incluindo o contrato conjunto e hashes das vozes. A tentativa opcional de abrir o app no simulador excedeu dois minutos e não produziu captura: não é considerada execução bem-sucedida da interface iOS.
 
-A medição física de 60 FPS e 4,32–4,53 ms por quadro já registrada pertence à **0.6.11**; não é apresentada como teste de 0.6.12. A nova versão ainda precisa repetir o controle negativo no iPhone instalado.
+A medição física de 60 FPS e 4,32–4,53 ms por quadro registrada anteriormente pertence à **0.6.11**. A medição da versão nova está separada abaixo; não é uma comparação da mesma cena entre versões.
+
+## Instalação e checagem no iPhone 0.6.12
+
+O botão UPDATE apareceu no AltStore e foi acionado. A leitura posterior do manifesto instalado confirmou **0.6.12/build 13** no iPhone 15 Pro com iOS 27.2. As duas sessões e os 40 eventos ficaram byte a byte iguais depois da instalação, dos testes da câmera e do diagnóstico sintético. Os registros falsos antigos não foram apagados ou reclassificados.
+
+O usuário preparou a câmera voltada para o piso, sem bola. Duas capturas privadas foram inspecionadas, sem publicação das imagens. Em **duas execuções independentes de aproximadamente 20 segundos**, na orientação vertical a 720 × 1280 e 60 FPS solicitados, foram medidos:
+
+- 60,01 e 60,00 FPS recebidos; 1.200 e 1.201 quadros entregues à interface.
+- Análise média de **4,20 e 5,96 ms por quadro**, com máximos de 7,54 e 10,81 ms.
+- **Zero candidatos de contato** nas duas execuções. Houve duas observações breves de bola sem bola real na primeira execução e nenhuma na segunda; elas não produziram contato. Não se afirma que os falsos positivos foram eliminados em geral.
+- Nenhuma escrita de evento, imagem ou som desses diagnósticos no treino.
+
+As preferências desse enquadramento estavam em modo parede e sem área após reiniciar o aplicativo. Portanto, esse controle negativo verifica o rastreamento e a emissão de candidatos nessa configuração; **não comprova decisões reais IN/OUT no chão**. A medida processamento→interface é de um instante, não atraso total câmera→olho, e não inclui exposição, leitura do sensor ou apresentação no painel físico. O primeiro quadro da sonda ativa a análise completa.
+
+O diagnóstico sintético também foi repetido no aparelho atualizado: 18 casos, 288 quadros, **276 localizações dentro da tolerância, duas erradas e dez ausentes**. Os critérios declarados passaram, incluindo saídas conhecidas IN, OUT e REVISAR; passar não significa acertar todos os quadros ou quicadas de uma partida. Ao terminar, o app voltou ao modo normal.
+
+No ajuste posterior, Salvar ficou inicialmente desabilitado porque os dois pontos do limite eram verticais. Com extremos mais separados, o botão habilitou, foi acionado e a interface confirmou **CHÃO · QUICADAS** com a área aplicada. A linha salva ainda atravessava o piso em diagonal: salvar uma geometria válida não comprova que ela representa a superfície correta. Em tela cheia, o usuário refez os extremos no alto da imagem, na mesma altura, e salvou; a captura posterior confirmou a linha horizontal no alto e a área aplicada. A prévia ficou temporariamente escura; depois da confirmação de prontidão pelo usuário, outra captura voltou a mostrar o piso.
+
+Foi então feito **outro controle negativo no modo normal, com área e limite do chão salvos e contagem de treino ativa**. Entre as leituras passaram 22,36 segundos, incluindo pelo menos 20 segundos de espera; os 40 eventos e o arquivo permaneceram iguais: **zero eventos novos**. A interface foi lida no início e no fim como CHÃO · QUICADAS, com botão Pausar treino e bola não localizada. Ao terminar, o treino foi pausado. Esse intervalo não é somado às duas sondas como se fosse uma única medição contínua ou comparação controlada com a versão anterior. A validação de quicadas físicas com contagem e posição conhecidas continua pendente.
+
+Evidências adicionais: [iPhone instalado e testes físicos](mobile-0.6.12/iphone-physical.json) e [publicação e downloads conferidos](mobile-0.6.12/publication.json). Os dois ensaios ao vivo foram calculados no iPhone; o Windows apenas controlou a execução e leu os relatórios pelo USB.
 
 Evidências: [falha física anterior](mobile-0.6.12/negative-control-before.json), [Android compilado](mobile-0.6.12/android-build.json), [execução Android](mobile-0.6.12/android-runtime.json), [CI iOS](mobile-0.6.12/ios-ci.json), [recortes revisados](mobile-0.6.12/held-crop-check.json), [desempenho](mobile-0.6.12/performance.json), [primeira ordem](mobile-0.6.12/comparison.json) e [ordem inversa](mobile-0.6.12/comparison-repeat.json).
 
