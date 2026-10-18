@@ -1,0 +1,11 @@
+{
+  "version": "0.6.13",
+  "sourceCommit": "39b1034ef53b9d0278d807726b108b3c46ed31a6",
+  "heldCorrect": 7,
+  "heldTotal": 7,
+  "negativeFalseObservations": 0,
+  "negativeTotal": 4,
+  "meanCenterErrorCroppedPixels": 7.260346448269675,
+  "scope": "Private compressed screen recording, manually reviewed ball centers in displayed-camera crops; not sensor frames or match benchmark",
+  "limit": "Previously reviewed compressed display crops, with pre-existing fixed 12–16 pixel tolerances and exclusions. Regression inputs previously used during development; not an independent unseen match evaluation, sensor video, speed or contact ground truth."
+}

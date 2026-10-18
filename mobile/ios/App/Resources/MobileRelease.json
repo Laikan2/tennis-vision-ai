@@ -1,6 +1,6 @@
 {
-  "version": "0.6.12",
-  "baseline": "green-ball-color-support-0.6.12",
+  "version": "0.6.13",
+  "baseline": "close-ball-hand-context-0.6.13",
   "platforms": [
     "android",
     "ios"
@@ -49,7 +49,10 @@
     "full-resolution-detector-buffer-borrow",
     "floor-boundary-draft-feedback",
     "color-anchored-weak-tracking",
-    "two-leg-contact-color-support"
+    "two-leg-contact-color-support",
+    "resolution-scaled-background-context",
+    "close-grip-contact-suppression",
+    "underexposed-felt-fragment-guard"
   ],
   "installation": {
     "android": "apk-confirmation",

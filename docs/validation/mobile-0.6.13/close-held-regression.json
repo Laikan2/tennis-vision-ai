@@ -1,0 +1,38 @@
+{
+  "version": "0.6.13",
+  "sourceCommit": "39b1034ef53b9d0278d807726b108b3c46ed31a6",
+  "inputs": "Four private contact evidence JPEGs from the failed physical 0.6.12 test. Each was replayed independently through the actual Android native detector.",
+  "usedToDevelopThisFix": true,
+  "after": [
+    {
+      "case": 1,
+      "observed": true,
+      "nearHand": true,
+      "radius": 122.5
+    },
+    {
+      "case": 2,
+      "observed": true,
+      "nearHand": true,
+      "radius": 94.0
+    },
+    {
+      "case": 3,
+      "observed": true,
+      "nearHand": true,
+      "radius": 83.5
+    },
+    {
+      "case": 4,
+      "observed": false,
+      "nearHand": false,
+      "radius": null
+    }
+  ],
+  "result": "Three images recover a large felt body with near-hand flag; the fourth clipped underexposed fragment is rejected.",
+  "limits": [
+    "Not independent validation or a continuous bounce sequence.",
+    "Centres still reflect the visible felt and may shift under hand occlusion; no contour accuracy percentage is claimed.",
+    "No physical iPhone run of 0.6.13 yet."
+  ]
+}
