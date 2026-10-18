@@ -146,11 +146,14 @@ class LocalTrainingActivity: AppCompatActivity() {
     val compact=resources.configuration.screenWidthDp<640
     val body=findViewById<LinearLayout>(R.id.localBody)
     body.orientation=if (compact) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
-    findViewById<View>(R.id.localVideoPanel).layoutParams=LinearLayout.LayoutParams(if (compact) -1 else 0,if (compact) 0 else -1,1f)
+    val editing=::court.isInitialized && court.editing!=0
+    findViewById<LocalVideoPanel>(R.id.localVideoPanel).apply {
+      heightFraction=if(compact && !editing) .58 else 1.0
+      layoutParams=LinearLayout.LayoutParams(if(compact) -1 else 0,-2,if(compact) 0f else 1f)
+    }
     findViewById<View>(R.id.settingsScroll).layoutParams=LinearLayout.LayoutParams(if (compact) -1 else (286*resources.displayMetrics.density).toInt(),if (compact) 0 else -1,if (compact) 1f else 0f).apply {
       leftMargin=if (compact) 0 else (12*resources.displayMetrics.density).toInt()
     }
-    val editing=::court.isInitialized && court.editing!=0
     findViewById<View>(R.id.settingsScroll).visibility=if(editing) View.GONE else View.VISIBLE
     findViewById<View>(R.id.localHeader).visibility=if(editing) View.GONE else View.VISIBLE
     findViewById<View>(R.id.localMetrics).visibility=if(editing) View.GONE else View.VISIBLE
@@ -307,6 +310,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   }
   private fun updateEditorHint(valid: Boolean) {
     if(!::court.isInitialized || court.editing==0) return
+    findViewById<TextView>(R.id.localSurface).text="EDITANDO ${if(editorConfig.surface==ContactSurface.WALL) "PAREDE" else "CHÃO"} · APLICAR AO CONCLUIR"
     findViewById<Button>(R.id.localSaveArea).text=if(homeSetup?.surface==ContactSurface.FLOOR && homeSetup?.stage==HomeAreaSetup.Stage.AREA) "Próximo: limite do piso" else "Salvar área"
     val hint=when {
       homeSetup?.surface==ContactSurface.FLOOR && court.editing==1 -> "Passo 1/2 · arraste sobre a área do chão e ajuste os quatro cantos. Depois indique onde o piso começa."
@@ -347,22 +351,33 @@ class LocalTrainingActivity: AppCompatActivity() {
     }
     homeSetup=null;court.finish();court.settings=config; findViewById<View>(R.id.localEditor).visibility=View.GONE; start.isEnabled=true
     configureLayout();renderAreaSummary()
-    status.text=if (save) "${if(config.surface==ContactSurface.WALL) "Parede" else "Chão"} salvo neste celular" else "Edição cancelada · área anterior mantida"
+    status.text=if (save) "${surfaceName()} marcado para esta sessão" else "Edição cancelada · modo ${surfaceName().lowercase()} mantido"
     updates.activityState(true)
     val resume=editorResume; editorResume=false
     if (resume && foreground) toggleAnalysis()
   }
   private fun renderAreaSummary() {
+    findViewById<TextView>(R.id.localSurface).text=when(config.surface) {
+      ContactSurface.FLOOR->"CHÃO · QUICADAS";ContactSurface.WALL->"PAREDE · CONTATOS PARA REVISÃO";ContactSurface.TRACK->"RASTREAMENTO · SEM IMPACTOS"
+    }
     findViewById<TextView>(R.id.localAreaSummary).text=if(!LocalGeometry.valid(config.polygon)) "Sem área nesta lente e orientação · marque os quatro cantos."
-      else if(config.surface==ContactSurface.WALL) "Parede salva para esta lente · a área do chão permanece separada."
-      else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Chão salvo para esta lente · a área da parede permanece separada." }
+      else if(config.surface==ContactSurface.WALL) "Parede desta sessão · a área do chão permanece separada."
+      else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Chão desta sessão · a área da parede permanece separada." }
     val hint=when {
       config.surface==ContactSurface.WALL -> "Parede: retorno gera candidato para revisão; uma câmera não comprova o contato em profundidade."
       config.surface==ContactSurface.TRACK -> "Somente rastrear: impactos e IN/OUT desligados."
       config.court==CourtLayout.CUSTOM && !LocalGeometry.validFloorLine(config.floorLine) -> "Chão: toque em Marcar chão e conclua os dois passos, área e limite do piso. Sem a referência, o contato exige revisão."
       else -> "Chão: aguarda descida e retorno no piso; perto da linha pode exigir revisão."
     }
-    findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint)
+    findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint+"\nÁreas temporárias · limpas ao fechar o app ou iniciar nova sessão.")
+  }
+  private fun surfaceName()=when(config.surface) { ContactSurface.FLOOR->"Chão";ContactSurface.WALL->"Parede";ContactSurface.TRACK->"Somente rastrear" }
+  internal fun beginNewSession() {
+    pauseAnalysis();saveSession();store.clearAreas();config=store.settings(cameraKey)
+    areaConfirmed=false;mustMarkArea=false;uiEpoch++;pending.set(null)
+    court.settings=config;court.resetReference();camera.update(config)
+    session=LocalSession();renderStats();renderAreaSummary();saveSession()
+    status.text="Nova sessão · marque o chão ou a parede; áreas anteriores descartadas"
   }
   private fun showSettings() {
     if (court.editing!=0) { showError("Salve ou cancele a área antes de abrir Ajustes."); return }
@@ -377,11 +392,11 @@ class LocalTrainingActivity: AppCompatActivity() {
       1 -> showVoiceSettings()
       2 -> { config=config.copy(marks=!config.marks); persistConfig() }
       3 -> showCaptureProfiles()
-      4 -> AlertDialog.Builder(this).setTitle("Nova sessão?").setMessage("A sessão atual continuará no histórico.")
-        .setPositiveButton("Começar") { _,_ -> saveSession(); session=LocalSession(); court.events=emptyList(); renderStats(); saveSession() }.setNegativeButton("Cancelar",null).show()
+      4 -> AlertDialog.Builder(this).setTitle("Nova sessão?").setMessage("A sessão atual continuará no histórico. As áreas de todas as lentes serão limpas.")
+        .setPositiveButton("Começar") { _,_ -> beginNewSession() }.setNegativeButton("Cancelar",null).show()
       5 -> exportFile.launch("Tennis-Vision-${session.id}.json")
       6 -> { camera.stop(); startActivity(Intent(this,MainActivity::class.java)) }
-      7 -> AlertDialog.Builder(this).setTitle("Treino sem PC").setMessage("QUADRA\n1. Celular fixo e na horizontal, com os quatro cantos e margem para bolas fora.\n2. Ajuste lente e detalhe em Enquadramento.\n3. Toque em Marcar quadra: inteira ou metade. Toque nos quatro cantos ao redor do piso; ajuste com a lupa e salve.\n4. Confira a área e inicie.\n\nQUARTO\nUse Marcar chão: arraste a área, avance e indique o limite parede/piso. Use Marcar parede para a área de contato na parede. As duas marcações são salvas separadamente; troque a superfície em Ajustes. Candidatos de parede exigem revisão.\n\nA busca cobre a imagem inteira. Bola minúscula, borrão, mão, perda de quadros e contato incerto exigem revisão. O contorno da área não prova sozinho que uma bola tocou o chão. IN/OUT refere-se à área marcada, sem regras automáticas de saque.\n\nPequenas translações com fundo texturizado são compensadas durante o treino. Reposicionar ou girar o celular exige conferir e remarcar. Uma lente ampla mostra mais, mas deixa a bola menor. Velocidade lateral estimada pela bola de 67 mm; não mede um saque em 3D.\n\nTela bloqueada ou outro app pausa e salva. Internet só é usada nas atualizações opcionais.")
+      7 -> AlertDialog.Builder(this).setTitle("Treino sem PC").setMessage("QUADRA\n1. Celular fixo e na horizontal, com os quatro cantos e margem para bolas fora.\n2. Ajuste lente e detalhe em Enquadramento.\n3. Toque em Marcar quadra: inteira ou metade. Toque nos quatro cantos ao redor do piso; ajuste com a lupa e salve.\n4. Confira a área e inicie.\n\nQUARTO\nUse Marcar chão: arraste a área, avance e indique o limite parede/piso. Use Marcar parede para a área de contato na parede. As duas marcações ficam separadas somente nesta sessão; nova sessão ou fechar o app limpa as áreas. Troque a superfície em Ajustes. Candidatos de parede exigem revisão.\n\nA busca cobre a imagem inteira. Bola minúscula, borrão, mão, perda de quadros e contato incerto exigem revisão. O contorno da área não prova sozinho que uma bola tocou o chão. IN/OUT refere-se à área marcada, sem regras automáticas de saque.\n\nPequenas translações com fundo texturizado são compensadas durante o treino. Reposicionar ou girar o celular exige conferir e remarcar. Uma lente ampla mostra mais, mas deixa a bola menor. Velocidade lateral estimada pela bola de 67 mm; não mede um saque em 3D.\n\nTela bloqueada ou outro app pausa e salva. Internet só é usada nas atualizações opcionais.")
         .setPositiveButton("Entendi",null).show()
     } }.setNegativeButton("Fechar",null).show()
   }
@@ -465,7 +480,12 @@ class LocalTrainingActivity: AppCompatActivity() {
     }
     dialog.setOnDismissListener { image.setImageDrawable(null); thumbnail?.recycle() }; dialog.show()
   }
-  private fun revise(id: Long,call: LineCall) { session=session.copy(events=session.events.map { if (it.id==id) it.copy(reviewed=call) else it }); court.events=session.events.takeLast(24); saveSession(); renderStats(); court.invalidate() }
+  private fun revise(id: Long,call: LineCall) {
+    session=session.copy(events=session.events.map { if (it.id==id) it.copy(reviewed=call) else it })
+    // Editing history must not restore marks from a previous lens/area reference.
+    court.events=court.events.mapNotNull { live -> session.events.firstOrNull { it.id==live.id } }
+    saveSession();renderStats();court.invalidate()
+  }
   private fun showError(message: String) { status.text=message; status.setTextColor(ContextCompat.getColor(this,R.color.tv_error)) }
   internal fun testSession()=session
   internal fun testSoundCount()=sound.startedCount

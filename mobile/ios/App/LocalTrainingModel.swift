@@ -9,6 +9,7 @@ private struct LocalArchive: Codable {var settings=[String:VisionSettings](),ses
 final class LocalTrainingStore {
     private let lock=NSLock(),disk=DispatchQueue(label:"ai.tennisvision.ios.local-disk")
     private var archive=LocalArchive()
+    private var sessionSettings=[String:VisionSettings]()
     let folder: URL
     private(set) var loadError: String?
     init(){
@@ -16,18 +17,26 @@ final class LocalTrainingStore {
         do{
             try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
             let url=folder.appendingPathComponent("archive-v1.json")
-            if FileManager.default.fileExists(atPath:url.path){let data=try Data(contentsOf:url);guard data.count<=32_000_000 else{throw CameraError.invalid("Arquivo local muito grande; exporte os dados para revisão.")};archive=try JSONDecoder().decode(LocalArchive.self,from:data)}
+            if FileManager.default.fileExists(atPath:url.path){
+                let data=try Data(contentsOf:url);guard data.count<=32_000_000 else{throw CameraError.invalid("Arquivo local muito grande; exporte os dados para revisão.")}
+                archive=try JSONDecoder().decode(LocalArchive.self,from:data)
+                // Migrate legacy areas without deleting sessions, evidence or preferences.
+                let clean=archive.settings.mapValues{$0.withoutSessionArea}
+                if clean != archive.settings{archive.settings=clean;try JSONEncoder().encode(archive).write(to:url,options:.atomic)}
+            }
         }catch{loadError="Não foi possível ler os dados locais. Eles foram preservados: \(error.localizedDescription)"}
     }
-    func settings(_ key: String) -> VisionSettings{lock.lock();defer{lock.unlock()};return archive.settings[key] ?? VisionSettings()}
+    func settings(_ key: String) -> VisionSettings{lock.lock();defer{lock.unlock()};return sessionSettings[key] ?? archive.settings[key]?.withoutSessionArea ?? VisionSettings()}
+    func clearAreas(){lock.lock();sessionSettings.removeAll();lock.unlock()}
     func history() -> [LocalTrainingSession]{lock.lock();defer{lock.unlock()};return archive.sessions.sorted{$0.started>$1.started}}
     func evidenceURL(_ session: String,_ id: Int) -> URL{folder.appendingPathComponent("evidence/\(session)/\(id).jpg")}
     func save(settings: VisionSettings?,key: String,session: LocalTrainingSession?,evidence: (Int,CGImage)?,completion: @escaping (String?)->Void){
+        if let settings{lock.lock();sessionSettings[key]=settings;lock.unlock()}
         disk.async{[self] in
             if let loadError{DispatchQueue.main.async{completion(loadError)};return}
             do{
                 lock.lock();var copy=archive;lock.unlock()
-                if let settings{copy.settings[key]=settings}
+                if let settings{copy.settings[key]=settings.withoutSessionArea}
                 if let session{
                     if let i=copy.sessions.firstIndex(where:{$0.id==session.id}){copy.sessions[i]=session}else{copy.sessions.append(session)}
                     // Retain existing sessions; never silently delete a user's history.
@@ -98,9 +107,15 @@ final class LocalTrainingStore {
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
+    private(set) var contactAnimationTimes=[Int:TimeInterval]()
+    private var settingsRevision=0
     private var opening=false,overlayStartID=0
     var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
     var needsAreaCheck:Bool{frame?.result.areaNeedsConfirmation == true}
+    var surfaceTitle:String{
+        if editing>0{return "EDITANDO \(editingArea?.surface == .wall ? "PAREDE":"CHÃO") · APLICAR AO CONCLUIR"}
+        switch config.surface{case .floor:return "CHÃO · QUICADAS";case .wall:return "PAREDE · CONTATOS PARA REVISÃO";case .track:return "RASTREAMENTO · SEM IMPACTOS"}
+    }
     var surfaceHint:String{
         if needsAreaCheck{return "A imagem mudou. Use Marcar área para conferir os cantos; o treino continua aberto."}
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
@@ -115,14 +130,16 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.9"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.10"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
-    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área salva para esta lente" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
+    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
     init(){
         lineVoice.onStatus={[weak self] message in self?.audioStatus=message}
         let store=store;camera.settingsForKey={store.settings($0)}
-        camera.onFrame={[weak self] frame,events in Task{@MainActor in self?.receive(frame,events:events)}}
+        // LocalCamera delivers this closure on DispatchQueue.main after coalescing.
+        // Handle that frame synchronously; a second Task would recreate a stale UI queue.
+        camera.onFrame={[weak self] frame,events in MainActor.assumeIsolated{self?.receive(frame,events:events)}}
         camera.onState={[weak self] message,ready in Task{@MainActor in
             guard let self,self.foreground else{return};self.ready=ready
             self.cameraUnavailable = !ready;self.opening=false
@@ -152,6 +169,7 @@ final class LocalTrainingStore {
         }
     }
     func suspend(completion: (() -> Void)?=nil){
+        settingsRevision+=1;savingArea=false;confirmed=false
         foreground=false;opening=false;active=false;ready=false;editing=0;frozen=nil;currentGeneration=nil
         homeSetup=nil;editorConfig=nil;editingCourt=nil;draft=[]
         UIApplication.shared.isIdleTimerDisabled=false;camera.stop(completion:completion)
@@ -169,6 +187,7 @@ final class LocalTrainingStore {
         guard foreground,!testing else{return}
         let firstRealImage = !ready
         if key != frame.key {
+            settingsRevision+=1
             pause();key=frame.key;config=store.settings(key);confirmed=false;currentGeneration=frame.generation
             session=store.history().first(where:{$0.key==key}) ?? LocalTrainingSession(key:key)
             overlayStartID=session.events.map{$0.id}.max() ?? 0
@@ -217,6 +236,8 @@ final class LocalTrainingStore {
         let contactKey="\(f.generation.uuidString):\(hit.id)"
         guard acceptedContacts.insert(contactKey).inserted else{return}
         hit.id=(session.events.map{$0.id}.max() ?? 0)+1;hit.evidenceOffset=f.evidenceOffset ?? hit.cameraOffset
+        let arrival=ProcessInfo.processInfo.systemUptime
+        contactAnimationTimes=contactAnimationTimes.filter{arrival-$0.value<0.48};contactAnimationTimes[hit.id]=arrival
         session.events.append(hit)
         store.save(settings:nil,key:key,session:session,evidence:f.evidence.map{(hit.id,$0)}){[weak self] message in
             if let message{self?.savingError=true;self?.pause();self?.error=message}
@@ -237,7 +258,7 @@ final class LocalTrainingStore {
     }
     func editHome(_ surface:VisionSurface){edit(1,court:.custom,surface:surface,home:true)}
     func changeSurface(_ surface:VisionSurface){guard editing==0,!savingArea else{return};confirmed=false;persist((frame?.result.area ?? config).selectingSurface(surface))}
-    func cancelEdit(){guard !savingArea else{return};editing=0;draft=[];frozen=nil;editingCourt=nil;editorConfig=nil;homeSetup=nil;status="Edição cancelada · área anterior mantida"}
+    func cancelEdit(){guard !savingArea else{return};editing=0;draft=[];frozen=nil;editingCourt=nil;editorConfig=nil;homeSetup=nil;status="Edição cancelada · modo \(config.surface == .wall ? "parede":config.surface == .floor ? "chão":"somente rastrear") mantido"}
     func redraw(){draft=[]}
     var canSaveArea: Bool{!savingArea && (editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft))}
     func saveArea(){
@@ -255,20 +276,36 @@ final class LocalTrainingStore {
         let saved=value.rememberingArea()
         persist(saved){[weak self] in
             guard let self else{return};self.savingArea=false;self.editing=0;self.frozen=nil;self.draft=[];self.editingCourt=nil;self.editorConfig=nil;self.homeSetup=nil;self.confirmed=true
-            self.status="\(saved.surface == .wall ? "Parede":"Chão") salvo para esta câmera, lente e resolução"
+            self.status="\(saved.surface == .wall ? "Parede":"Chão") marcado para esta sessão; nova sessão ou fechar o app limpa a área"
         }
     }
     func persist(_ value: VisionSettings,done: (() -> Void)?=nil){
-        pause();store.save(settings:value,key:key,session:nil,evidence:nil){[weak self] message in
+        let changesReference = !value.usesSameVisibleArea(as:config)
+        settingsRevision+=1;let revision=settingsRevision,savedKey=key
+        pause();config=value
+        if changesReference{overlayStartID=session.events.map{$0.id}.max() ?? 0}
+        camera.update(value)
+        store.save(settings:value,key:key,session:nil,evidence:nil){[weak self] message in
             guard let self else{return}
             if let message{self.savingArea=false;self.error=message;self.savingError=true;return}
-            self.config=value;self.overlayStartID=self.session.events.map{$0.id}.max() ?? 0;self.camera.update(value);done?()
+            // Disk completion from an earlier session/camera cannot restore its area.
+            guard self.settingsRevision==revision,self.key==savedKey else{return}
+            done?()
         }
     }
     func changeDetail(_ value: LocalDetail){guard editing==0 else{return};pause();detail=value;UserDefaults.standard.set(value.rawValue,forKey:"local.detail");prepare(force:true)}
     func changeLens(_ value: String){guard editing==0 else{return};pause();lensID=value;UserDefaults.standard.set(value,forKey:"local.lens");prepare(force:true)}
     func changeRate(_ value: Int){guard editing==0,[0,30,60,120,240].contains(value) else{return};pause();rate=value;UserDefaults.standard.set(value,forKey:"local.rate");prepare(force:true)}
-    func newSession(){pause();overlayStartID=0;session=LocalTrainingSession(key:key);store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message};history=store.history()}
+    func newSession(){
+        guard !savingArea,editing==0 else{return}
+        settingsRevision+=1
+        pause();store.clearAreas();config=config.withoutSessionArea;confirmed=false;confirmArea=false
+        // Remove the previous result/area immediately; new frames use the cleared settings.
+        frame=nil;frozen=nil;acceptedContacts.removeAll();contactAnimationTimes.removeAll();camera.update(config)
+        overlayStartID=0;session=LocalTrainingSession(key:key)
+        store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message}
+        history=store.history();status="Nova sessão · marque o chão ou a parede; áreas anteriores descartadas"
+    }
     func review(_ event: VisionImpact){pause();reviewing=event;reviewImage=nil;let url=store.evidenceURL(session.id,event.id)
         DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id{self?.reviewImage=image}}}
     }

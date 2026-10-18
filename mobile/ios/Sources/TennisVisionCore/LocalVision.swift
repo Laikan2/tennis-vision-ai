@@ -19,7 +19,7 @@ public struct VisionSettings: Codable, Equatable, Sendable {
 public struct VisionBall: Sendable {
     public var x: Double,y: Double,radius: Double,time: Double,confidence: Double
     public var nearHand=false, blurred=false, luminance=0.0, motionSupport=1.0, occluded=false, colorUncertain=false
-    public var diameterX=0.0,diameterY=0.0
+    public var diameterX=0.0,diameterY=0.0,distinctFelt=false,feltChroma=0.0,greenDominant=false
     public var resolved: Bool { !occluded && !colorUncertain && radius>=2.5 && confidence>=0.5 }
 }
 public struct VisionImpact: Codable, Identifiable, Sendable {
@@ -107,7 +107,7 @@ public enum VisionGeometry {
     return r>=32 && g>=18 && b>=10 && r*100>g*112 && g*100>b*108 && r-g>7
 }
 final class VisionDetector {
-    private var mask=[UInt8](),strong=[UInt8](),previous=[UInt32](),oldGreen=[UInt8](),rawGreen=[UInt8]()
+    private var mask=[UInt8](),strong=[UInt8](),chroma=[UInt8](),previous=[UInt32](),oldGreen=[UInt8](),rawGreen=[UInt8]()
     private var queue=[Int](),cutoffs=[Int](),weakCutoffs=[Int]()
     private var dimensions=(0,0)
     var alignment=VisionAlignment()
@@ -115,7 +115,7 @@ final class VisionDetector {
     func detect(_ pixels: [UInt32],width: Int,height: Int,time: Double,prior: VisionBall?,landmarks: [VisionPoint]) -> ([VisionBall],Bool) {
         let count=width*height
         if dimensions.0 != width || dimensions.1 != height {
-            dimensions=(width,height);mask=Array(repeating:0,count:count);strong=mask;oldGreen=mask;rawGreen=mask
+            dimensions=(width,height);mask=Array(repeating:0,count:count);strong=mask;chroma=mask;oldGreen=mask;rawGreen=mask
             queue=Array(repeating:0,count:count);previous=[]
         }
         var moving=false,lightShift=0
@@ -148,6 +148,8 @@ final class VisionDetector {
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
+            let red=Int((c>>16)&255),green=Int((c>>8)&255),blue=Int(c&255)
+            chroma[i]=UInt8(max(0,green-blue)*255/max(1,max(red,green)))
             var selected=s || weakGreen(c);rawGreen[i]=selected ? 1:0
             if selected {
                 let y=i/width,x=i-y*width,old=previous.count==count ? previous[i]:0
@@ -163,24 +165,33 @@ final class VisionDetector {
         // Every accepted component needs a strong felt pixel. Seed from those
         // pixels only; weak-only wall/compression regions cannot produce a ball.
         // Flood fill still includes the same weak edge pixels around each seed.
-        for seed in 0..<count where mask[seed]==1 && strong[seed]==1 {
+        // Saturated felt is extracted before low-chroma expansion can connect
+        // it to a warm floor. The second scan retains faint distant components;
+        // every pixel is consumed at most once across both floods.
+        for pass in 0...1 {for seed in 0..<count where mask[seed]==1 && strong[seed]==1 && (pass==1 || chroma[seed]>=82) {
             var head=0,tail=1,xmin=width,xmax=0,ymin=height,ymax=0,sxmin=width,sxmax = -1,symin=height,symax = -1
-            var sx=0.0,sy=0.0,light=0.0,wx=0.0,wy=0.0,weights=0.0,changed=0,strongCount=0
+            var sx=0.0,sy=0.0,light=0.0,chromaSum=0,redSum=0,greenSum=0,wx=0.0,wy=0.0,weights=0.0,changed=0,strongCount=0
             queue[0]=seed;mask[seed]=0
             while head<tail {
                 let i=queue[head],x=i%width,y=i/width;head+=1
                 xmin=min(xmin,x);xmax=max(xmax,x);ymin=min(ymin,y);ymax=max(ymax,y)
                 sx+=Double(x);sy+=Double(y);light+=Double(visionLight(pixels[i]))
+                chromaSum+=Int(chroma[i])
+                redSum+=Int((pixels[i]>>16)&255);greenSum+=Int((pixels[i]>>8)&255)
                 if strong[i]==1{strongCount+=1;sxmin=min(sxmin,x);sxmax=max(sxmax,x);symin=min(symin,y);symax=max(symax,y)}
                 let weight=Double(max(1,Int((pixels[i]>>8)&255)-Int(pixels[i]&255)))
                 weights+=weight;wx+=Double(x)*weight;wy+=Double(y)*weight
                 if previous.count==count && abs(visionLight(pixels[i])-visionLight(previous[i])-lightShift)>12{changed+=1}
-                func add(_ n: Int){if mask[n]==1{mask[n]=0;queue[tail]=n;tail+=1}}
+                func add(_ n: Int){if mask[n]==1 && (pass==1 || chroma[n]>=71 || abs(n%width-seed%width)<=4 && abs(n/width-seed/width)<=4){mask[n]=0;queue[tail]=n;tail+=1}}
                 if x>0{add(i-1)};if x+1<width{add(i+1)};if y>0{add(i-width)};if y+1<height{add(i+width)}
             }
             let w=xmax-xmin+1,h=ymax-ymin+1,fill=Double(tail)/Double(w*h),aspect=Double(max(w,h))/Double(min(w,h))
             let closeRound=aspect<=1.65 && (0.55...0.90).contains(fill) && Double(strongCount)>=Double(tail)*0.65
-            guard strongCount>0,tail>=3,Double(tail)<=Double(count)*(closeRound ? 0.12:0.025),min(w,h)>=2,Double(max(w,h))<=Double(min(width,height))*(closeRound ? 0.42:0.23),aspect<=8,fill>=0.35 else{continue}
+            let saturated=Double(chromaSum)/Double(tail)>=107 && Double(strongCount)>=Double(tail)*0.65 && Double(redSum)>=Double(greenSum)*0.78
+            let closePartial=aspect<=1.65 && (0.40...0.55).contains(fill) && min(w,h)>=16 && saturated
+            let seamFragment=(1.65...2.35).contains(aspect) && (0.65...0.85).contains(fill) && min(w,h)>=12 && saturated
+            let close=closeRound || closePartial || seamFragment
+            guard strongCount>0,tail>=3,Double(tail)<=Double(count)*(close ? 0.12:0.025),min(w,h)>=2,Double(max(w,h))<=Double(min(width,height))*(close ? 0.60:0.23),aspect<=8,fill>=0.35 else{continue}
             if min(w,h)>=6 && fill>0.94{continue}
             let x=min(w,h)<9 ? wx/weights:sx/Double(tail),y=min(w,h)<9 ? wy/weights:sy/Double(tail),radius=Double(min(w,h))/2
             let weak=Double(strongCount)<Double(tail)*0.25,halo=weak || (min(w,h)>=5 && min(sxmax-sxmin+1,symax-symin+1)<5)
@@ -194,32 +205,55 @@ final class VisionDetector {
                 let i=py*width+px,c=pixels[i]
                 if skinColor(c){skin+=1;if previous.count==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
+            if closePartial && (ring==0 || Double(skin)<Double(ring)*0.12 || Double(skin)>Double(ring)*0.85){continue}
             var ball=VisionBall(x:x,y:y,radius:radius,time:time,confidence:halo ? min(fill,0.45):min(fill,min(w,h)<5 ? 0.6:0.95))
             ball.diameterX=Double(w);ball.diameterY=Double(h)
-            ball.nearHand=ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
+            ball.distinctFelt=closePartial || radius>=2.5 && aspect<=1.6 && fill>=0.55 && saturated;ball.occluded=closePartial || seamFragment
+            ball.feltChroma=Double(chromaSum)/Double(tail)
+            ball.greenDominant=Double(greenSum)>=Double(redSum)*1.05
+            var skinSides=0
+            for side in [-1.0,1.0]{for vertical in [-0.5,0.5,2.0]{
+                let px=min(width-1,max(0,Int((x+side*Double(reach)).rounded()))),py=min(height-1,max(0,Int((y+vertical*radius).rounded())))
+                if skinColor(pixels[py*width+px]){skinSides+=1}
+            }}
+            let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
+            ball.nearHand=closePartial || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
             ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previous.isEmpty ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
             found.append(ball);bounds.append([xmin,ymin,xmax,ymax]);masses.append(tail)
-        }
+        }}
         if (2...48).contains(found.count) {
             var consumed=Array(repeating:false,count:found.count),joined=[VisionBall]()
             for i in found.indices where !consumed[i] {
-                var match: Int?,best=Double.infinity
+                var match: Int?,best=Double.infinity,matchSeam=false
                 if i+1<found.count {for j in i+1..<found.count where !consumed[j] {
                     let a=found[i],b=found[j],aa=bounds[i],bb=bounds[j]
                     let w=max(aa[2],bb[2])-min(aa[0],bb[0])+1,h=max(aa[3],bb[3])-min(aa[1],bb[1])+1
                     let fill=Double(masses[i]+masses[j])/Double(w*h)
-                    guard min(w,h)>=6,Double(max(w,h))<=Double(min(width,height))*0.15,Double(max(w,h))<=Double(min(w,h))*1.55,(0.40...0.90).contains(fill) else{continue}
+                    guard min(w,h)>=6,Double(max(w,h))<=Double(min(width,height))*0.60,Double(max(w,h))<=Double(min(w,h))*1.55,(0.40...0.90).contains(fill) else{continue}
                     let dx=max(0,max(aa[0],bb[0])-min(aa[2],bb[2])-1),dy=max(0,max(aa[1],bb[1])-min(aa[3],bb[3])-1)
                     if Double(max(dx,dy))>max(4,Double(min(w,h))*0.22){continue}
                     var bridge=0
                     for k in 0...4{let f=0.35+Double(k)*0.075,px=Int(a.x+(b.x-a.x)*f),py=Int(a.y+(b.y-a.y)*f);if skinColor(pixels[py*width+px]){bridge+=1}}
-                    let distance=hypot(a.x-b.x,a.y-b.y);if bridge>=3 && distance<best{best=distance;match=j}
+                    var inkBridge=0
+                    let centerDistance=max(1,hypot(a.x-b.x,a.y-b.y))
+                    for k in 0...4 {
+                        let across=Double(k-2)*Double(min(w,h))*0.04
+                        let px=Int(((a.x+b.x)*0.5-(b.y-a.y)/centerDistance*across).rounded()),py=Int(((a.y+b.y)*0.5+(b.x-a.x)/centerDistance*across).rounded()),color=pixels[py*width+px]
+                        let r=Int((color>>16)&255),g=Int((color>>8)&255),b=Int(color&255),high=max(r,max(g,b)),low=min(r,min(g,b))
+                        if Double(visionLight(color))<min(a.luminance,found[j].luminance)*0.65 && Double(high-low)<=max(12,Double(high)*0.25){inkBridge+=1}
+                    }
+                    let seam=inkBridge>=3 && a.feltChroma>=107 && b.feltChroma>=107 && Double(max(w,h))<=Double(min(w,h))*1.30 && Double(max(dx,dy))<=max(2,Double(min(w,h))*0.14) && fill>=0.55
+                    let distance=hypot(a.x-b.x,a.y-b.y)
+                    if (seam || bridge>=3 && Double(max(w,h))<=Double(min(width,height))*0.15) && distance<best{best=distance;match=j;matchSeam=seam}
                 }}
                 guard let j=match else{joined.append(found[i]);continue};consumed[j]=true
                 let a=found[i],b=found[j],aa=bounds[i],bb=bounds[j],weight=Double(masses[i])/Double(masses[i]+masses[j])
-                var c=VisionBall(x:a.x*weight+b.x*(1-weight),y:a.y*weight+b.y*(1-weight),radius:Double(min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1))/2,time:time,confidence:min(0.6,min(a.confidence,b.confidence)))
+                let cx=matchSeam ? Double(min(aa[0],bb[0])+max(aa[2],bb[2]))*0.5:a.x*weight+b.x*(1-weight)
+                let cy=matchSeam ? Double(min(aa[1],bb[1])+max(aa[3],bb[3]))*0.5:a.y*weight+b.y*(1-weight)
+                var c=VisionBall(x:cx,y:cy,radius:Double(min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1))/2,time:time,confidence:min(matchSeam ? 0.8:0.6,min(a.confidence,b.confidence)))
                 c.diameterX=Double(max(aa[2],bb[2])-min(aa[0],bb[0])+1);c.diameterY=Double(max(aa[3],bb[3])-min(aa[1],bb[1])+1)
-                c.nearHand=true;c.occluded=true;c.luminance=a.luminance*weight+b.luminance*(1-weight);c.motionSupport=max(a.motionSupport,b.motionSupport);joined.append(c)
+                c.nearHand = !matchSeam || a.nearHand || b.nearHand;c.occluded = !matchSeam;c.luminance=a.luminance*weight+b.luminance*(1-weight)
+                c.motionSupport=max(a.motionSupport,b.motionSupport);c.distinctFelt=matchSeam;c.feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight);c.greenDominant=a.greenDominant && b.greenDominant;joined.append(c)
             }
             found=joined
         }
@@ -272,7 +306,9 @@ public final class LocalVision {
         var acquiring=eligible
         if previous==nil {
             let moving=eligible.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}
-            let resolved=acquiring.filter{$0.resolved};if !resolved.isEmpty{acquiring=resolved}
+            let felt=acquiring.filter{$0.distinctFelt},resolved=acquiring.filter{$0.resolved}
+            let vivid=felt.filter{$0.feltChroma>=140}
+            if !vivid.isEmpty{acquiring=vivid}else if !felt.isEmpty{acquiring=felt}else if !resolved.isEmpty{acquiring=resolved}
             if acquiring.count>1{let moving=acquiring.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}}
             if acquiring.contains(where:{$0.radius>=max(16,Double(min(w,h))*0.08) && $0.confidence>=0.60}){acquiring=acquiring.filter{$0.radius>=4}}
         }
@@ -286,7 +322,7 @@ public final class LocalVision {
         if previous?.nearHand==true || previous?.occluded==true{let clean=ranked.filter{$0.0.resolved};if !clean.isEmpty{ranked=clean}}
         ranked.sort{$0.1<$1.1};var ball=ranked.first?.0
         if ranked.count>1 && (previous==nil || abs(ranked[1].1-ranked[0].1)<max(4,(ball?.radius ?? 1)*1.5)){ball=nil}
-        if previous==nil,let b=ball,(b.radius<2.5 || b.colorUncertain),!b.occluded,!confirmed {
+        if previous==nil,let b=ball,(b.radius<2.5 || b.colorUncertain || b.feltChroma<82 && !b.greenDominant),!b.occluded,!confirmed {
             let pending=tiny;tiny=b
             if let t=pending {
                 let distance=hypot(b.x-t.x,b.y-t.y)
@@ -325,8 +361,9 @@ public final class LocalVision {
     }
     private func contact() -> VisionImpact? {
         guard settings.surface != .track,path.count>=5 else{return nil}
-        let p=Array(path.suffix(5)),a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]
-        if c.time-lastImpact<0.18 || e.time-a.time>0.65 || c.nearHand || (d.nearHand && e.nearHand) || zip(p,p.dropFirst()).contains(where:{$0.1.time-$0.0.time>0.25}){return nil}
+        guard let p=settings.surface == .floor ? floorEvidence():Array(path.suffix(5)) else{return nil}
+        let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],evidence=path.filter{$0.time>=p[0].time && $0.time<=p[4].time}
+        if c.time-lastImpact<0.18 || e.time-a.time>0.65 || c.nearHand || (d.nearHand && e.nearHand) || zip(evidence,evidence.dropFirst()).contains(where:{$0.1.time-$0.0.time>0.25}){return nil}
         let travel=max(3,c.radius*0.7)
         let floorTurn=c.y-a.y>travel && c.y-e.y>travel && b.y>=a.y && d.y>=e.y && c.y>=b.y && c.y>=d.y
         let incoming=VisionPoint((b.x-a.x)/(b.time-a.time),(b.y-a.y)/(b.time-a.time))
@@ -344,7 +381,7 @@ public final class LocalVision {
             if radii.max()!/radii.min()!>1.65 || lights.max()!/max(1,lights.min()!)>1.8 || (settings.surface == .floor && fit==nil){return nil}
         }
         let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor ? c.radius:0))/Double(height))
-        let intervals=zip(p,p.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
+        let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
         let missing=sparse ? max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5:0
         let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing),area=activeSettings
         let floorDistance=settings.surface == .floor && settings.court == .custom ? VisionGeometry.floorDistance(point,area.floorLine,width,height):nil
@@ -352,14 +389,14 @@ public final class LocalVision {
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
         let courtKnown=settings.court != .custom && VisionGeometry.valid(area.polygon)
         let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
-        if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || p.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
+        if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || evidence.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
         let reason: String
         if settings.surface == .wall{reason="Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."}
-        else if p.contains(where:{!$0.resolved}){reason="Detalhe insuficiente na bola. Confira contato e linha."}
+        else if evidence.contains(where:{!$0.resolved}){reason="Detalhe insuficiente na bola. Confira contato e linha."}
         else if !floorKnown{reason="Contato com o piso não comprovado. Confira a superfície e a marca."}
         else if sparse{reason="Quadros ausentes ou espaçados. Posição estimada; revise."}
         else if fit==nil{reason="Instante do contato incerto; confirme na revisão."}
-        else if p.contains(where:{$0.nearHand}){reason="Possível mão na trajetória. Confirme o contato."}
+        else if evidence.contains(where:{$0.nearHand}){reason="Possível mão na trajetória. Confirme o contato."}
         else if call == .review{reason="A incerteza alcança a linha. Revise o contato."}
         else if call == .unmarked{reason="Quicada candidata; marque a área para IN/OUT."}
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
@@ -367,6 +404,20 @@ public final class LocalVision {
         return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:velocity(Array(p.prefix(3))),uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}
+    private func floorEvidence()->[VisionBall]? {
+        // Preserve observed displacement thresholds across capture rates;
+        // highFPS uses more samples of the same short physical trajectory.
+        for stride in 1...8 {
+            let start=path.count-1-stride*4;if start<0{break}
+            let p=(0...4).map{path[start+$0*stride]},a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],travel=max(3,c.radius*0.7)
+            if c.y-a.y<=travel || c.y-e.y<=travel || b.y<a.y || d.y<e.y || c.y<b.y || c.y<d.y{continue}
+            if stride>1 {
+                if e.time-a.time>0.20 || c.nearHand || path[start...].contains(where:{$0.nearHand || $0.occluded}){continue}
+                let middle=start+stride*2
+                if (start..<middle).contains(where:{path[$0+1].y<path[$0].y-0.75}) || (middle..<path.count-1).contains(where:{path[$0+1].y>path[$0].y+0.75}){continue}
+            };return p
+        };return nil
+    }
     private func wallContact(_ p:[VisionBall])->Fit? {
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]
         let vx=(b.x-a.x)/(b.time-a.time),vy=(b.y-a.y)/(b.time-a.time)

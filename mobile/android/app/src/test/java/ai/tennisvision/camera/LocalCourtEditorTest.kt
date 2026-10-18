@@ -80,4 +80,40 @@ class LocalCourtEditorTest {
     assertNotEquals("The contour needs contrast outside the ball",p[180*640+108],image.getPixel(108,180))
     image.recycle()
   }
+  @Test fun portraitAndLandscapeFramesUseTheirOwnRatioAndMapEveryCorner() {
+    for((iw,ih) in listOf(720 to 1280,1280 to 720,1920 to 1080)) {
+      val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context)
+      v.present(LocalFrame(IntArray(iw*ih){0xff315372.toInt()},iw,ih,0.0,
+        LocalResult(null,null,emptyList(),null,false,null,"Fixture"),0.0,60.0,60,"ratio-$iw"))
+      v.measure(android.view.View.MeasureSpec.makeMeasureSpec(500,android.view.View.MeasureSpec.AT_MOST),android.view.View.MeasureSpec.makeMeasureSpec(400,android.view.View.MeasureSpec.AT_MOST))
+      v.layout(0,0,v.measuredWidth,v.measuredHeight)
+      assertTrue(v.width<=500 && v.height<=400)
+      assertEquals(iw.toDouble()/ih,v.width.toDouble()/v.height,.004)
+      val origin=v.pointOnScreen(CourtPoint(0.0,0.0));val end=v.pointOnScreen(CourtPoint(1.0,1.0))
+      assertEquals(0f,origin.x,.6f);assertEquals(0f,origin.y,.6f)
+      assertEquals(v.width.toFloat(),end.x,.6f);assertEquals(v.height.toFloat(),end.y,.6f)
+      v.begin(3);val p=CourtPoint(.8,.7);tap(v,p)
+      assertEquals(p.x,v.draft.single().x,1e-6);assertEquals(p.y,v.draft.single().y,1e-6)
+    }
+  }
+  @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
+  fun contactPulseAppearsAtMappedContactThenExpiresWithoutRemovingTheMark() {
+    val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context);v.layout(0,0,640,360)
+    val background=0xff315372.toInt()
+    v.present(LocalFrame(IntArray(640*360){background},640,360,0.0,
+      LocalResult(null,null,emptyList(),null,false,null,"Fixture",cameraOffset=CourtPoint(.04,.03)),0.0,60.0,60,"impact"))
+    val hit=LocalImpact(1,1.0,CourtPoint(.25,.75),5.0,LineCall.OUT,30.0,1.0,"Known test contact",ContactSurface.FLOOR,cameraOffset=CourtPoint(.01,.02))
+    v.events=listOf(hit)
+    org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(240))
+    val image=android.graphics.Bitmap.createBitmap(640,360,android.graphics.Bitmap.Config.ARGB_8888)
+    v.draw(android.graphics.Canvas(image))
+    val centre=v.pointOnScreen(LocalGeometry.impactPoint(hit,CourtPoint(.04,.03)))
+    val x=(centre.x+20).toInt();val y=centre.y.toInt()
+    assertNotEquals("An arrival pulse must be visible at the same camera-offset contact coordinate",background,image.getPixel(x,y))
+    org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(400))
+    v.draw(android.graphics.Canvas(image))
+    assertEquals("The pulse is transient",background,image.getPixel(x,y))
+    assertNotEquals("The contact ring remains after the pulse",background,image.getPixel((centre.x+7).toInt(),y))
+    image.recycle()
+  }
 }

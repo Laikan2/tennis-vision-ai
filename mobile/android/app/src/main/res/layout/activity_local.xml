@@ -9,10 +9,11 @@
   <Button android:id="@+id/networkTab" style="@style/CameraSecondary" android:layout_width="100dp" android:layout_marginStart="8dp" android:text="Ajustes" />
  </LinearLayout>
  <LinearLayout android:id="@+id/localBody" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="8dp">
-  <LinearLayout android:id="@+id/localVideoPanel" android:layout_width="0dp" android:layout_weight="1" android:layout_height="match_parent" android:orientation="vertical" android:background="@drawable/panel_background">
+  <ai.tennisvision.camera.LocalVideoPanel android:id="@+id/localVideoPanel" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/panel_background">
    <TextView android:id="@+id/localStatus" style="@style/CameraLabel" android:text="Permita a câmera para começar" android:textSize="16sp" android:layout_marginTop="8dp" android:paddingHorizontal="12dp" android:accessibilityLiveRegion="polite" />
    <TextView android:id="@+id/localMetrics" style="@style/CameraBody" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="Processamento local · sem computador" android:textSize="11sp" />
-   <ai.tennisvision.camera.LocalCourtView android:id="@+id/localVideo" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
+   <TextView android:id="@+id/localSurface" style="@style/CameraLabel" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="CHÃO · QUICADAS" android:textSize="12sp" android:textColor="@color/tv_accent" android:accessibilityLiveRegion="polite" />
+   <ai.tennisvision.camera.LocalCourtView android:id="@+id/localVideo" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" />
    <LinearLayout android:id="@+id/localEditor" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" android:visibility="gone">
     <TextView android:id="@+id/localEditorHint" style="@style/CameraBody" android:textSize="12sp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
@@ -21,7 +22,7 @@
      <Button android:id="@+id/localCancelArea" style="@style/CameraSecondary" android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Cancelar" />
     </LinearLayout>
    </LinearLayout>
-  </LinearLayout>
+  </ai.tennisvision.camera.LocalVideoPanel>
   <ScrollView android:id="@+id/settingsScroll" android:layout_width="286dp" android:layout_height="match_parent" android:layout_marginStart="12dp" android:fillViewport="true">
    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="4dp">
     <TextView style="@style/CameraEyebrow" android:text="SEU TREINO, NO CELULAR" />
@@ -33,7 +34,7 @@
     <TextView style="@style/CameraEyebrow" android:layout_marginTop="14dp" android:text="TESTE EM CASA" />
     <Button android:id="@+id/localArea" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar chão" />
     <Button android:id="@+id/localWall" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar parede" />
-    <TextView style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="Chão: área e limite do piso, em dois passos. Parede: área de contato. Cada marcação fica salva separadamente para esta lente." />
+    <TextView style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="Chão: área e limite do piso, em dois passos. Parede: área de contato. As marcações são temporárias: nova sessão ou fechar o app limpa as áreas." />
     <Button android:id="@+id/localFloor" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Ajustar limite parede/chão" />
     <TextView android:id="@+id/localDecision" style="@style/CameraLabel" android:text="Aguardando contato" android:textSize="22sp" android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" />
     <TextView android:id="@+id/localStats" style="@style/CameraBody" android:layout_marginTop="6dp" android:text="0 IN · 0 OUT · 0 para revisar" />

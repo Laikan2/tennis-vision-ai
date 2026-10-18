@@ -168,9 +168,7 @@ class LocalTrainingTest {
       scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
       tap(scenario,R.id.localCancelArea)
       scenario.onActivity { assertEquals(wall,it.testConfig()) }
-      scenario.recreate();ready(scenario)
-      scenario.onActivity { assertEquals(wall,it.testConfig()) }
-      // Reopening floor uses its saved corners and line, rather than the wall's.
+      // Switching surfaces in this session uses its own corners and boundary.
       tap(scenario,R.id.localArea)
       scenario.onActivity { assertEquals(floor.polygon,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
       tap(scenario,R.id.localSaveArea)
@@ -180,7 +178,14 @@ class LocalTrainingTest {
         assertEquals(floor.polygon,it.testConfig().polygon)
         assertEquals(wall.polygon,it.testConfig().wallPolygon)
       }
-      screenshot("home-areas-0.6.8-floor-restored")
+      screenshot("session-floor-restored")
+      scenario.recreate();ready(scenario)
+      scenario.onActivity {
+        assertTrue("A new Activity/session must not restore old geometry",it.testConfig().polygon.isEmpty())
+        assertTrue(it.testConfig().floorLine.isEmpty())
+        assertTrue(it.testConfig().floorPolygon.isNullOrEmpty())
+        assertTrue(it.testConfig().wallPolygon.isNullOrEmpty())
+      }
     }
   }
   @Test fun cameraAreaTouchesCancellationAndLifecycleWorkOffline() {
@@ -200,14 +205,35 @@ class LocalTrainingTest {
       repeat(10) { tap(scenario,R.id.localStart) }
       scenario.onActivity { assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString()) }
       scenario.recreate(); ready(scenario); Thread.sleep(1500)
-      scenario.onActivity { assertEquals(saved,it.testConfig()) }
-      screenshot("01-local-camera-and-saved-area")
+      scenario.onActivity {
+        assertTrue(it.testConfig().polygon.isEmpty());assertTrue(it.testConfig().floorLine.isEmpty())
+        assertEquals(saved.sound,it.testConfig().sound);assertEquals(saved.marks,it.testConfig().marks)
+        assertEquals(saved.surface,it.testConfig().surface)
+      }
+      screenshot("01-local-camera-area-cleared-on-restart")
       scenario.onActivity { activity ->
         val report=JSONObject().put("kind","camera UI exercise; scene is not labelled tennis footage")
           .put("device",android.os.Build.MODEL).put("android",android.os.Build.VERSION.RELEASE)
           .put("metrics",activity.findViewById<TextView>(R.id.localMetrics).text.toString())
         File(context.getExternalFilesDir(null),"offline-proof/camera.json").writeText(report.toString(2))
       }
+    }
+  }
+
+  @Test fun newSessionDiscardsAreasWithoutDeletingEarlierHistory() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);area(scenario)
+      var oldId="";var oldCount=0
+      scenario.onActivity {
+        oldId=it.testSession().id;oldCount=it.testSession().events.size
+        assertTrue(LocalGeometry.valid(it.testConfig().polygon))
+        it.beginNewSession()
+        assertNotEquals(oldId,it.testSession().id)
+        assertTrue(it.testConfig().polygon.isEmpty());assertTrue(it.testConfig().floorLine.isEmpty())
+        assertTrue(it.testConfig().floorPolygon.isNullOrEmpty());assertTrue(it.testConfig().wallPolygon.isNullOrEmpty())
+      }
+      waitFor { LocalSessionStore(context).load(oldId)?.events?.size==oldCount }
+      screenshot("new-session-empty-area")
     }
   }
 
