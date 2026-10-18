@@ -60,7 +60,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     override func draw(_ rect: CGRect){
         guard let f=frameValue else{return};UIImage(cgImage:f.image).draw(in:imageRect)
         let lime=VisionCall.inside.color
-        let area=editing>0 ? config:(result?.area ?? f.result.area)
+        let area=editing>0 ? config:(result?.area ?? config)
         let cyan=area.surface == .wall ? UIColor.systemPurple:UIColor.systemCyan
         line(area.polygon,closed:true,color:cyan)
         for guide in VisionGeometry.guides(area.polygon,court:area.court){line(guide,closed:false,color:cyan.withAlphaComponent(0.6),width:1)}
@@ -72,7 +72,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             return
         }
         if config.marks && !f.result.movingCamera{for event in events.suffix(24) where event.decision != .rejected{
-            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? f.result.cameraOffset)),color=event.decision.color
+            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color=event.decision.color
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
             if let start=pulses[event.id]{
                 let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-start)/0.48)),radius=CGFloat(9+23*progress)
@@ -109,11 +109,12 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         let location=gesture.location(in:self);guard let p=point(location) else{return}
         if editing==0 {
             guard config.marks,let f=frameValue,!f.result.movingCamera else{return}
+            let offset=result?.cameraOffset ?? VisionPoint(0,0)
             let candidates=events.filter{$0.decision != .rejected}
             if let event=candidates.min(by:{a,b in
-                let x=screen(VisionGeometry.impactPoint(a,offset:f.result.cameraOffset)),y=screen(VisionGeometry.impactPoint(b,offset:f.result.cameraOffset))
+                let x=screen(VisionGeometry.impactPoint(a,offset:offset)),y=screen(VisionGeometry.impactPoint(b,offset:offset))
                 return hypot(x.x-location.x,x.y-location.y)<hypot(y.x-location.x,y.y-location.y)
-            }){let q=screen(VisionGeometry.impactPoint(event,offset:f.result.cameraOffset));if hypot(q.x-location.x,q.y-location.y)<=32{onImpact?(event.id)}}
+            }){let q=screen(VisionGeometry.impactPoint(event,offset:offset));if hypot(q.x-location.x,q.y-location.y)<=32{onImpact?(event.id)}}
         }else if editing != 1 && draft.count<(editing==2 ? 2:4){draft.append(p);onDraft?(draft);setNeedsDisplay()}
     }
     private func beginTouch(_ location: CGPoint){

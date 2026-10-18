@@ -244,6 +244,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     if (first) { start.isEnabled=true; start.text="Iniciar treino"; status.text="Câmera pronta · confira a área antes de iniciar"; status.setTextColor(ContextCompat.getColor(this,R.color.tv_text)); renderAreaSummary() }
     val now=SystemClock.elapsedRealtime()
     court.present(frame)
+    val currentResult=frame.result.referencedTo(config)
     if (now-lastInfo>600) {
       lastInfo=now
       metrics.text=String.format(Locale.getDefault(),"%d × %d · %.0f FPS recebidos · até %d solicitados\nConversão %.1f ms · detecção %.1f ms\n%s · sem computador",frame.width,frame.height,frame.captureFps,frame.requestedFps,frame.conversionMs,frame.detectorMs,frame.lensLabel)
@@ -255,15 +256,16 @@ class LocalTrainingActivity: AppCompatActivity() {
       frame.result.observed?.let { ball ->
         metrics.append("\nBola ≈${(ball.radius*2).toInt()} px · "+if(ball.resolved) "observada" else "detalhe insuficiente para decisão automática")
       }
-      if (analyzing && court.editing==0) status.text=frame.result.message
+      if (analyzing && court.editing==0) status.text=currentResult.message
     }
-    if (frame.result.areaNeedsConfirmation && analyzing) {
+    if (currentResult.areaNeedsConfirmation && analyzing) {
       areaConfirmed=false;mustMarkArea=true
       status.text="Treino ativo · confira os cantos em Marcar área; impactos suspensos"
     }
   }
   private fun acceptImpact(frame: LocalFrame) {
-    val detected=frame.result.impact ?: return
+    if(frame.key!=cameraKey) return
+    val detected=frame.result.referencedTo(config).impact ?: return
     if (session.events.any { kotlin.math.abs(it.time-detected.time)<.01 }) return
     val event=detected.copy(id=(session.events.maxOfOrNull { it.id } ?: 0L)+1,evidenceOffset=frame.contactOffset ?: detected.evidenceOffset)
     session=session.copy(events=session.events+event)

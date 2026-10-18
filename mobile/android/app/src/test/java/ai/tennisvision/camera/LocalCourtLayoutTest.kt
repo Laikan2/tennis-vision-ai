@@ -130,4 +130,30 @@ class LocalCourtLayoutTest {
     assertTrue("Review must not resurrect marks in the wrong camera coordinate system",court.events.isEmpty())
     controller.pause().stop().destroy()
   }
+  @Test fun lateEmptyPreviewAfterSavingFloorAndWallCannotEmptyTheFloorEditor() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture());shadowOf(Looper.getMainLooper()).idle();draw(activity,"late-frame-before",1920,864)
+    val court=activity.findViewById<LocalCourtView>(R.id.localVideo)
+    fun click(id:Int){activity.findViewById<Button>(id).performClick();shadowOf(Looper.getMainLooper()).idle()}
+    fun touch(p:CourtPoint,action:Int){val s=court.pointOnScreen(p);android.view.MotionEvent.obtain(0,20,action,s.x,s.y,0).also{court.onTouchEvent(it);it.recycle()}}
+    fun tap(p:CourtPoint){touch(p,android.view.MotionEvent.ACTION_DOWN);touch(p,android.view.MotionEvent.ACTION_UP)}
+    click(R.id.localArea);click(R.id.localRedraw)
+    touch(CourtPoint(.1,.6),android.view.MotionEvent.ACTION_DOWN);touch(CourtPoint(.9,.95),android.view.MotionEvent.ACTION_UP)
+    click(R.id.localSaveArea);assertEquals(2,court.editing)
+    tap(CourtPoint(.05,.4));tap(CourtPoint(.95,.4));click(R.id.localSaveArea)
+    val floor=activity.testConfig();assertEquals(4,floor.polygon.size)
+    click(R.id.localWall);click(R.id.localRedraw)
+    touch(CourtPoint(.2,.1),android.view.MotionEvent.ACTION_DOWN);touch(CourtPoint(.8,.5),android.view.MotionEvent.ACTION_UP)
+    click(R.id.localSaveArea)
+    val wall=activity.testConfig();assertEquals(floor.polygon,wall.floorPolygon)
+    // This frame was processed before either Camera.update reached the camera thread.
+    activity.receiveFrame(fixture().copy(result=LocalResult(null,null,emptyList(),null,false,null,"Delayed initial frame",activeArea=LocalSettings())))
+    shadowOf(Looper.getMainLooper()).idle()
+    click(R.id.localArea);assertEquals(1,court.editing);assertEquals(floor.polygon,court.draft)
+    click(R.id.localSaveArea);assertEquals(floor.floorLine,court.draft)
+    click(R.id.localCancelArea);assertEquals(wall,activity.testConfig())
+    assertEquals(wall,court.visibleSettings)
+    controller.pause().stop().destroy()
+  }
 }

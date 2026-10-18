@@ -66,6 +66,36 @@ class LocalCourtEditorTest {
     assertEquals(wall,v.draft)
     v.finish();assertEquals(wall,v.settings.polygon)
   }
+  @Test fun delayedFrameCannotRestorePriorSurfaceOrRemoveAnotherSavedArea() {
+    val floor=listOf(CourtPoint(.1,.6),CourtPoint(.9,.6),CourtPoint(.9,.95),CourtPoint(.1,.95))
+    val wall=listOf(CourtPoint(.2,.1),CourtPoint(.8,.1),CourtPoint(.8,.5),CourtPoint(.2,.5))
+    val current=LocalSettings(polygon=wall,surface=ContactSurface.WALL,floorPolygon=floor,wallPolygon=wall,floorCourt=CourtLayout.CUSTOM)
+    val v=view();v.settings=current
+    for(stale in listOf(LocalSettings(),current.copy(floorPolygon=null),current.selectingSurface(ContactSurface.FLOOR))) {
+      v.present(LocalFrame(IntArray(1280*720),1280,720,0.0,
+        LocalResult(null,null,emptyList(),null,false,null,"Old frame",activeArea=stale),0.0,60.0,60,"fixture"))
+      assertEquals(current,v.visibleSettings)
+      v.begin(1,v.visibleSettings.selectingSurface(ContactSurface.FLOOR))
+      assertEquals(floor,v.draft);v.finish()
+    }
+  }
+  @Test fun currentCameraTranslationIsRetainedWithoutRevertingSoundOrMarks() {
+    val current=LocalSettings(polygon=listOf(CourtPoint(.1,.5),CourtPoint(.9,.5),CourtPoint(.9,.9),CourtPoint(.1,.9)),sound=false,marks=false).rememberingArea()
+    val offset=CourtPoint(.03,-.02)
+    val result=LocalResult(null,null,emptyList(),null,false,null,"Current frame",activeArea=current.translated(offset).copy(sound=true,marks=true),cameraOffset=offset)
+    val v=view();v.settings=current;v.present(LocalFrame(IntArray(1280*720),1280,720,0.0,result,0.0,60.0,60,"fixture"))
+    assertEquals(current.translated(offset),v.visibleSettings)
+    assertEquals(offset,result.referencedTo(current).cameraOffset)
+    assertFalse(current.acceptsFrameArea(result.activeArea,CourtPoint(Double.NaN,0.0)))
+  }
+  @Test fun staleAreaImpactAndConfirmationCannotAffectTheCurrentSession() {
+    val current=LocalSettings(surface=ContactSurface.WALL)
+    val hit=LocalImpact(1,1.0,CourtPoint(.2,.8),5.0,LineCall.OUT,null,1.0,"old floor",ContactSurface.FLOOR)
+    val result=LocalResult(null,null,emptyList(),hit,false,null,"Old floor event",activeArea=LocalSettings(),cameraOffset=CourtPoint(.03,.02),areaNeedsConfirmation=true)
+    val safe=result.referencedTo(current)
+    assertNull(safe.impact);assertFalse(safe.areaNeedsConfirmation)
+    assertEquals(current,safe.activeArea);assertEquals(CourtPoint(0.0,0.0),safe.cameraOffset)
+  }
   @Test @org.robolectric.annotation.GraphicsMode(org.robolectric.annotation.GraphicsMode.Mode.NATIVE)
   fun previewContourIsDrawnAroundTheObservedBallWithoutCoveringItsCentre() {
     val p=IntArray(640*360){0xff315372.toInt()}
@@ -101,7 +131,7 @@ class LocalCourtEditorTest {
     val v=LocalCourtView(RuntimeEnvironment.getApplication() as Context);v.layout(0,0,640,360)
     val background=0xff315372.toInt()
     v.present(LocalFrame(IntArray(640*360){background},640,360,0.0,
-      LocalResult(null,null,emptyList(),null,false,null,"Fixture",cameraOffset=CourtPoint(.04,.03)),0.0,60.0,60,"impact"))
+      LocalResult(null,null,emptyList(),null,false,null,"Fixture",activeArea=LocalSettings(),cameraOffset=CourtPoint(.04,.03)),0.0,60.0,60,"impact"))
     val hit=LocalImpact(1,1.0,CourtPoint(.25,.75),5.0,LineCall.OUT,30.0,1.0,"Known test contact",ContactSurface.FLOOR,cameraOffset=CourtPoint(.01,.02))
     v.events=listOf(hit)
     org.robolectric.shadows.ShadowSystemClock.advanceBy(java.time.Duration.ofMillis(240))

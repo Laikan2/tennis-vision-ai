@@ -42,9 +42,21 @@ class LocalTrainingTest {
   }
   private fun tap(scenario: ActivityScenario<LocalTrainingActivity>,id: Int) {
     var x=0f; var y=0f
-    scenario.onActivity { activity -> val view=activity.findViewById<View>(id); view.requestRectangleOnScreen(android.graphics.Rect(0,0,view.width,view.height),true) }
-    instrumentation.waitForIdleSync()
-    scenario.onActivity { activity -> val v=activity.findViewById<View>(id); val p=IntArray(2); v.getLocationOnScreen(p); x=p[0]+v.width/2f; y=p[1]+v.height/2f }
+    // Hiding the editor schedules a new layout. Main-thread idle alone can run
+    // before the next traversal, when a button still has its former coordinates.
+    waitFor {
+      var visible=false
+      scenario.onActivity { activity ->
+        val view=activity.findViewById<View>(id)
+        view.requestRectangleOnScreen(android.graphics.Rect(0,0,view.width,view.height),true)
+        val p=IntArray(2);view.getLocationOnScreen(p)
+        x=p[0]+view.width/2f;y=p[1]+view.height/2f
+        val rect=android.graphics.Rect()
+        visible=view.isShown && view.isLaidOut && !view.isLayoutRequested && !view.rootView.isLayoutRequested &&
+          view.getGlobalVisibleRect(rect) && rect.contains(x.toInt(),y.toInt())
+      }
+      visible
+    }
     touch(x,y,x,y)
   }
   private fun touch(x: Float,y: Float,endX: Float,endY: Float) {
@@ -170,7 +182,11 @@ class LocalTrainingTest {
       scenario.onActivity { assertEquals(wall,it.testConfig()) }
       // Switching surfaces in this session uses its own corners and boundary.
       tap(scenario,R.id.localArea)
-      scenario.onActivity { assertEquals(floor.polygon,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
+      scenario.onActivity {
+        val view=it.findViewById<LocalCourtView>(R.id.localVideo)
+        assertEquals("Floor editor must be open before checking its restored area",1,view.editing)
+        assertEquals(floor.polygon,view.draft)
+      }
       tap(scenario,R.id.localSaveArea)
       scenario.onActivity { assertEquals(floor.floorLine,it.findViewById<LocalCourtView>(R.id.localVideo).draft) }
       tap(scenario,R.id.localSaveArea)

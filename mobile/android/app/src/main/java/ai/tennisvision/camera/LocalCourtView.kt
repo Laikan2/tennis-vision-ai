@@ -9,6 +9,23 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import kotlin.math.*
 
+/** Camera updates are asynchronous: a late frame must not restore an older area. */
+internal fun LocalSettings.acceptsFrameArea(area: LocalSettings?,offset: CourtPoint): Boolean {
+  if(area==null || !offset.x.isFinite() || !offset.y.isFinite()) return false
+  val expected=translated(offset)
+  fun same(a: List<CourtPoint>?,b: List<CourtPoint>?): Boolean {
+    if(a==null || b==null) return a==b
+    return a.size==b.size && a.zip(b).all { (p,q)->abs(p.x-q.x)<1e-6 && abs(p.y-q.y)<1e-6 }
+  }
+  return expected.surface==area.surface && expected.court==area.court && expected.floorCourt==area.floorCourt &&
+    same(expected.polygon,area.polygon) && same(expected.floorLine,area.floorLine) &&
+    same(expected.floorPolygon,area.floorPolygon) && same(expected.wallPolygon,area.wallPolygon)
+}
+internal fun LocalResult.referencedTo(settings: LocalSettings): LocalResult =
+  if(settings.acceptsFrameArea(activeArea,cameraOffset)) copy(activeArea=settings.translated(cameraOffset))
+  else copy(activeArea=settings,cameraOffset=CourtPoint(0.0,0.0),impact=null,areaNeedsConfirmation=false,
+    message="Atualizando área · aguardando quadro atual")
+
 /** Wrap the image and its controls; do not reserve a tall empty video panel. */
 class LocalVideoPanel(context: Context,attrs: AttributeSet?=null): LinearLayout(context,attrs) {
   var heightFraction=1.0
@@ -35,7 +52,7 @@ class LocalVideoPanel(context: Context,attrs: AttributeSet?=null): LinearLayout(
 class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,attrs) {
   var viewportHeightLimit=Int.MAX_VALUE
   var settings=LocalSettings()
-  val visibleSettings get()=result?.activeArea ?: settings
+  val visibleSettings get()=result?.referencedTo(settings)?.activeArea ?: settings
   var events: List<LocalImpact> = emptyList()
     set(value) {
       val previous=field.map { it.id }.toSet()
@@ -60,7 +77,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   private var anchor: CourtPoint?=null
   private var age=0L
   private var loupePoint: CourtPoint?=null
-  private var cameraOffset=CourtPoint(0.0,0.0)
+  private val cameraOffset get()=result?.referencedTo(settings)?.cameraOffset ?: CourtPoint(0.0,0.0)
   private val pulses=mutableMapOf<Long,Long>()
   var editorLayout=CourtLayout.CUSTOM
   private val lime=Color.rgb(197,250,100)
@@ -75,10 +92,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       requestLayout()
     }
     image!!.setPixels(frame.pixels,0,frame.width,0,0,frame.width,frame.height)
-    result=frame.result;cameraOffset=frame.result.cameraOffset; age=android.os.SystemClock.elapsedRealtime(); invalidate()
+    result=frame.result;age=android.os.SystemClock.elapsedRealtime(); invalidate()
   }
   fun clearTracking() { result=null; invalidate() }
-  fun resetReference() { cameraOffset=CourtPoint(0.0,0.0);result=null;events=emptyList();invalidate() }
+  fun resetReference() { result=null;events=emptyList();invalidate() }
   fun begin(mode: Int,reference: LocalSettings=visibleSettings) { editing=mode; draft=if (mode==2) reference.floorLine.toList() else reference.polygon.toList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun redraw() { draft=emptyList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun finish() { editing=0; draft=emptyList(); result=null; loupePoint=null; invalidate() }

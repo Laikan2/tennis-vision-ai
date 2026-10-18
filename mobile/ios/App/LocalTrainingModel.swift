@@ -111,7 +111,7 @@ final class LocalTrainingStore {
     private var settingsRevision=0
     private var opening=false,overlayStartID=0
     var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
-    var needsAreaCheck:Bool{frame?.result.areaNeedsConfirmation == true}
+    var needsAreaCheck:Bool{visibleResult?.areaNeedsConfirmation == true}
     var surfaceTitle:String{
         if editing>0{return "EDITANDO \(editingArea?.surface == .wall ? "PAREDE":"CHÃO") · APLICAR AO CONCLUIR"}
         switch config.surface{case .floor:return "CHÃO · QUICADAS";case .wall:return "PAREDE · CONTATOS PARA REVISÃO";case .track:return "RASTREAMENTO · SEM IMPACTOS"}
@@ -125,7 +125,8 @@ final class LocalTrainingStore {
     }
     private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
-    var visibleResult: VisionResult?{editing==0 ? frame?.result:nil}
+    var visibleResult: VisionResult?{editing==0 ? frame?.result.referenced(to:config):nil}
+    private var currentArea:VisionSettings{frame?.result.referenced(to:config).area ?? config}
     var insideCount: Int{session.events.filter{$0.decision == .inside}.count}
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
@@ -133,7 +134,7 @@ final class LocalTrainingStore {
     var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.10"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
-    var currentOffset: VisionPoint{visibleFrame?.result.cameraOffset ?? VisionPoint(0,0)}
+    var currentOffset: VisionPoint{visibleResult?.cameraOffset ?? VisionPoint(0,0)}
     init(){
         lineVoice.onStatus={[weak self] message in self?.audioStatus=message}
         let store=store;camera.settingsForKey={store.settings($0)}
@@ -221,18 +222,18 @@ final class LocalTrainingStore {
         }
         if active && editing==0 {
             for f in events where f.generation==frame.generation && f.key==key{accept(f)}
-            if frame.result.areaNeedsConfirmation{status=surfaceHint}
+            if needsAreaCheck{status=surfaceHint}
         }
         let now=ProcessInfo.processInfo.systemUptime
         if now-lastInfo>0.5 {
             lastInfo=now
             metrics=String(format:"%d × %d · %.0f FPS recebidos · %d solicitados\nConversão %.1f ms · análise %.1f ms\nProcessamento → tela ≈%.0f ms · exposição %.1f ms",frame.width,frame.height,frame.fps,frame.requestedFPS,frame.conversionMs,frame.analysisMs,(now-frame.startedAt)*1000,frame.exposureMs)
             if let b=frame.result.observed{metrics+="\nBola ≈\(Int(b.radius*2)) px · \(b.resolved ? "observada":"detalhe incerto")"}
-            if active && editing==0{status=frame.result.message}
+            if active && editing==0{status=visibleResult?.message ?? "Atualizando área"}
         }
     }
     private func accept(_ f: LocalCameraFrame){
-        guard var hit=f.result.impact,session.events.count<2000 else{return}
+        guard var hit=f.result.referenced(to:config).impact,session.events.count<2000 else{return}
         let contactKey="\(f.generation.uuidString):\(hit.id)"
         guard acceptedContacts.insert(contactKey).inserted else{return}
         hit.id=(session.events.map{$0.id}.max() ?? 0)+1;hit.evidenceOffset=f.evidenceOffset ?? hit.cameraOffset
@@ -250,14 +251,14 @@ final class LocalTrainingStore {
     func edit(_ mode: Int,court: VisionCourt?=nil,surface:VisionSurface?=nil,home:Bool=false){
         guard ready,frame != nil,!testing,editing==0,!savingArea else{return};pause();frozen=frame;editing=mode
         let target=surface ?? ((mode==2 || court != nil && court != .custom) ? .floor:config.surface)
-        let reference=(frame?.result.area ?? config).selectingSurface(target)
+        let reference=currentArea.selectingSurface(target)
         editingCourt=court;editorConfig=reference
         homeSetup=home ? VisionHomeAreaSetup(settings:reference,surface:target):nil
         draft=mode==2 ? reference.floorLine:(mode==3 || home) ? reference.polygon:[]
         status=home ? editorHint:mode==2 ? "Toque nos dois extremos do limite parede/chão":mode==1 ? "Arraste para criar a área":draft.count==4 ? "Arraste os cantos para ajustar":"Toque nos quatro cantos da superfície"
     }
     func editHome(_ surface:VisionSurface){edit(1,court:.custom,surface:surface,home:true)}
-    func changeSurface(_ surface:VisionSurface){guard editing==0,!savingArea else{return};confirmed=false;persist((frame?.result.area ?? config).selectingSurface(surface))}
+    func changeSurface(_ surface:VisionSurface){guard editing==0,!savingArea else{return};confirmed=false;persist(currentArea.selectingSurface(surface))}
     func cancelEdit(){guard !savingArea else{return};editing=0;draft=[];frozen=nil;editingCourt=nil;editorConfig=nil;homeSetup=nil;status="Edição cancelada · modo \(config.surface == .wall ? "parede":config.surface == .floor ? "chão":"somente rastrear") mantido"}
     func redraw(){draft=[]}
     var canSaveArea: Bool{!savingArea && (editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft))}
