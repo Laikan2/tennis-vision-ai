@@ -253,7 +253,9 @@ class LocalTrainingTest {
     }
   }
 
-  private fun shell(command: String) { instrumentation.uiAutomation.executeShellCommand(command).use { descriptor -> java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes() } } }
+  private fun shell(command: String):String = instrumentation.uiAutomation.executeShellCommand(command).use { descriptor ->
+    java.io.FileInputStream(descriptor.fileDescriptor).use { it.readBytes().toString(Charsets.UTF_8) }
+  }
 
   @Test fun androidAtomicStorageRecoversInterruptedWriteAndPreservesSession() {
     // Atomic rename/overwrite has different filesystem semantics on Windows/JVM.
@@ -271,25 +273,55 @@ class LocalTrainingTest {
 
   @Test fun lockScreenBatterySaverAndNoNetworkDoNotLoseSettings() {
     val power=context.getSystemService(android.os.PowerManager::class.java)
+    val battery=context.getSystemService(android.os.BatteryManager::class.java)
     val connectivity=context.getSystemService(android.net.ConnectivityManager::class.java)
     assertNull("Run offline test with emulator Wi-Fi and data disabled",connectivity.activeNetwork)
     try {
-      shell("dumpsys battery unplug"); shell("cmd power set-mode 1")
+      // Unplug broadcasts asynchronously. The power service rejects battery
+      // saver while it still sees the emulator's former charging state.
+      shell("dumpsys battery unplug")
+      shell("dumpsys battery set status 3") // BATTERY_STATUS_DISCHARGING
+      shell("dumpsys battery set level 50")
+      waitFor {
+        shell("dumpsys power").lineSequence().any { it.trim()=="mIsPowered=false" }
+      }
+      waitFor { !battery.isCharging && battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY)==50 }
+      shell("cmd power set-mode 1")
       waitFor { power.isPowerSaveMode }
+      val proof=JSONObject().put("kind","Android emulator lifecycle test")
+        .put("offlineBeforeLaunch",connectivity.activeNetwork==null)
+        .put("batterySaverBeforeLaunch",power.isPowerSaveMode)
+        .put("batteryChargingBeforeLaunch",battery.isCharging)
+        .put("batteryLevelBeforeLaunch",battery.getIntProperty(android.os.BatteryManager.BATTERY_PROPERTY_CAPACITY))
       ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
         ready(scenario); var config=LocalSettings()
         scenario.onActivity { config=it.testConfig() }
         tap(scenario,R.id.localStart); Thread.sleep(250)
         shell("input keyevent 223"); waitFor { !power.isInteractive }; Thread.sleep(300)
+        proof.put("screenBecameNonInteractive",!power.isInteractive)
         shell("input keyevent 224"); shell("wm dismiss-keyguard")
         ready(scenario)
+        proof.put("screenInteractiveAfterWake",power.isInteractive)
+          .put("batterySaverAfterWake",power.isPowerSaveMode)
+          .put("offlineAfterWake",connectivity.activeNetwork==null)
+        assertTrue(power.isInteractive);assertTrue(power.isPowerSaveMode);assertNull(connectivity.activeNetwork)
         scenario.onActivity {
           assertEquals(config,it.testConfig())
           assertEquals("Iniciar treino",it.findViewById<Button>(R.id.localStart).text.toString())
         }
         screenshot("03-offline-after-lock-and-battery-saver")
+        File(context.getExternalFilesDir(null),"offline-proof/lifecycle.json").writeText(proof.toString(2))
       }
-    } finally { shell("input keyevent 224"); shell("wm dismiss-keyguard"); shell("cmd power set-mode 0"); shell("dumpsys battery reset") }
+    } finally {
+      // Preserve the actual state even when a precondition times out, before
+      // resetting the emulator so later tests do not inherit our settings.
+      runCatching {
+        val directory=File(context.getExternalFilesDir(null),"offline-proof").apply { mkdirs() }
+        File(directory,"battery-after-lifecycle.txt").writeText(shell("dumpsys battery"))
+        File(directory,"power-after-lifecycle.txt").writeText(shell("dumpsys power"))
+      }
+      shell("input keyevent 224"); shell("wm dismiss-keyguard"); shell("cmd power set-mode 0"); shell("dumpsys battery reset")
+    }
   }
 
   @Test fun encodedKnownBouncesReachUiStatisticsSoundAndPersistence() {
