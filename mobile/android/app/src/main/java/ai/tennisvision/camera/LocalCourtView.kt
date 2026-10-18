@@ -79,6 +79,9 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   private var loupePoint: CourtPoint?=null
   private val cameraOffset get()=result?.referencedTo(settings)?.cameraOffset ?: CourtPoint(0.0,0.0)
   private val pulses=mutableMapOf<Long,Long>()
+  private val labelObstacles=mutableListOf<RectF>()
+  private data class PlacedLabel(val text:String,val color:Int,val box:RectF,val anchor:PointF?)
+  private val placedLabels=mutableListOf<PlacedLabel>()
   var editorLayout=CourtLayout.CUSTOM
   private val lime=Color.rgb(197,250,100)
   private val cyan=Color.rgb(97,211,238)
@@ -174,7 +177,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   }
 
   override fun onDraw(canvas: Canvas) {
-    super.onDraw(canvas); fitted(); canvas.drawColor(Color.rgb(6,13,16))
+    super.onDraw(canvas); fitted();labelObstacles.clear();placedLabels.clear();canvas.drawColor(Color.rgb(6,13,16))
     paint.reset(); paint.isAntiAlias=true; paint.isFilterBitmap=true
     image?.let { canvas.drawBitmap(it,null,rect,paint) }
     val density=resources.displayMetrics.density
@@ -216,8 +219,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       }
       return
     }
-    if (settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24).forEach { e ->
+    val visibleMarks=if(settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24) else emptyList()
+    visibleMarks.forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
+      labelObstacles.add(RectF(s.x-9*density,s.y-9*density,s.x+9*density,s.y+9*density))
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
       pulses[e.id]?.let { started ->
         val progress=(android.os.SystemClock.elapsedRealtime()-started)/480f
@@ -228,7 +233,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
           postInvalidateOnAnimation()
         } else pulses.remove(e.id)
       }
-      if(events.takeLast(3).any{it.id==e.id}) label(canvas,(if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,color)
+    }
+    visibleMarks.takeLast(3).asReversed().forEach { e ->
+      val s=screen(LocalGeometry.impactPoint(e,cameraOffset))
+      label((if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,callColor(e.decision),s)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->
@@ -242,16 +250,33 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
         paint.style=Paint.Style.STROKE;paint.color=0xff0a0a0a.toInt();paint.strokeWidth=4*density
         canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint)
         paint.color=color;paint.strokeWidth=2*density;canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
-        label(canvas,if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
+        label(if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
-      r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label(canvas,"PREVISÃO",s.x,s.y,amber) }
+      r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label("PREVISÃO",s.x,s.y,amber) }
     }
+    drawLabels(canvas)
   }
-  private fun label(canvas: Canvas,text: String,x: Float,y: Float,color: Int) {
+  private fun label(text: String,x: Float,y: Float,color: Int,anchor:PointF?=null) {
     val d=resources.displayMetrics.density; paint.textSize=11*d; paint.typeface=Typeface.DEFAULT_BOLD; paint.textAlign=Paint.Align.LEFT
-    val width=paint.measureText(text); val px=x.coerceIn(rect.left+4*d,max(rect.left+4*d,rect.right-width-6*d)); val py=y.coerceIn(rect.top+18*d,rect.bottom-5*d)
-    paint.color=0xdd0b1115.toInt(); canvas.drawRoundRect(px-4*d,py-14*d,px+width+4*d,py+4*d,4*d,4*d,paint)
-    paint.color=color; canvas.drawText(text,px,py,paint)
+    val viewport=RectF(rect).apply { inset(2*d,2*d) }
+    val box=LocalOverlayLayout.place(viewport,paint.measureText(text)+8*d,18*d,x-4*d,y-14*d,3*d,labelObstacles) ?: return
+    labelObstacles.add(box)
+    placedLabels.add(PlacedLabel(text,color,box,anchor))
+  }
+  private fun drawLabels(canvas:Canvas) {
+    val d=resources.displayMetrics.density
+    // Leaders go behind every label so they never run over another decision's text.
+    placedLabels.forEach { label -> label.anchor?.let { p ->
+      val box=label.box
+      val endX=p.x.coerceIn(box.left,box.right);val endY=p.y.coerceIn(box.top,box.bottom)
+      val distance=hypot(endX-p.x,endY-p.y)
+      if(distance>10*d) {paint.color=label.color;paint.alpha=150;paint.strokeWidth=d;canvas.drawLine(p.x+(endX-p.x)*9*d/distance,p.y+(endY-p.y)*9*d/distance,endX,endY,paint);paint.alpha=255}
+    }}
+    paint.style=Paint.Style.FILL;paint.textSize=11*d;paint.typeface=Typeface.DEFAULT_BOLD;paint.textAlign=Paint.Align.LEFT
+    placedLabels.forEach { label ->
+      paint.color=0xf50b1115.toInt();canvas.drawRoundRect(label.box,4*d,4*d,paint)
+      paint.color=label.color;canvas.drawText(label.text,label.box.left+4*d,label.box.top+14*d,paint)
+    }
   }
   fun callColor(call: LineCall)=when(call) { LineCall.IN->lime; LineCall.OUT->red; else->amber }
   fun callLabel(call: LineCall)=when(call) { LineCall.REVIEW->"REVISAR"; LineCall.UNMARKED->"SEM ÁREA"; LineCall.REJECTED->"DESCARTADO"; else->call.name }

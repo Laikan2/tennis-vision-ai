@@ -20,6 +20,9 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         }
     }}
     private var pulses=[Int:TimeInterval](),pulseTimer:Timer?
+    private var labelObstacles=[CGRect]()
+    private struct PlacedLabel{let text:String,color:UIColor,box:CGRect,anchor:CGPoint?}
+    private var placedLabels=[PlacedLabel]()
     var confirmed=false,editing=0,draft=[VisionPoint](),onDraft: (([VisionPoint])->Void)?,onImpact: ((Int)->Void)?
     private var movingCorner: Int?,anchor: VisionPoint?,touchPoint: VisionPoint?
     private lazy var pan=UIPanGestureRecognizer(target:self,action:#selector(handlePan(_:)))
@@ -49,15 +52,35 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     private func line(_ points: [VisionPoint],closed: Bool,color: UIColor,width: CGFloat=2){
         guard let first=points.first else{return};let path=UIBezierPath();path.move(to:screen(first));points.dropFirst().forEach{path.addLine(to:screen($0))};if closed{path.close()};color.setStroke();path.lineWidth=width;path.stroke()
     }
-    private func label(_ text: String,at p: CGPoint,color: UIColor){
+    private func label(_ text: String,at p: CGPoint,color: UIColor,anchor:CGPoint?=nil){
         let attributes: [NSAttributedString.Key:Any]=[.font:UIFont.monospacedSystemFont(ofSize:11,weight:.semibold),.foregroundColor:color]
         let size=(text as NSString).size(withAttributes:attributes),r=imageRect
-        let x=max(r.minX+4,min(p.x,r.maxX-size.width-8)),y=max(r.minY+4,min(p.y,r.maxY-size.height-8))
-        let rect=CGRect(x:x-3,y:y-2,width:size.width+6,height:size.height+4)
-        UIColor(white:0.04,alpha:0.9).setFill();UIBezierPath(roundedRect:rect,cornerRadius:4).fill()
-        (text as NSString).draw(at:CGPoint(x:x,y:y),withAttributes:attributes)
+        guard let rect=VisionOverlayLayout.place(viewport:r.insetBy(dx:2,dy:2),size:CGSize(width:size.width+6,height:size.height+4),preferred:CGPoint(x:p.x-3,y:p.y-2),gap:3,occupied:labelObstacles) else{return}
+        labelObstacles.append(rect)
+        placedLabels.append(PlacedLabel(text:text,color:color,box:rect,anchor:anchor))
+    }
+    private func drawLabels(){
+        // Leaders sit behind all labels, including labels belonging to newer contacts.
+        for label in placedLabels{if let anchor=label.anchor {
+            let rect=label.box
+            let end=CGPoint(x:max(rect.minX,min(anchor.x,rect.maxX)),y:max(rect.minY,min(anchor.y,rect.maxY)))
+            let distance=hypot(end.x-anchor.x,end.y-anchor.y)
+            if distance>10 {
+                let path=UIBezierPath();path.move(to:CGPoint(x:anchor.x+(end.x-anchor.x)*9/distance,y:anchor.y+(end.y-anchor.y)*9/distance));path.addLine(to:end)
+                label.color.withAlphaComponent(0.6).setStroke();path.lineWidth=1;path.stroke()
+            }
+        }}
+        for label in placedLabels{
+            let rect=label.box
+            UIColor(white:0.04,alpha:0.96).setFill();UIBezierPath(roundedRect:rect,cornerRadius:4).fill()
+            let attributes:[NSAttributedString.Key:Any]=[.font:UIFont.monospacedSystemFont(ofSize:11,weight:.semibold),.foregroundColor:label.color]
+            (label.text as NSString).draw(at:CGPoint(x:rect.minX+3,y:rect.minY+2),withAttributes:attributes)
+        }
     }
     override func draw(_ rect: CGRect){
+        labelObstacles.removeAll(keepingCapacity:true)
+        placedLabels.removeAll(keepingCapacity:true)
+        defer{drawLabels()}
         guard let f=frameValue else{return};UIImage(cgImage:f.image).draw(in:imageRect)
         let lime=VisionCall.inside.color
         let area=editing>0 ? config:(result?.area ?? config)
@@ -71,16 +94,21 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             if let p=touchPoint{magnifier(p,image:f.image)}
             return
         }
-        if config.marks && !f.result.movingCamera{for event in events.suffix(24) where event.decision != .rejected{
+        let visibleMarks=config.marks && !f.result.movingCamera ? Array(events.filter{$0.decision != .rejected}.suffix(24)):[]
+        for event in visibleMarks{
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color=event.decision.color
+            labelObstacles.append(CGRect(x:c.x-9,y:c.y-9,width:18,height:18))
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
             if let start=pulses[event.id]{
                 let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-start)/0.48)),radius=CGFloat(9+23*progress)
                 color.withAlphaComponent(CGFloat((1-progress)*0.82)).setStroke()
                 let pulse=UIBezierPath(ovalIn:CGRect(x:c.x-radius,y:c.y-radius,width:radius*2,height:radius*2));pulse.lineWidth=3;pulse.stroke()
             }
-            if events.suffix(3).contains(where:{$0.id==event.id}){label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:color)}
-        }}
+        }
+        for event in visibleMarks.suffix(3).reversed(){
+            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0)))
+            label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
+        }
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
         if let ball=result.observed {
