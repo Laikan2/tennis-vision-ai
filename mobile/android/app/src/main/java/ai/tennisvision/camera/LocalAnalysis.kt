@@ -233,6 +233,7 @@ class GreenBallDetector {
     }
     val found = ArrayList<BallObservation>()
     val bounds=ArrayList<IntArray>();val masses=ArrayList<Int>()
+    val clippedFelt=ArrayList<IntArray>()
     // Extract saturated felt before the weak expansion pixels. A warm wooden
     // floor can satisfy the old colour mask and connect directly to a held
     // ball, turning it into an enormous irregular component. Pixels are still
@@ -275,6 +276,12 @@ class GreenBallDetector {
       // Expansion needs at least one pixel with the original felt colour.
       val closeRound=aspect<=1.65 && fill in .55.. .90 && strongCount>=tail*.65
       val saturated=sumChroma.toDouble()/tail>=107 && strongCount>=tail*.65 && sumRed>=sumGreen*.78
+      // A printed mark can isolate a tiny felt island inside a ball that is
+      // cut off by the image border. Keep its enclosing silhouette even when
+      // the incomplete ball itself is discarded; its islands are not new balls.
+      if(saturated && min(w,h)>=12 && max(w,h)<=min(width,height)*.8 &&
+        aspect<=4 && fill>=.35 && (xmin==0 || ymin==0 || xmax==width-1 || ymax==height-1))
+        clippedFelt.add(intArrayOf(xmin,ymin,xmax,ymax))
       val closePartial=aspect<=1.65 && fill in .40.. .55 && min(w,h)>=16 && saturated
       val seamFragment=aspect in 1.65..2.35 && fill in .65.. .85 && min(w,h)>=12 && saturated
       val close=closeRound || closePartial || seamFragment
@@ -317,7 +324,7 @@ class GreenBallDetector {
           if (distance < radius*1.2) continue
           val c = pixels[py*width+px]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
           ring++
-          if(radius>=6 && distance<=radius*1.8) {
+          if(distance<=radius*1.8) {
             closeRing++
             if(gripSkin(c) && strongGreen[py*width+px].toInt()==0)closeGrip++
           }
@@ -342,7 +349,7 @@ class GreenBallDetector {
         if(skin(pixels[py*width+px]))skinSides++
       }
       val boundedGrip=skin>ring*.30 && skin<ring*.80 && skinSides<=1
-      val closeGripPresent=closeRing>0 && closeGrip>=closeRing*.08 && closeGrip<=closeRing*.65
+      val closeGripPresent=closeRing>=4 && closeGrip>=closeRing*.08 && (radius<6 || closeGrip<=closeRing*.65)
       // Warm floor colours cannot keep a previous hand attached after release.
       // Each observation needs present grip, partial silhouette or moving skin.
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
@@ -403,6 +410,11 @@ class GreenBallDetector {
       }
       found.clear();found.addAll(joined)
     }
+    found.removeAll { b -> b.radius<=12 && clippedFelt.any { box ->
+      // Adaptive contrast can trim the parent's cap before the border. That
+      // incomplete edge region is ambiguous too, not an isolated small target.
+      val margin=max(max(6.0,b.radius*3),min(box[2]-box[0]+1,box[3]-box[1]+1)*.35)
+      b.x>=box[0]-margin && b.x<=box[2]+margin && b.y>=box[1]-margin && b.y<=box[3]+margin } }
     if (previous.size != pixels.size) previous = IntArray(pixels.size)
     pixels.copyInto(previous)
     val reusable=previousGreen;previousGreen=rawGreen;rawGreen=reusable
@@ -462,6 +474,13 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val candidates=components.filter { b -> b.supportsBallColor || weakReference!=null &&
       hypot(b.x-weakReference.x,b.y-weakReference.y)<=max(12.0,(last?.radius ?: 0.0)*3) }
     var previous = path.lastOrNull()
+    // A tiny printed/highlight island must not lock out the now resolved
+    // silhouette containing it. This is an ownership change, never a bounce.
+    val fragment=previous?.takeIf{it.radius<=6}
+    if(fragment!=null && candidates.count{b->b.resolved && b.distinctFelt &&
+        b.radius>=max(16.0,fragment.radius*4) && hypot(b.x-fragment.x,b.y-fragment.y)<=b.radius*1.15}==1) {
+      path.clear();previous=null;lost=null;acquisition=null;tinyAcquisition=null;motionAcquisition=null
+    }
     // An unconfirmed stationary spare ball/logo must not hide a tiny moving
     // ball forever. Require two moving observations of the alternative, plus
     // continued stationary evidence at the old target, before releasing it.

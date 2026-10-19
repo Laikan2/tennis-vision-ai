@@ -192,7 +192,7 @@ final class VisionDetector {
             }
             mask[i]=selected ? 1:0
         }
-        var found=[VisionBall](),bounds=[[Int]](),masses=[Int]()
+        var found=[VisionBall](),bounds=[[Int]](),masses=[Int](),clippedFelt=[[Int]]()
         // Every accepted component needs a strong felt pixel. Seed from those
         // pixels only; weak-only wall/compression regions cannot produce a ball.
         // Flood fill still includes the same weak edge pixels around each seed.
@@ -219,6 +219,9 @@ final class VisionDetector {
             let w=xmax-xmin+1,h=ymax-ymin+1,fill=Double(tail)/Double(w*h),aspect=Double(max(w,h))/Double(min(w,h))
             let closeRound=aspect<=1.65 && (0.55...0.90).contains(fill) && Double(strongCount)>=Double(tail)*0.65
             let saturated=Double(chromaSum)/Double(tail)>=107 && Double(strongCount)>=Double(tail)*0.65 && Double(redSum)>=Double(greenSum)*0.78
+            // A printed mark may isolate felt inside a border-clipped ball.
+            // Remember the incomplete parent before discarding its silhouette.
+            if saturated && min(w,h)>=12 && Double(max(w,h))<=Double(min(width,height))*0.8 && aspect<=4 && fill>=0.35 && (xmin==0 || ymin==0 || xmax==width-1 || ymax==height-1){clippedFelt.append([xmin,ymin,xmax,ymax])}
             let closePartial=aspect<=1.65 && (0.40...0.55).contains(fill) && min(w,h)>=16 && saturated
             let seamFragment=(1.65...2.35).contains(aspect) && (0.65...0.85).contains(fill) && min(w,h)>=12 && saturated
             let close=closeRound || closePartial || seamFragment
@@ -246,7 +249,7 @@ final class VisionDetector {
                 let distance=hypot(Double(px)-x,Double(py)-y)
                 if distance<radius*1.2{continue};ring+=1
                 let i=py*width+px,c=pixels[i]
-                if radius>=6 && distance<=radius*1.8 {closeRing+=1;if gripSkin(c) && strong[i]==0{closeGrip+=1}}
+                if distance<=radius*1.8 {closeRing+=1;if gripSkin(c) && strong[i]==0{closeGrip+=1}}
                 if skinColor(c){skin+=1;if previousCount==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
             if closePartial && (ring==0 || Double(skin)<Double(ring)*0.12 || Double(skin)>Double(ring)*0.85){continue}
@@ -261,7 +264,7 @@ final class VisionDetector {
                 if skinColor(pixels[py*width+px]){skinSides+=1}
             }}
             let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
-            let closeGripPresent=closeRing>0 && Double(closeGrip)>=Double(closeRing)*0.08 && Double(closeGrip)<=Double(closeRing)*0.65
+            let closeGripPresent=closeRing>=4 && Double(closeGrip)>=Double(closeRing)*0.08 && (radius<6 || Double(closeGrip)<=Double(closeRing)*0.65)
             // Warm floor colours cannot keep a previous hand attached after release.
             // Each observation needs present grip, partial silhouette or moving skin.
             ball.nearHand=closePartial || closeGripPresent || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip)
@@ -304,6 +307,9 @@ final class VisionDetector {
             }
             found=joined
         }
+        found.removeAll{b in b.radius<=12 && clippedFelt.contains{box in
+            let margin=max(max(6,b.radius*3),Double(min(box[2]-box[0]+1,box[3]-box[1]+1))*0.35)
+            return b.x>=Double(box[0])-margin && b.x<=Double(box[2])+margin && b.y>=Double(box[1])-margin && b.y<=Double(box[3])+margin}}
         return (found,moving)
         }}}}}}}}
         previous=pixels;swap(&oldGreen,&rawGreen)
@@ -356,6 +362,11 @@ public final class LocalVision {
             b.supportsBallColor || (weakReference.map{hypot(b.x-$0.x,b.y-$0.y)<=max(12,(last?.radius ?? 0)*3)} ?? false)
         }
         var previous=path.last
+        // The resolved silhouette owns an old tiny printed/highlight island.
+        // Reset the old trajectory before accepting that ownership change.
+        if let fragment=previous,fragment.radius<=6,candidates.filter({b in b.resolved && b.distinctFelt && b.radius>=max(16,fragment.radius*4) && hypot(b.x-fragment.x,b.y-fragment.y)<=b.radius*1.15}).count==1 {
+            path=[];previous=nil;lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil
+        }
         let still=previous.flatMap{b in !b.nearHand && !b.occluded && path.suffix(4).allSatisfy{hypot($0.x-b.x,$0.y-b.y)<max(2,b.radius*0.5)} ? b:nil}
         let alternatives=candidates.filter{b in b.motionSupport>=0.25 && !b.nearHand && (still.map{hypot(b.x-$0.x,b.y-$0.y)>max(12,$0.radius*3)} ?? true)}
         let alternative=alternatives.count==1 ? alternatives[0]:nil,pending=motionAcquisition;motionAcquisition=alternative
