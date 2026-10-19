@@ -32,3 +32,9 @@ Evidências: [compilação Android](mobile-0.6.14/android-build.json), [Android 
 ## Limites
 
 A 0.6.14 ainda não foi instalada nem validada fisicamente neste relatório. Os números de câmera e as tentativas de quicada descritos na 0.6.13 não são resultados da 0.6.14. Nem os testes sintéticos nem uma compilação bem-sucedida comprovam IN/OUT em partidas, posição exata de impactos, velocidade real de saques ou captura sustentada em 120/240 FPS.
+
+## Publicação
+
+A [0.6.14 está publicada para Android e iPhone](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.14). A fonte pública AltStore foi lida novamente e confirmou 0.6.14/build 15, com tamanho e endereço do IPA corretos. APK/IPA e arquivos enviados tiveram a integridade conferida; o ZIP contém somente fontes rastreadas do projeto iOS/recursos compartilhados. O marcador latest do Windows permanece em v0.6.11. Veja a [verificação da publicação](mobile-0.6.14/publication.json).
+
+Na tentativa posterior à publicação, o leitor USB deixou de enumerar o iPhone. Foi solicitado reconectar, desbloquear e atualizar pelo AltStore. A última versão lida no aparelho foi 0.6.13. Instalação e ensaio físico da correção permanecem pendentes; isso não altera o resultado dos testes automatizados acima.
