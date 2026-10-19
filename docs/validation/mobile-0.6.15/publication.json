@@ -1,0 +1,54 @@
+{
+  "version": "0.6.15",
+  "iosBuild": "16",
+  "androidCode": 28,
+  "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "verifiedAtUTC": "2026-10-19T05:22:43.733367+00:00",
+  "release": "https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.15",
+  "public": true,
+  "assets": [
+    {
+      "name": "Tennis-Vision-Camera-Android-v0.6.15.apk",
+      "bytes": 3249688,
+      "sha256": "253f37af7f37260ae71855579991aeaba15e99e4168b101e4b7c53ca2b9a1655",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.15/Tennis-Vision-Camera-Android-v0.6.15.apk"
+    },
+    {
+      "name": "Tennis-Vision-Camera-iOS-v0.6.15-AltStore.ipa",
+      "bytes": 853501,
+      "sha256": "8c03236511293474b2813b44da6668c07596522da9a8c00f9fdaa38f7febf910",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.15/Tennis-Vision-Camera-iOS-v0.6.15-AltStore.ipa"
+    },
+    {
+      "name": "Tennis-Vision-Camera-iOS-v0.6.15-Projeto.zip",
+      "bytes": 198281,
+      "sha256": "4fdf034851fee32af4eab2e20c40c3cc66498e396e10ee7ae57fa2fad6553a35",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.15/Tennis-Vision-Camera-iOS-v0.6.15-Projeto.zip"
+    },
+    {
+      "name": "mobile-v0.6.15.json",
+      "bytes": 984,
+      "sha256": "0cc6a255a1368fe0332d2c1f03f0d638b4dea010311abae15e9d5de43b11a301",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.15/mobile-v0.6.15.json"
+    }
+  ],
+  "apkAndIpaPublicDownloadsVerifiedByPublisher": true,
+  "publicAssetSizesAndDigestsRechecked": true,
+  "canonicalAltStoreURL": "https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json",
+  "canonicalFeedReadWithoutCache": true,
+  "altStoreVersion": "0.6.15",
+  "altStoreBuild": "16",
+  "altStoreDownloadURLAndSizeMatchIPA": true,
+  "projectContainsOnlyTrackedPaths": true,
+  "projectTrackedFiles": 70,
+  "windowsLatest": "v0.6.11",
+  "installedIPhoneVersionLastVerified": "0.6.14",
+  "installationOfThisBuildVerified": false,
+  "physicalValidationOfThisBuild": false,
+  "phoneUseDeferredAtUserRequest": true,
+  "notes": [
+    "No physical S25 test in this release.",
+    "New iPhone physical validation and personal AltStore installation were deferred.",
+    "Unsigned IPA still requires personal signing/confirmation in AltStore."
+  ]
+}

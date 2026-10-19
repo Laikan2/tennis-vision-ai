@@ -1,0 +1,56 @@
+{
+  "version": "0.6.15",
+  "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "kind": "generated-pixel-trajectories-with-known-timestamps-not-physical-performance",
+  "originalBefore": {
+    "tests": 4,
+    "failedPositiveCases": 3,
+    "passedNegativeCases": 1
+  },
+  "after": {
+    "tests": 5,
+    "failures": 0,
+    "skipped": 0,
+    "projectedSpeedRates": [
+      30,
+      60,
+      120,
+      240
+    ],
+    "projectedSpeedKnownRangeKmh": [
+      9.8,
+      12.5
+    ],
+    "incomingImpactSpeedAt240": true,
+    "noisyBounceRates": [
+      30,
+      60,
+      120,
+      240
+    ],
+    "noisyBounceSamplingPhasesSeconds": [
+      0.2,
+      0.208333333
+    ],
+    "expectedContactsPerNoisyScene": 1,
+    "expectedNoisyCall": "IN",
+    "stationaryJitterContacts": 0,
+    "jitteringMonotonicFallContacts": 0,
+    "missingIntervalNotBridgedForSpeed": true
+  },
+  "mechanisms": [
+    "Fixed four-sample speed interval was too short at 240 FPS",
+    "Incoming speed was restricted to three selected contact samples",
+    "Strict monotonic intermediate observations rejected coherent noisy bounce legs"
+  ],
+  "fixes": [
+    "Choose the shortest clean observed interval with at least three observations and >=20 ms support",
+    "Use observed pre-contact history for incoming estimated speed; do not cross >75 ms gaps",
+    "Keep the original strict trajectory path and accept bounded regression support only as a fallback",
+    "Add localization residual to impact uncertainty when using noisy evidence"
+  ],
+  "allPreviousAndroidTestsPassed": true,
+  "physicalVerificationOfNewBuild": false,
+  "real3DSpeedMeasured": false,
+  "newModelWeights": false
+}

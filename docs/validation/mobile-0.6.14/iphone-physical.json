@@ -140,5 +140,34 @@
     "Cause of loaded FPS reduction; thermal state was not recorded"
   ],
   "processingToUIIsNotSensorToEyeLatency": true,
-  "privateEvidencePublished": false
+  "privateEvidencePublished": false,
+  "secondAngleAttempt": {
+    "humanReportedBounces": 3,
+    "humanReportedLocation": "All inside; paused afterward",
+    "eventsBefore": 47,
+    "eventsAfter": 47,
+    "newEvents": 0,
+    "newIN": 0,
+    "newOUT": 0,
+    "newREVIEW": 0,
+    "archiveUnchanged": true,
+    "marksAndSoundEnabledInStoredSettings": true,
+    "floorBoundaryInitiallyDiagonalThenCorrected": true,
+    "boundaryNearlyHorizontalBeforeStart": true,
+    "countingActiveVerifiedBeforeRequest": true,
+    "pausedVerifiedAfterReply": true,
+    "sampledDisplayBatches": 2,
+    "sampledDisplayMaximumFPS": 3,
+    "observations": [
+      "Display samples before the reply were very dark; final paused screen showed an illuminated floor",
+      "The final floor/baseboard view differed from the pre-request view",
+      "No per-frame analysis trace is available in this installed 0.6.14 build"
+    ],
+    "limitations": [
+      "Samples and gaps do not establish continuously fixed framing/exposure during all reported bounces",
+      "Missing stored events are confirmed, but the precise cause for each missed physical bounce is not isolated",
+      "This is not a validated physical recall or IN/OUT benchmark"
+    ],
+    "furtherPhoneAccessStoppedAtUserRequest": true
+  }
 }
