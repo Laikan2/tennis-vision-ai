@@ -1,0 +1,45 @@
+{
+  "version": "0.6.16",
+  "observedAtUTC": "2026-10-19T16:48:09.674707+00:00",
+  "localFunctionalValidation": "android-runtime-local.json: all ten scenarios covered, original denial timing failure retained and targeted retest passed",
+  "attempts": [
+    {
+      "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363531",
+      "attempt": 1,
+      "source": "b163035067a6036376a57ed04ad101c4d0242a6f",
+      "result": "failed",
+      "mainFunctionalFailures": 6,
+      "permissionFailures": 2,
+      "blocker": "Pixel Launcher ANR overlay owns touch window; not app crash evidence",
+      "rawLogSha256": "bad827893b64e597b06e8fc357a7a609d718dc6cbe0be64d897a07ec4a89b894"
+    },
+    {
+      "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39285953917",
+      "attempt": 1,
+      "source": "d831fd02ceaa64210c96d0fd7debbae69f81eec2",
+      "result": "failed before functional tests",
+      "functionalTestsExecuted": 0,
+      "blocker": "adb root: unable to connect for root: closed",
+      "correction": "Bounded restart/confirmation of root uid and completed boot on the same emulator",
+      "rawLogSha256": "8299fa54240016b43270c50819d068a1452643f0e1a007512b77f2fac970f11d"
+    },
+    {
+      "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39287449425",
+      "attempt": 1,
+      "source": "db88d12d27f0073b2f967c46e4dda90aa5c901d1",
+      "result": "failed before emulator boot",
+      "functionalTestsExecuted": 0,
+      "blocker": "SDK system-image download: Error on ZipFile unknown archive",
+      "rawLogSha256": "ac8529be4590b1d7bfc05557b46453df86ce760a67369bd17a34aa045baa8603"
+    },
+    {
+      "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39287449425",
+      "attempt": 2,
+      "source": "db88d12d27f0073b2f967c46e4dda90aa5c901d1",
+      "result": "rerun requested after external dependency failure; awaiting confirmation"
+    }
+  ],
+  "cloudFunctionalSuccessClaimed": false,
+  "logsRetainedPrivately": true,
+  "physicalDevice": false
+}
