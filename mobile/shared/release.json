@@ -1,6 +1,6 @@
 {
   "version": "0.6.15",
-  "baseline": "clipped-felt-ownership-0.6.15",
+  "baseline": "floor-motion-0.6.15",
   "platforms": [
     "android",
     "ios"
@@ -57,7 +57,10 @@
     "explicit-impact-suspension",
     "clipped-felt-owner-context",
     "small-current-grip-evidence",
-    "resolved-owner-track-recovery"
+    "resolved-owner-track-recovery",
+    "bounded-small-grip-context",
+    "time-supported-speed",
+    "noisy-floor-leg-evidence"
   ],
   "installation": {
     "android": "apk-confirmation",

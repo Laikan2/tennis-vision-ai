@@ -349,7 +349,20 @@ class GreenBallDetector {
         if(skin(pixels[py*width+px]))skinSides++
       }
       val boundedGrip=skin>ring*.30 && skin<ring*.80 && skinSides<=1
-      val closeGripPresent=closeRing>=4 && closeGrip>=closeRing*.08 && (radius<6 || closeGrip<=closeRing*.65)
+      // A tiny ball on pink-toned wood can have skin-coloured pixels on every
+      // nearby side. A small grip must end in a wider lateral context.
+      var smallGripBounded=false
+      if(radius<6 && closeRing>=4 && closeGrip>=closeRing*.08) {
+        val wider=max(24.0,radius*12);var gripSides=0
+        for(side in -1..1 step 2)for(vertical in listOf(-.5,.5,2.0)) {
+          val px=(x+side*wider).roundToInt().coerceIn(0,width-1)
+          val py=(y+vertical*radius).roundToInt().coerceIn(0,height-1)
+          if(gripSkin(pixels[py*width+px]))gripSides++
+        }
+        smallGripBounded=gripSides<=1
+      }
+      val closeGripPresent=closeRing>=4 && closeGrip>=closeRing*.08 &&
+        (if(radius<6)smallGripBounded else closeGrip<=closeRing*.65)
       // Warm floor colours cannot keep a previous hand attached after release.
       // Each observation needs present grip, partial silhouette or moving skin.
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
@@ -568,7 +581,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     lost=null;acquisition=null
     while (path.size > 40 || (path.isNotEmpty() && time-path.first().time > .6)) path.removeAt(0)
     val impact = if (!blocked) contact(width,height) else null
-    val speed = speed(path.takeLast(4))
+    val speed = speed(path)
     return LocalResult(ball,null,path.takeLast(16).map { CourtPoint(it.x,it.y) }, impact,blocked,speed,
       when {
         scene.needsConfirmation -> "Treino ativo · confira a área em Marcar área; impactos suspensos"
@@ -583,11 +596,23 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   }
 
   private fun speed(points: List<BallObservation>): Double? {
-    if (points.size < 3 || points.any { it.blurred || it.nearHand || !it.resolved }) return null
-    val a=points.first(); val b=points.last(); val dt=b.time-a.time
+    if(points.size<3)return null
+    val b=points.last();if(b.blurred || b.nearHand || !b.resolved)return null
+    var start=points.lastIndex
+    // Four samples span only 12.5 ms at 240 FPS. Select a short observed
+    // time interval instead of a fixed count, without crossing a tracking gap.
+    while(start>0) {
+      val prior=points[start-1];val gap=points[start].time-prior.time
+      if(prior.blurred || prior.nearHand || !prior.resolved || gap !in .000001.. .075 || b.time-prior.time>.22)break
+      start--
+      if(points.size-start>=3 && b.time-points[start].time>=.02)break
+    }
+    val supported=points.subList(start,points.size)
+    if(supported.size<3)return null
+    val a=supported.first();val dt=b.time-a.time
     if (dt !in .015.. .22) return null
-    val radius=points.map { it.radius }.sorted()[points.size/2]
-    if (radius < 3 || points.maxOf { it.radius } / points.minOf { it.radius } > 1.35) return null
+    val radius=supported.map { it.radius }.sorted()[supported.size/2]
+    if (radius < 3 || supported.maxOf { it.radius } / supported.minOf { it.radius } > 1.35) return null
     // Apparent lateral speed from the 67 mm ball diameter, NOT a calibrated 3-D/radar measurement.
     val kmh = hypot(b.x-a.x,b.y-a.y)/dt * .067/(radius*2)*3.6
     return kmh.takeIf { it.isFinite() && it in .8..250.0 }
@@ -628,8 +653,9 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val intervals=evidence.zipWithNext().map { (left,right)->right.time-left.time }.sorted()
     val missingFrame=intervals.last()>intervals[1]*1.55+.001
     val sparse=intervals.last()>.075 || missingFrame
+    val localization=if(settings.surface==ContactSurface.FLOOR)floorLocalizationNoise(evidence,c.time) else 0.0
     val uncertainty=max(2.0,c.radius*.3 + (if (c.blurred) c.radius*.6 else 0.0) +
-      (fit?.error ?: 0.0) +
+      (fit?.error ?: 0.0) + localization +
       if (sparse) max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5 else 0.0)
     val region=activeSettings
     val floorDistance=if(settings.surface==ContactSurface.FLOOR && settings.court==CourtLayout.CUSTOM)
@@ -660,7 +686,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       courtKnown -> "Mudança de trajetória compatível com quicada na quadra marcada; contato estimado."
       else -> "Descida e subida observadas no piso; contato estimado entre quadros."
     }
-    val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(p.take(3)),uncertainty,reason,settings.surface,
+    val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(path.filter{it.time<=c.time}),uncertainty,reason,settings.surface,
       cameraOffset=offset,evidenceOffset=offset)
     lastImpact=contactTime
     path.removeAll { it.time <= c.time }
@@ -683,12 +709,37 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
         // A longer window must show coherent descent and ascent throughout,
         // not just five convenient samples of jitter or an unrelated turn.
         val middle=start+stride*2
-        if((start until middle).any{path[it+1].y<path[it].y-.75} ||
-          (middle until path.lastIndex).any{path[it+1].y>path[it].y+.75})continue
+        val noisy=(start until middle).any{path[it+1].y<path[it].y-.75} ||
+          (middle until path.lastIndex).any{path[it+1].y>path[it].y+.75}
+        if(noisy && (!coherentFloorLeg(path.subList(start,middle+1),c.radius,true) ||
+          !coherentFloorLeg(path.subList(middle,path.size),c.radius,false)))continue
       }
       return p
     }
     return null
+  }
+  private data class FloorLegSupport(val displacement:Double,val error:Double,val rms:Double)
+  private fun floorLegSupport(points:List<BallObservation>):FloorLegSupport? {
+    if(points.size<3)return null
+    val first=points.first().time;val span=points.last().time-first
+    if(span<=0)return null
+    val mt=points.sumOf{it.time-first}/points.size;val my=points.sumOf{it.y}/points.size
+    val den=points.sumOf{val t=it.time-first-mt;t*t};if(den<=1e-12)return null
+    val slope=points.sumOf{(it.time-first-mt)*(it.y-my)}/den
+    val errors=points.map{abs(it.y-my-slope*(it.time-first-mt))}
+    return FloorLegSupport(slope*span,errors.max(),sqrt(errors.sumOf{it*it}/errors.size))
+  }
+  private fun coherentFloorLeg(points:List<BallObservation>,radius:Double,descending:Boolean):Boolean {
+    val support=floorLegSupport(points) ?: return false
+    val progress=support.displacement*(if(descending)1 else -1)
+    return progress>=max(5.0,radius*.9) && support.error<=max(2.0,radius*.35) &&
+      support.rms<=max(.75,progress*.18)
+  }
+  private fun floorLocalizationNoise(points:List<BallObservation>,turn:Double):Double {
+    val before=points.filter{it.time<=turn};val after=points.filter{it.time>=turn}
+    val noisy=before.zipWithNext().any{(a,b)->b.y<a.y-.75} || after.zipWithNext().any{(a,b)->b.y>a.y+.75}
+    if(!noisy)return 0.0
+    return max(floorLegSupport(before)?.error ?: 0.0,floorLegSupport(after)?.error ?: 0.0)
   }
   private fun wallContact(p: List<BallObservation>): ContactFit? {
     val (a,b,c,d,e)=p

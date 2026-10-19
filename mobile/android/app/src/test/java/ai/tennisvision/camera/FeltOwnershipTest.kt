@@ -43,6 +43,14 @@ class FeltOwnershipTest {
       assertNull("A carried patch is not a floor bounce",r.impact)
     };assertTrue("Do not pass by losing the visible patch",seen>=8)
   }
+  @Test fun aSmallFreeBallOverUniformPinkWoodDoesNotInheritAHand() {
+    val core=LocalAnalysis();var seen=0
+    listOf(90.0,100.0,112.0,126.0,142.0,160.0,142.0,126.0,112.0).forEachIndexed { i,y->
+      val p=IntArray(w*h){0xff987e73.toInt()};disk(p,150.0,y,3.0,0xffc7df43.toInt())
+      val r=core.process(p,w,h,i/60.0)
+      r.observed?.let{seen++;assertFalse("Uniform warm background alone is not a bounded hand",it.nearHand)}
+    };assertTrue("Do not pass by hiding the small ball",seen>=8)
+  }
   @Test fun theWholeVisibleBallImmediatelyReplacesItsOldTinyFragment() {
     val core=LocalAnalysis()
     repeat(4){i->val p=image();disk(p,150.0,130.0,3.0,0xffc7df43.toInt());core.process(p,w,h,i/60.0)}

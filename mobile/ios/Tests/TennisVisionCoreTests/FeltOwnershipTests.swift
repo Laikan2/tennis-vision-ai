@@ -41,4 +41,12 @@ final class FeltOwnershipTests:XCTestCase {
         XCTAssertNotNil(r.observed,"A tiny prior cannot lock out its resolved owner")
         if let b=r.observed{XCTAssertGreaterThanOrEqual(b.radius,30);XCTAssertTrue(b.nearHand)};XCTAssertNil(r.impact)
     }
+    func testSmallFreeBallOverUniformPinkWoodDoesNotInheritAHand(){
+        let core=LocalVision();var seen=0
+        for (i,y) in [90.0,100,112,126,142,160,142,126,112].enumerated(){
+            var p=Array(repeating:UInt32(0xff987e73),count:w*h);disk(&p,150,y,3,0xffc7df43)
+            let r=core.process(p,width:w,height:h,time:Double(i)/60)
+            if let b=r.observed{seen+=1;XCTAssertFalse(b.nearHand,"Uniform warm background alone is not a bounded hand")}
+        };XCTAssertGreaterThanOrEqual(seen,8,"Do not pass by hiding the small ball")
+    }
 }
