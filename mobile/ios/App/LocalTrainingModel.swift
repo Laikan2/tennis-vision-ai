@@ -117,7 +117,7 @@ final class LocalTrainingStore {
         switch config.surface{case .floor:return "CHÃO · QUICADAS";case .wall:return "PAREDE · CONTATOS PARA REVISÃO";case .track:return "RASTREAMENTO · SEM IMPACTOS"}
     }
     var surfaceHint:String{
-        if needsAreaCheck{return "A imagem mudou. Use Marcar área para conferir os cantos; o treino continua aberto."}
+        if needsAreaCheck{return "IMPACTOS SUSPENSOS · fixe o iPhone e confira os cantos em Marcar área. A imagem mudou; a área anterior precisa ser conferida."}
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
         if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
         if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: use Marcar chão e conclua os dois passos: área e limite do piso. Sem a referência, o contato exige revisão."}
@@ -131,7 +131,7 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.13"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.14"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleResult?.cameraOffset ?? VisionPoint(0,0)}

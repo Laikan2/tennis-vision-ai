@@ -262,7 +262,9 @@ final class VisionDetector {
             }}
             let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
             let closeGripPresent=closeRing>0 && Double(closeGrip)>=Double(closeRing)*0.08 && Double(closeGrip)<=Double(closeRing)*0.65
-            ball.nearHand=closePartial || closeGripPresent || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip || prior?.nearHand==true && Double(skin)<Double(ring)*0.85)
+            // Warm floor colours cannot keep a previous hand attached after release.
+            // Each observation needs present grip, partial silhouette or moving skin.
+            ball.nearHand=closePartial || closeGripPresent || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip)
             ball.blurred=aspect>1.6;ball.luminance=light/Double(tail);ball.motionSupport=previousCount==0 ? 0:Double(changed)/Double(tail);ball.colorUncertain=halo
             found.append(ball);bounds.append([xmin,ymin,xmax,ymax]);masses.append(tail)
         }}

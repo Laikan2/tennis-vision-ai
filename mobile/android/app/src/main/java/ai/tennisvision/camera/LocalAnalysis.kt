@@ -343,8 +343,10 @@ class GreenBallDetector {
       }
       val boundedGrip=skin>ring*.30 && skin<ring*.80 && skinSides<=1
       val closeGripPresent=closeRing>0 && closeGrip>=closeRing*.08 && closeGrip<=closeRing*.65
+      // Warm floor colours cannot keep a previous hand attached after release.
+      // Each observation needs present grip, partial silhouette or moving skin.
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
-        closePartial || closeGripPresent || ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || boundedGrip || prior?.nearHand==true && skin<ring*.85), aspect>1.6,sumLight/tail,
+        closePartial || closeGripPresent || ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || boundedGrip), aspect>1.6,sumLight/tail,
         if(previous.isEmpty()) 0.0 else changed.toDouble()/tail,colorUncertain=haloOnly,diameterX=w.toDouble(),diameterY=h.toDouble(),
         distinctFelt=closePartial || radius>=2.5 && aspect<=1.6 && fill>=.55 && saturated,occluded=closePartial || seamFragment,
         feltChroma=sumChroma.toDouble()/tail,greenDominant=sumGreen>=sumRed*1.05))

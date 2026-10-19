@@ -256,11 +256,15 @@ class LocalTrainingActivity: AppCompatActivity() {
       frame.result.observed?.let { ball ->
         metrics.append("\nBola ≈${(ball.radius*2).toInt()} px · "+if(ball.resolved) "observada" else "detalhe insuficiente para decisão automática")
       }
-      if (analyzing && court.editing==0) status.text=currentResult.message
+      if (analyzing && court.editing==0) {
+        status.text=if(currentResult.movingCamera && !currentResult.areaNeedsConfirmation) "IMPACTOS SUSPENSOS · estabilize o celular" else currentResult.message
+        status.setTextColor(ContextCompat.getColor(this,if(currentResult.movingCamera || currentResult.areaNeedsConfirmation) R.color.tv_warning else R.color.tv_text))
+      }
     }
     if (currentResult.areaNeedsConfirmation && analyzing) {
       areaConfirmed=false;mustMarkArea=true
-      status.text="Treino ativo · confira os cantos em Marcar área; impactos suspensos"
+      status.text="IMPACTOS SUSPENSOS · fixe o celular e confira os cantos em Marcar área"
+      status.setTextColor(ContextCompat.getColor(this,R.color.tv_warning))
     }
   }
   private fun acceptImpact(frame: LocalFrame) {
