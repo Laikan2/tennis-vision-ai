@@ -17,8 +17,25 @@ if [[ "$serial" != emulator-* ]]; then
   echo "This offline CI harness requires an emulator, not a personal phone." >&2
   exit 1
 fi
-adb root
-adb wait-for-device
+export ANDROID_SERIAL="$serial"
+# Restarting adbd can close its transport before `adb root` returns. Confirm
+# actual root + completed boot on the same emulator, with bounded retries.
+# A broken precondition still fails; functional test failures are never retried.
+root_ready=false
+for attempt in {1..5}; do
+  adb root >> "$proof/adb-root-preflight.txt" 2>&1 || true
+  if timeout 20s adb wait-for-device &&
+     [[ "$(adb shell id -u 2>> "$proof/adb-root-preflight.txt" | tr -d '\r')" == 0 ]] &&
+     [[ "$(adb shell getprop sys.boot_completed 2>> "$proof/adb-root-preflight.txt" | tr -d '\r')" == 1 ]]; then
+    root_ready=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$root_ready" != true ]]; then
+  echo "The selected emulator did not regain a rooted, fully booted ADB transport." >&2
+  exit 1
+fi
 adb shell dumpsys connectivity > "$proof/connectivity-before.txt"
 adb shell cmd connectivity airplane-mode enable
 adb emu gsm data unregistered
