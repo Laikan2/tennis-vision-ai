@@ -1,6 +1,6 @@
 {
-  "version": "0.6.15",
-  "baseline": "floor-motion-0.6.15",
+  "version": "0.6.16",
+  "baseline": "floor-contact-time-support-0.6.16",
   "platforms": [
     "android",
     "ios"
@@ -60,7 +60,11 @@
     "resolved-owner-track-recovery",
     "bounded-small-grip-context",
     "time-supported-speed",
-    "noisy-floor-leg-evidence"
+    "noisy-floor-leg-evidence",
+    "bounded-floor-loss-history",
+    "slow-rebound-time-support",
+    "local-peak-contact-position",
+    "time-scaled-gap-uncertainty"
   ],
   "installation": {
     "android": "apk-confirmation",
