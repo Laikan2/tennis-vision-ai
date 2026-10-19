@@ -1,0 +1,37 @@
+{
+  "version": "0.6.14",
+  "sourceCommit": "4f4c776d84df26920f242d670407e935d8653c56",
+  "kind": "generated-pixel-regression-not-real-bounce-validation",
+  "fixture": {
+    "width": 720,
+    "height": 960,
+    "ballRadiusPixels": 24,
+    "twoToneStationaryFloor": true,
+    "heldFramesBeforeRelease": 5,
+    "releasedFrames": 11,
+    "knownContactsInEachControl": 1
+  },
+  "before": {
+    "version": "0.6.13",
+    "tests": 2,
+    "failed": 1,
+    "freeBallControlPassed": true,
+    "releaseFailure": "Hand state still attached after hand removal"
+  },
+  "after": {
+    "tests": 2,
+    "failed": 0,
+    "skipped": 0,
+    "bothControlsGenerateExactlyOneContact": true,
+    "ballRemainsObservedAtLeastNineReleasedFrames": true
+  },
+  "privateDevelopmentImages": {
+    "frames": 4,
+    "outputsUnchangedFrom0_6_13": true,
+    "largeBallAndNearHand": 3,
+    "noObservation": 1,
+    "independentUnseenEvaluation": false,
+    "imagesPublished": false
+  },
+  "physicalAccuracyClaim": false
+}

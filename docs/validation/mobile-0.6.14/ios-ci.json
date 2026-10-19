@@ -1,0 +1,36 @@
+{
+  "version": "0.6.14",
+  "build": "15",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39194698319",
+  "sourceCommit": "4f4c776d84df26920f242d670407e935d8653c56",
+  "xctestCount": 120,
+  "steps": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "success",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  },
+  "ipa": {
+    "version": "0.6.14",
+    "minimumIOS": "17.4",
+    "bundleIdentifier": "ai.tennisvision.camera.ios",
+    "signing": "required-by-installation-tool",
+    "filename": "Tennis-Vision-Camera-iOS-v0.6.14-AltStore.ipa",
+    "bytes": 846103,
+    "sha256": "e5f482198bdf34c11cb891d7cd70ba73884017778de58e868c0294ad022b1eb2"
+  },
+  "voiceAssetsVerifiedInIPA": true,
+  "receiverDecodedFrames": 60,
+  "simulatorScreenshotPresent": false,
+  "simulatorDiagnosticTimedOut": true,
+  "simulatorRuntimeVerification": "unverified",
+  "physicalIPhoneTestOfThisBuild": false
+}

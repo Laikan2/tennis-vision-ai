@@ -10,6 +10,12 @@
   "ipaSha256": "87bef373b5e5261773524bc53b5e19fa91dd7c9d03f465906e5833a41b8b606d",
   "newestStableAndroidVersion": "0.6.13",
   "windowsLatestUnchanged": "v0.6.11",
-  "physicalIPhoneInstallationVerified": false,
-  "physicalTestPendingReason": "iPhone no longer enumerated by the USB connection; user asked to reconnect and open AltStore"
+  "physicalIPhoneInstallationVerified": true,
+  "physicalFollowUp": {
+    "versionReadFromDevice": "0.6.13",
+    "buildReadFromDevice": "14",
+    "evidence": "iphone-physical.json",
+    "physicalInOutApproved": false,
+    "publicationTimeDeviceUnavailable": true
+  }
 }
