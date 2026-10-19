@@ -1,0 +1,85 @@
+{
+  "version": "0.6.15",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39202635062",
+  "executionSource": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "productionSource": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "result": "passed",
+  "attempt": 1,
+  "tests": 10,
+  "failures": 0,
+  "earlierCandidateRun": {
+    "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39199521226",
+    "sourceCommit": "2e4a3e024803d75c2b3ef47ad1711b2cc8c6a566",
+    "attempts": [
+      {
+        "attempt": 1,
+        "result": "failed",
+        "mainTestsFailed": 6,
+        "permissionTestsFailed": 2,
+        "observedBlocker": "System Pixel Launcher ANR dialog over the app in failure-ready.png; input events rejected for app window",
+        "sameSourceRetried": true,
+        "failureRetainedPrivately": true
+      },
+      {
+        "attempt": 2,
+        "result": "passed",
+        "tests": 10,
+        "failures": 0
+      }
+    ]
+  },
+  "physicalDevice": false,
+  "android": "15",
+  "api": 35,
+  "model": "sdk_gphone64_x86_64",
+  "auditHasInternetPermission": false,
+  "activeDefaultNetworkBefore": "none",
+  "activeDefaultNetworkAfter": "none",
+  "pipeline": {
+    "source": "synthetic H264 MP4 decoded by Android MediaCodec; no lens ground-truth claim",
+    "frames": 191,
+    "calls": "IN, OUT, REVIEW",
+    "p50AnalysisMs": 4.703952,
+    "p95AnalysisMs": 18.137077,
+    "outAudioEnqueued": 1,
+    "note": "SoundPool accepted playback; human audibility on a physical phone not verified",
+    "android": "15"
+  },
+  "lifecycle": {
+    "kind": "Android emulator lifecycle test",
+    "offlineBeforeLaunch": true,
+    "batterySaverBeforeLaunch": true,
+    "batteryPluggedBeforeLaunch": 0,
+    "batteryStatusBeforeLaunch": 3,
+    "batteryLevelBeforeLaunch": 50,
+    "screenBecameNonInteractive": true,
+    "screenInteractiveAfterWake": true,
+    "batterySaverAfterWake": true,
+    "offlineAfterWake": true
+  },
+  "cameraSnapshot": {
+    "kind": "camera UI exercise; scene is not labelled tennis footage",
+    "device": "sdk_gphone64_x86_64",
+    "android": "15",
+    "metrics": "1280 Ã— 720 Â· 16 FPS recebidos Â· atÃ© 30 solicitados\nConversÃ£o 97.2 ms Â· detecÃ§Ã£o 53.9 ms\nEquilibrada Â· campo 51Â° Â· cÃ¢mera 1 Â· sem computador\nExposiÃ§Ã£o recente 4.5 ms Â· captura â†’ UI â‰ˆ214 ms"
+  },
+  "screenshot": "offline-proof/02-decoded-fixture-in-out-review.png",
+  "scenarios": [
+    "decoded synthetic floor IN/OUT/REVIEW, persisted statistics and accepted OUT playback",
+    "wall return candidates without false OUT audio",
+    "floor/wall editing, cancellation and separate areas",
+    "new session clears temporary geometry and keeps history",
+    "rapid taps, background/resume and Activity recreation",
+    "atomic-storage recovery",
+    "preview-only ball contour without impacts or statistics",
+    "screen lock, wake and verified battery saver while offline",
+    "camera permission grant delivers a frame",
+    "camera permission denial and Android settings"
+  ],
+  "limitations": [
+    "No physical Android test.",
+    "Synthetic decoded clips are not real-ball contact truth.",
+    "Emulator timings are not phone FPS or complete physical latency.",
+    "Emulator audio was disabled: SoundPool acceptance is not audibility."
+  ]
+}

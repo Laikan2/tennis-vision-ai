@@ -1,0 +1,40 @@
+{
+  "version": "0.6.15",
+  "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "executionSource": "6cfb728915c00a0f76f22cddd19c30a4e95ae5e6",
+  "productionMobileFilesUnchanged": true,
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39203334159",
+  "baselineCommit": "76ffd74374a2ffbb4f538aa9b57af83106a3692b",
+  "scope": "Same Apple CI host, Release build, generated scenes; not physical FPS and not a 0.6.14-to-0.6.15 timing comparison",
+  "scenesPerOrder": 12,
+  "executionOrders": 2,
+  "allReferenceDetectionsAndContactsIdentical": true,
+  "allReferenceFrameOutputsIdentical": false,
+  "intentionalVelocityChangedFramesByOrder": [
+    24,
+    24
+  ],
+  "speedupRangeByOrder": [
+    {
+      "min": 5.010158893396663,
+      "max": 9.007539630652929
+    },
+    {
+      "min": 4.723003245494782,
+      "max": 7.526079083026272
+    }
+  ],
+  "sanitizedBufferTests": {
+    "tool": "AddressSanitizer",
+    "tests": 2,
+    "failures": 0
+  },
+  "changedBehavior": "Ownership, small-grip and motion behavior intentionally changed and tested separately in ownership-regression.json and motion-regression.json",
+  "physicalIPhoneBenchmarkOfThisBuild": false,
+  "precedingStrictComparison": {
+    "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39202635063",
+    "result": "failed because the intentionally corrected velocity fields differed",
+    "evidenceRetained": true,
+    "detectorOrContactChangesAllowed": false
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "version": "0.6.15",
+  "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "kind": "generated-pixel-regression-and-private-development-stills-not-physical-accuracy",
+  "generatedTests": {
+    "beforeVersion": "0.6.14",
+    "originalCasesBefore": 4,
+    "originalCasesFailedBefore": 4,
+    "afterTests": 5,
+    "afterFailures": 0,
+    "afterSkipped": 0,
+    "scenarios": [
+      "Clipped felt and disconnected printed/compression islands cannot be separate balls",
+      "A separate small ball remains detected outside the incomplete owner context",
+      "Small felt patch surrounded by a current grip remains observed with hand and cannot score",
+      "The resolved silhouette immediately replaces the tiny old fragment without a contact",
+      "A small free ball over uniform pink-toned wood remains visible without hand state"
+    ],
+    "peripheralIslandAddedAfterOriginalCases": true
+  },
+  "privateDevelopmentStills": {
+    "frames": 3,
+    "clippedBallFalsePatchRadiusBefore": 3.5,
+    "clippedBallFalsePatchAfter": "No observation",
+    "wholeHeldBallRadiusAfter": 95.5,
+    "wholeHeldBallNearHandAfter": true,
+    "occludedHandPatchStillObserved": true,
+    "remainingOccludedPatchRadius": 4.0,
+    "continuousReplay": false,
+    "independentUnseenEvaluation": false,
+    "imagesPublished": false,
+    "imagesBundled": false,
+    "finalIndependentFrameResults": [
+      {
+        "file": "35.bin",
+        "x": "null",
+        "y": "null",
+        "radius": "null",
+        "nearHand": "null",
+        "occluded": "null",
+        "message": "Bola não localizada · sem inventar posição"
+      },
+      {
+        "file": "36.bin",
+        "x": "316.5608777988192",
+        "y": "459.26200289629054",
+        "radius": "95.5",
+        "nearHand": "true",
+        "occluded": "false",
+        "message": "Bola próxima à mão: impacto suspenso"
+      },
+      {
+        "file": "37.bin",
+        "x": "294.4802144970414",
+        "y": "605.6823224852071",
+        "radius": "4.0",
+        "nearHand": "false",
+        "occluded": "false",
+        "message": "Bola borrada observada · velocidade indisponível"
+      }
+    ]
+  },
+  "physicalInOutApproved": false,
+  "weightsTrainedOrReplaced": false,
+  "prePublicationRegression": {
+    "condition": "Uniform pink-toned wood around a small free ball",
+    "failedBeforeBoundedContext": true,
+    "correctedBeforePublication": true,
+    "positiveHeldPatchAndFreeBallControlsPassed": true
+  }
+}

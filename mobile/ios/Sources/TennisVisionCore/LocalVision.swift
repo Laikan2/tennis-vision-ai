@@ -192,7 +192,7 @@ final class VisionDetector {
             }
             mask[i]=selected ? 1:0
         }
-        var found=[VisionBall](),bounds=[[Int]](),masses=[Int]()
+        var found=[VisionBall](),bounds=[[Int]](),masses=[Int](),clippedFelt=[[Int]]()
         // Every accepted component needs a strong felt pixel. Seed from those
         // pixels only; weak-only wall/compression regions cannot produce a ball.
         // Flood fill still includes the same weak edge pixels around each seed.
@@ -219,6 +219,9 @@ final class VisionDetector {
             let w=xmax-xmin+1,h=ymax-ymin+1,fill=Double(tail)/Double(w*h),aspect=Double(max(w,h))/Double(min(w,h))
             let closeRound=aspect<=1.65 && (0.55...0.90).contains(fill) && Double(strongCount)>=Double(tail)*0.65
             let saturated=Double(chromaSum)/Double(tail)>=107 && Double(strongCount)>=Double(tail)*0.65 && Double(redSum)>=Double(greenSum)*0.78
+            // A printed mark may isolate felt inside a border-clipped ball.
+            // Remember the incomplete parent before discarding its silhouette.
+            if saturated && min(w,h)>=12 && Double(max(w,h))<=Double(min(width,height))*0.8 && aspect<=4 && fill>=0.35 && (xmin==0 || ymin==0 || xmax==width-1 || ymax==height-1){clippedFelt.append([xmin,ymin,xmax,ymax])}
             let closePartial=aspect<=1.65 && (0.40...0.55).contains(fill) && min(w,h)>=16 && saturated
             let seamFragment=(1.65...2.35).contains(aspect) && (0.65...0.85).contains(fill) && min(w,h)>=12 && saturated
             let close=closeRound || closePartial || seamFragment
@@ -246,7 +249,7 @@ final class VisionDetector {
                 let distance=hypot(Double(px)-x,Double(py)-y)
                 if distance<radius*1.2{continue};ring+=1
                 let i=py*width+px,c=pixels[i]
-                if radius>=6 && distance<=radius*1.8 {closeRing+=1;if gripSkin(c) && strong[i]==0{closeGrip+=1}}
+                if distance<=radius*1.8 {closeRing+=1;if gripSkin(c) && strong[i]==0{closeGrip+=1}}
                 if skinColor(c){skin+=1;if previousCount==count && !strongGreen(previous[i]) && abs(visionLight(c)-visionLight(previous[i])-lightShift)>12{movingSkin+=1}}
             }}
             if closePartial && (ring==0 || Double(skin)<Double(ring)*0.12 || Double(skin)>Double(ring)*0.85){continue}
@@ -261,7 +264,19 @@ final class VisionDetector {
                 if skinColor(pixels[py*width+px]){skinSides+=1}
             }}
             let boundedGrip=Double(skin)>Double(ring)*0.30 && Double(skin)<Double(ring)*0.80 && skinSides<=1
-            let closeGripPresent=closeRing>0 && Double(closeGrip)>=Double(closeRing)*0.08 && Double(closeGrip)<=Double(closeRing)*0.65
+            // Pink-toned wood may surround a tiny free ball. A small grip must
+            // end in a wider lateral context; uniform colour is not a hand.
+            var smallGripBounded=false
+            if radius<6 && closeRing>=4 && Double(closeGrip)>=Double(closeRing)*0.08 {
+                let wider=max(24,radius*12);var gripSides=0
+                for side in [-1.0,1.0]{for vertical in [-0.5,0.5,2.0]{
+                    let px=min(width-1,max(0,Int((x+side*wider).rounded())))
+                    let py=min(height-1,max(0,Int((y+vertical*radius).rounded())))
+                    if gripSkin(pixels[py*width+px]){gripSides+=1}
+                }}
+                smallGripBounded=gripSides<=1
+            }
+            let closeGripPresent=closeRing>=4 && Double(closeGrip)>=Double(closeRing)*0.08 && (radius<6 ? smallGripBounded:Double(closeGrip)<=Double(closeRing)*0.65)
             // Warm floor colours cannot keep a previous hand attached after release.
             // Each observation needs present grip, partial silhouette or moving skin.
             ball.nearHand=closePartial || closeGripPresent || ring>0 && Double(skin)>Double(ring)*0.18 && (Double(movingSkin)>Double(ring)*0.12 || boundedGrip)
@@ -304,6 +319,9 @@ final class VisionDetector {
             }
             found=joined
         }
+        found.removeAll{b in b.radius<=12 && clippedFelt.contains{box in
+            let margin=max(max(6,b.radius*3),Double(min(box[2]-box[0]+1,box[3]-box[1]+1))*0.35)
+            return b.x>=Double(box[0])-margin && b.x<=Double(box[2])+margin && b.y>=Double(box[1])-margin && b.y<=Double(box[3])+margin}}
         return (found,moving)
         }}}}}}}}
         previous=pixels;swap(&oldGreen,&rawGreen)
@@ -356,6 +374,11 @@ public final class LocalVision {
             b.supportsBallColor || (weakReference.map{hypot(b.x-$0.x,b.y-$0.y)<=max(12,(last?.radius ?? 0)*3)} ?? false)
         }
         var previous=path.last
+        // The resolved silhouette owns an old tiny printed/highlight island.
+        // Reset the old trajectory before accepting that ownership change.
+        if let fragment=previous,fragment.radius<=6,candidates.filter({b in b.resolved && b.distinctFelt && b.radius>=max(16,fragment.radius*4) && hypot(b.x-fragment.x,b.y-fragment.y)<=b.radius*1.15}).count==1 {
+            path=[];previous=nil;lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil
+        }
         let still=previous.flatMap{b in !b.nearHand && !b.occluded && path.suffix(4).allSatisfy{hypot($0.x-b.x,$0.y-b.y)<max(2,b.radius*0.5)} ? b:nil}
         let alternatives=candidates.filter{b in b.motionSupport>=0.25 && !b.nearHand && (still.map{hypot(b.x-$0.x,b.y-$0.y)>max(12,$0.radius*3)} ?? true)}
         let alternative=alternatives.count==1 ? alternatives[0]:nil,pending=motionAcquisition;motionAcquisition=alternative
@@ -406,7 +429,7 @@ public final class LocalVision {
         if !b.supportsBallColor{b.colorUncertain=true}
         path.append(b);lost=nil;acquisition=nil
         while path.count>40 || (path.first.map{time-$0.time>0.6} ?? false){path.removeFirst()}
-        let impact = !blocked ? contact():nil,speed=velocity(Array(path.suffix(4)))
+        let impact = !blocked ? contact():nil,speed=velocity(path)
         let message: String
         if scene.needsConfirmation{message="Treino ativo · confira a área em Marcar área; impactos suspensos"}
         else if blocked{message="Treino ativo · aguardando a imagem estabilizar; impactos suspensos"}
@@ -418,8 +441,18 @@ public final class LocalVision {
         return VisionResult(observed:b,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},impact:impact,movingCamera:blocked,speed:speed,message:message,area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation)
     }
     private func velocity(_ p: [VisionBall]) -> Double? {
-        guard p.count>=3,p.allSatisfy({!$0.blurred && !$0.nearHand && $0.resolved}),let a=p.first,let b=p.last else{return nil}
-        let dt=b.time-a.time,rs=p.map{$0.radius}.sorted(),r=rs[rs.count/2]
+        guard p.count>=3,let b=p.last,!b.blurred,!b.nearHand,b.resolved else{return nil}
+        var start=p.count-1
+        // A time-supported interval also works at 240 FPS, where four samples
+        // cover only 12.5 ms. Never cross missing, hidden or hand-held evidence.
+        while start>0 {
+            let prior=p[start-1],gap=p[start].time-prior.time
+            if prior.blurred || prior.nearHand || !prior.resolved || !(0.000001...0.075).contains(gap) || b.time-prior.time>0.22{break}
+            start-=1
+            if p.count-start>=3 && b.time-p[start].time>=0.02{break}
+        }
+        let supported=Array(p[start...]);guard supported.count>=3,let a=supported.first else{return nil}
+        let dt=b.time-a.time,rs=supported.map{$0.radius}.sorted(),r=rs[rs.count/2]
         guard (0.015...0.22).contains(dt),r>=3,rs.last!/rs.first!<=1.35 else{return nil}
         let speed=hypot(b.x-a.x,b.y-a.y)/dt*0.067/(r*2)*3.6
         return speed.isFinite && (0.8...250).contains(speed) ? speed:nil
@@ -452,7 +485,8 @@ public final class LocalVision {
         let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor ? c.radius:0))/Double(height))
         let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
         let missing=sparse ? max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5:0
-        let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing),area=activeSettings
+        let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
+        let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing+localization),area=activeSettings
         let floorDistance=settings.surface == .floor && settings.court == .custom ? VisionGeometry.floorDistance(point,area.floorLine,width,height):nil
         if let dist=floorDistance,dist+uncertainty<0{return nil}
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
@@ -469,8 +503,9 @@ public final class LocalVision {
         else if call == .review{reason="A incerteza alcança a linha. Revise o contato."}
         else if call == .unmarked{reason="Quicada candidata; marque a área para IN/OUT."}
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
+        let incomingSpeed=velocity(path.filter{$0.time<=c.time})
         serial+=1;lastImpact=t;path.removeAll{$0.time<=c.time}
-        return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:velocity(Array(p.prefix(3))),uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
+        return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}
     private func floorEvidence()->[VisionBall]? {
@@ -483,9 +518,31 @@ public final class LocalVision {
             if stride>1 {
                 if e.time-a.time>0.20 || c.nearHand || path[start...].contains(where:{$0.nearHand || $0.occluded}){continue}
                 let middle=start+stride*2
-                if (start..<middle).contains(where:{path[$0+1].y<path[$0].y-0.75}) || (middle..<path.count-1).contains(where:{path[$0+1].y>path[$0].y+0.75}){continue}
+                let noisy=(start..<middle).contains(where:{path[$0+1].y<path[$0].y-0.75}) || (middle..<path.count-1).contains(where:{path[$0+1].y>path[$0].y+0.75})
+                if noisy && (!coherentFloorLeg(Array(path[start...middle]),radius:c.radius,descending:true) || !coherentFloorLeg(Array(path[middle...]),radius:c.radius,descending:false)){continue}
             };return p
         };return nil
+    }
+    private struct FloorLegSupport{var displacement:Double,error:Double,rms:Double}
+    private func floorLegSupport(_ points:[VisionBall])->FloorLegSupport? {
+        guard points.count>=3,let first=points.first,let last=points.last,last.time>first.time else{return nil}
+        let span=last.time-first.time,n=Double(points.count)
+        let mt=points.reduce(0){$0+$1.time-first.time}/n,my=points.reduce(0){$0+$1.y}/n
+        let den=points.reduce(0){let t=$1.time-first.time-mt;return $0+t*t};guard den>1e-12 else{return nil}
+        let slope=points.reduce(0){$0+($1.time-first.time-mt)*($1.y-my)}/den
+        let errors=points.map{abs($0.y-my-slope*($0.time-first.time-mt))}
+        return FloorLegSupport(displacement:slope*span,error:errors.max() ?? 0,rms:sqrt(errors.reduce(0){$0+$1*$1}/n))
+    }
+    private func coherentFloorLeg(_ points:[VisionBall],radius:Double,descending:Bool)->Bool {
+        guard let support=floorLegSupport(points) else{return false}
+        let progress=support.displacement*(descending ? 1 : -1)
+        return progress>=max(5,radius*0.9) && support.error<=max(2,radius*0.35) && support.rms<=max(0.75,progress*0.18)
+    }
+    private func floorLocalizationNoise(_ points:[VisionBall],turn:Double)->Double {
+        let before=points.filter{$0.time<=turn},after=points.filter{$0.time>=turn}
+        let noisy=zip(before,before.dropFirst()).contains{$0.1.y<$0.0.y-0.75} || zip(after,after.dropFirst()).contains{$0.1.y>$0.0.y+0.75}
+        if !noisy{return 0}
+        return max(floorLegSupport(before)?.error ?? 0,floorLegSupport(after)?.error ?? 0)
     }
     private func wallContact(_ p:[VisionBall])->Fit? {
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]

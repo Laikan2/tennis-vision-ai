@@ -36,9 +36,12 @@ jobs:
           (cd /tmp/tennis-baseline/mobile/ios && swift run --skip-build -c release VisionBenchmark /tmp/baseline-repeat.json > /tmp/baseline-repeat.log)
       - name: Check identical detections and compare timings
         run: |
-          python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json
-          python3 scripts/compare-ios-throughput.py /tmp/baseline-repeat.json /tmp/candidate-repeat.json /tmp/comparison-repeat.json
+          # Temporal velocity intentionally changed in 0.6.15; AdaptiveMotionTests
+          # checks it. All ball, trail, impact, uncertainty and state fields stay strict.
+          python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json --allow-velocity-change
+          python3 scripts/compare-ios-throughput.py /tmp/baseline-repeat.json /tmp/candidate-repeat.json /tmp/comparison-repeat.json --allow-velocity-change
       - name: Check borrowed-buffer memory safety
+        if: always()
         working-directory: mobile/ios
         run: swift test --sanitize=address --filter DetectorBufferSafetyTests
       - name: Upload timings and frame signatures

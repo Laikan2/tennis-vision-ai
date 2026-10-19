@@ -1,6 +1,6 @@
 {
-  "version": "0.6.14",
-  "baseline": "released-ball-current-hand-evidence-0.6.14",
+  "version": "0.6.15",
+  "baseline": "floor-motion-0.6.15",
   "platforms": [
     "android",
     "ios"
@@ -54,7 +54,13 @@
     "close-grip-contact-suppression",
     "underexposed-felt-fragment-guard",
     "released-ball-current-hand-evidence",
-    "explicit-impact-suspension"
+    "explicit-impact-suspension",
+    "clipped-felt-owner-context",
+    "small-current-grip-evidence",
+    "resolved-owner-track-recovery",
+    "bounded-small-grip-context",
+    "time-supported-speed",
+    "noisy-floor-leg-evidence"
   ],
   "installation": {
     "android": "apk-confirmation",

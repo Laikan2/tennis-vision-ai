@@ -105,6 +105,9 @@ final class LocalTrainingStore {
         return editing==2 ? VisionFloorBoundaryDraft.hint(draft):editing==1 ? "Arraste para expandir; depois ajuste os quatro cantos.":"\(draft.count) / 4 pontos · arraste para ajustar"
     }
     private var probeStarted=0.0,probeFrames=0,probeObservations=0,probeContacts=0,probeTotalMs=0.0,probeMaxMs=0.0
+    private var probeNearHand=0,probeUnresolved=0,probeMoving=0,probeAreaSuspended=0
+    private var probeContactDetails=[[String:Any]]()
+    private var probeTrace=[[String:Any]](),probeInitialThermal=0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
     private(set) var contactAnimationTimes=[Int:TimeInterval]()
@@ -131,7 +134,7 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.14"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.15"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
     var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleResult?.cameraOffset ?? VisionPoint(0,0)}
@@ -200,9 +203,25 @@ final class LocalTrainingStore {
         // Explicit developer launch only: live pixels go through the same engine,
         // but no probe event, image or sound is added to the user's session.
         if cameraProbe {
-            if !probeAttached{probeAttached=true;probeStarted=ProcessInfo.processInfo.systemUptime;camera.setAnalysis(true)}
+            if !probeAttached{probeAttached=true;probeStarted=ProcessInfo.processInfo.systemUptime;probeInitialThermal=ProcessInfo.processInfo.thermalState.rawValue;camera.setAnalysis(true)}
             probeFrames+=1;probeObservations += frame.result.observed == nil ? 0:1
             probeContacts+=events.filter{$0.result.impact != nil}.count
+            if let b=frame.result.observed{if b.nearHand{probeNearHand+=1};if !b.resolved{probeUnresolved+=1}}
+            if frame.result.movingCamera{probeMoving+=1};if frame.result.areaNeedsConfirmation{probeAreaSuspended+=1}
+            // Explicit developer probe only. Bounded scalar observations let a
+            // failed release be inspected without saving camera images/video.
+            if !probeWritten && probeTrace.count<5000 {
+                var sample:[String:Any]=["time":frame.time,"analysisMs":frame.analysisMs,"exposureMs":frame.exposureMs,"movingCamera":frame.result.movingCamera,"areaSuspended":frame.result.areaNeedsConfirmation]
+                if let b=frame.result.observed{sample["ball"]=["x":b.x,"y":b.y,"radius":b.radius,"confidence":b.confidence,"feltChroma":b.feltChroma,"greenDominant":b.greenDominant,"nearHand":b.nearHand,"occluded":b.occluded,"colorUncertain":b.colorUncertain,"motionSupport":b.motionSupport,"diameterX":b.diameterX,"diameterY":b.diameterY] as [String:Any]}
+                probeTrace.append(sample)
+            }
+            for f in events where probeContactDetails.count<32 {
+                if let hit=f.result.impact{
+                    var detail:[String:Any]=["time":hit.time,"radiusPixels":hit.radius,"uncertaintyPixels":hit.uncertainty,"call":hit.call.rawValue,"reason":hit.reason]
+                    if let b=f.result.observed{detail["outgoingRadiusPixels"]=b.radius;detail["outgoingFeltChroma"]=b.feltChroma;detail["outgoingGreenDominant"]=b.greenDominant;detail["outgoingNearHand"]=b.nearHand;detail["outgoingMotionSupport"]=b.motionSupport}
+                    probeContactDetails.append(detail)
+                }
+            }
             probeTotalMs+=frame.analysisMs;probeMaxMs=max(probeMaxMs,frame.analysisMs)
             status="VALIDAÇÃO DA CÂMERA · nenhum evento salvo no treino"
             if !probeWritten,ProcessInfo.processInfo.systemUptime-probeStarted>=20 {
@@ -213,7 +232,13 @@ final class LocalTrainingStore {
                     "seconds":ProcessInfo.processInfo.systemUptime-probeStarted,"framesDeliveredToUI":probeFrames,
                     "meanAnalysisMs":probeTotalMs/Double(probeFrames),"maxAnalysisMs":probeMaxMs,
                     "lastConversionMs":frame.conversionMs,"processingToUIAgeMs":(ProcessInfo.processInfo.systemUptime-frame.startedAt)*1000,
-                    "observations":probeObservations,"candidateContacts":probeContacts,"sessionWrites":0]
+                    "observations":probeObservations,"candidateContacts":probeContacts,"sessionWrites":0,
+                    "nearHandFrames":probeNearHand,"unresolvedFrames":probeUnresolved,
+                    "movingCameraFrames":probeMoving,"areaSuspendedFrames":probeAreaSuspended,
+                    "surface":config.surface.rawValue,"areaPresent":VisionGeometry.valid(config.polygon),
+                    "contactDetails":probeContactDetails,"sampledDeliveredFrames":probeTrace,
+                    "initialThermalState":probeInitialThermal,"finalThermalState":ProcessInfo.processInfo.thermalState.rawValue,
+                    "lowPowerMode":ProcessInfo.processInfo.isLowPowerModeEnabled]
                 DispatchQueue.global(qos:.utility).async{
                     let url=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0].appendingPathComponent("camera-validation.json")
                     do{try JSONSerialization.data(withJSONObject:value,options:[.prettyPrinted,.sortedKeys]).write(to:url,options:.atomic)}catch{print("Camera validation report failed: \(error)")}

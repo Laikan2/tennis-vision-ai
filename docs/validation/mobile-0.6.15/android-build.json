@@ -1,0 +1,26 @@
+{
+  "version": "0.6.15",
+  "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d",
+  "jvmTests": {
+    "tests": 263,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "apk": {
+    "version": "0.6.15",
+    "versionCode": 28,
+    "filename": "Tennis-Vision-Camera-Android-v0.6.15.apk",
+    "bytes": 3249688,
+    "sha256": "253f37af7f37260ae71855579991aeaba15e99e4168b101e4b7c53ca2b9a1655",
+    "certificateSha256": "faf843630ad0a52fef6ca4f844cae592e3da1e266b7b823f481c34d3b2049ce9",
+    "sourceCommit": "a7bfeeaf597c06828648546833a56332a55e8f3d"
+  },
+  "actualManifestAndSignatureVerified": true,
+  "voiceAssetsVerifiedInAPK": true,
+  "lint": {
+    "Warning": 150
+  },
+  "physicalAndroidTest": false,
+  "note": "Includes one private development-image regression; photos and test inputs are not published or bundled."
+}

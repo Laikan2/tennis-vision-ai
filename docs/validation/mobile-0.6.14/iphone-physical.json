@@ -1,0 +1,173 @@
+{
+  "recordedAtUTC": "2026-10-19T04:24:21.987472+00:00",
+  "kind": "physical-iphone-tests-with-failures-not-IN-OUT-certification",
+  "device": {
+    "model": "iPhone16,1",
+    "os": "27.2",
+    "osBuild": "24B5110a"
+  },
+  "installedVersion": "0.6.14",
+  "installedBuild": "15",
+  "installationReadFromDevice": true,
+  "history": {
+    "sessionsBefore": 2,
+    "sessionsAfter": 2,
+    "eventsBefore": 44,
+    "eventsAfter": 47,
+    "everyExistingEventUnchanged": true,
+    "newEvents": 3
+  },
+  "noBallCameraProbe": {
+    "candidateContacts": 10,
+    "framesDeliveredToUI": 1196,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 2.42429166655711,
+    "maxAnalysisMs": 15.744166666763704,
+    "meanAnalysisMs": 10.37010622213095,
+    "observations": 647,
+    "os": "27.2",
+    "processingToUIAgeMs": 11.959666666598423,
+    "receivedFPS": 60.01295504380366,
+    "requestedFPS": 60,
+    "seconds": 20.01461324999991,
+    "sessionWrites": 0,
+    "version": "0.6.14",
+    "width": 720,
+    "humanCondition": "Fixed illuminated floor, no ball or hands; user confirmed",
+    "areaPresent": false,
+    "candidateContactsAreFalseForThisCondition": true,
+    "includesCameraOpening": true
+  },
+  "heldBallCameraProbe": {
+    "candidateContacts": 1,
+    "framesDeliveredToUI": 1061,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 1.9279999999071151,
+    "maxAnalysisMs": 22.070999999868945,
+    "meanAnalysisMs": 16.188468543823955,
+    "observations": 1037,
+    "os": "27.2",
+    "processingToUIAgeMs": 18.576208333342947,
+    "receivedFPS": 56.65024090683282,
+    "requestedFPS": 60,
+    "seconds": 20.015082041666574,
+    "sessionWrites": 0,
+    "version": "0.6.14",
+    "width": 720,
+    "humanCondition": "Ball visibly held, no bounces; user confirmed",
+    "areaPresent": false,
+    "candidateContactsAreFalseForThisCondition": true,
+    "wholeBallOutlineSeenInScreenshot": true
+  },
+  "floorSetup": {
+    "savedOnDevice": true,
+    "floorBoundaryNearlyHorizontalAtTopVerified": true,
+    "areaCoversMostOfImage": true,
+    "metricCalibration": false
+  },
+  "normalNoBallInterval": {
+    "sampledDisplayDurationSeconds": 20.140844900000957,
+    "sampledScreens": 62,
+    "observedActiveStateAtStartAndEnd": true,
+    "eventsBefore": 44,
+    "eventsAfter": 44,
+    "archiveUnchanged": true,
+    "screensAreSamplesNotContinuousSensorVideo": true
+  },
+  "insideAttempt": {
+    "humanReportedBounces": 3,
+    "humanReportedLocation": "All inside; paused afterward",
+    "newEvents": 3,
+    "newIN": 0,
+    "newOUT": 0,
+    "newREVIEW": 3,
+    "recordedRadiusPixels": [
+      2.5,
+      1,
+      4
+    ],
+    "relativeEventTimesSeconds": [
+      0.0,
+      0.68337,
+      22.00118
+    ],
+    "visualFindings": [
+      "First two stored evidence images show a large ball still in a hand, while recorded radii were 2.5 and 1 pixels",
+      "Third stored image shows the hand at the low/partly hidden ball; the record reports missing/spaced frames",
+      "Sampled display includes a correctly outlined free ball and active counting; no area suspension warning was seen in inspected samples"
+    ],
+    "limitations": [
+      "Three new records do not establish three matched real bounces",
+      "Display sampling had an approximately 18-second gap between batches and cannot resolve all contacts",
+      "The evidence ring has six frames and does not record nearest-image timestamp error; its images alone cannot prove the exact instant of contact"
+    ],
+    "physicalRecallMeasured": false,
+    "physicalInOutApproved": false
+  },
+  "repeatNoBallProbeWithScreenSampling": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 549,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 2.8403749997778505,
+    "maxAnalysisMs": 25.722041666540463,
+    "meanAnalysisMs": 19.215291211297423,
+    "observations": 0,
+    "os": "27.2",
+    "processingToUIAgeMs": 34.53558333330875,
+    "receivedFPS": 42.15566329969847,
+    "requestedFPS": 60,
+    "seconds": 20.025319208333258,
+    "sessionWrites": 0,
+    "version": "0.6.14",
+    "width": 720,
+    "screenSamplingMaximumFPS": 3,
+    "humanCondition": "After the reported bounces, ball removed; no further bounces requested",
+    "sessionArchiveUnchangedFromInsideAttempt": true,
+    "loadedMeasurementNotComparableToUnloadedFPS": true
+  },
+  "outTest": "Not performed because a positive automatically classified IN contact was not established",
+  "newFixesAreSeparateVersion": "0.6.15; not installed or physically validated in this report",
+  "notProven": [
+    "Physical IN/OUT precision",
+    "Impact position accuracy",
+    "Real bounce recall",
+    "Real lateral/3D speed",
+    "Fast match balls or 200 km/h serves",
+    "Sustained 120/240 FPS",
+    "Cause of loaded FPS reduction; thermal state was not recorded"
+  ],
+  "processingToUIIsNotSensorToEyeLatency": true,
+  "privateEvidencePublished": false,
+  "secondAngleAttempt": {
+    "humanReportedBounces": 3,
+    "humanReportedLocation": "All inside; paused afterward",
+    "eventsBefore": 47,
+    "eventsAfter": 47,
+    "newEvents": 0,
+    "newIN": 0,
+    "newOUT": 0,
+    "newREVIEW": 0,
+    "archiveUnchanged": true,
+    "marksAndSoundEnabledInStoredSettings": true,
+    "floorBoundaryInitiallyDiagonalThenCorrected": true,
+    "boundaryNearlyHorizontalBeforeStart": true,
+    "countingActiveVerifiedBeforeRequest": true,
+    "pausedVerifiedAfterReply": true,
+    "sampledDisplayBatches": 2,
+    "sampledDisplayMaximumFPS": 3,
+    "observations": [
+      "Display samples before the reply were very dark; final paused screen showed an illuminated floor",
+      "The final floor/baseboard view differed from the pre-request view",
+      "No per-frame analysis trace is available in this installed 0.6.14 build"
+    ],
+    "limitations": [
+      "Samples and gaps do not establish continuously fixed framing/exposure during all reported bounces",
+      "Missing stored events are confirmed, but the precise cause for each missed physical bounce is not isolated",
+      "This is not a validated physical recall or IN/OUT benchmark"
+    ],
+    "furtherPhoneAccessStoppedAtUserRequest": true
+  }
+}

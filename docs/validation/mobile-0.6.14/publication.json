@@ -16,7 +16,9 @@
   },
   "newestStableAndroidVersion": "0.6.14",
   "windowsLatestUnchanged": "v0.6.11",
-  "physicalIPhoneInstallationVerified": false,
-  "physicalTestPendingReason": "After publishing, the paired USB reader returned NoDeviceConnectedError; user asked to reconnect, unlock and update via AltStore. Last observed installed version: 0.6.13.",
-  "physicalInOutApproved": false
+  "physicalIPhoneInstallationVerified": true,
+  "physicalInOutApproved": false,
+  "installedVersionReadFromDevice": "0.6.14",
+  "installedBuildReadFromDevice": "15",
+  "physicalReport": "iphone-physical.json"
 }
