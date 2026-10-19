@@ -1,6 +1,6 @@
 {
   "version": "0.6.16",
-  "observedAtUTC": "2026-10-19T16:48:09.674707+00:00",
+  "observedAtUTC": "2026-10-19T16:58:03.963389+00:00",
   "localFunctionalValidation": "android-runtime-local.json: all ten scenarios covered, original denial timing failure retained and targeted retest passed",
   "attempts": [
     {
@@ -36,10 +36,14 @@
       "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39287449425",
       "attempt": 2,
       "source": "db88d12d27f0073b2f967c46e4dda90aa5c901d1",
-      "result": "rerun requested after external dependency failure; awaiting confirmation"
+      "result": "passed",
+      "functionalTestsExecuted": 10,
+      "failures": 0,
+      "productionMobilePayloadUnchanged": true
     }
   ],
-  "cloudFunctionalSuccessClaimed": false,
+  "cloudFunctionalSuccessClaimed": true,
   "logsRetainedPrivately": true,
-  "physicalDevice": false
+  "physicalDevice": false,
+  "finalAttemptProof": "android-runtime.json"
 }
