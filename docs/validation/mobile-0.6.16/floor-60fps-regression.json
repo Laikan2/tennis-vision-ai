@@ -1,0 +1,102 @@
+{
+  "baselineCommit": "6fb0c2a7b9108d1e6c39f5e17ab7099595def972",
+  "candidateCommit": "b163035067a6036376a57ed04ad101c4d0242a6f",
+  "input": "Generated ARGB pixels, 320x240, fixed background, known projected trajectories and capture timestamps. No direct observation injection.",
+  "before": {
+    "tests": 8,
+    "failures": 3,
+    "errors": 0,
+    "skipped": 0
+  },
+  "reproducedFailures": [
+    "shortLossNearContactKeepsOnlyAnUncertainCandidate",
+    "theSameProjectedArcIsNotDependentOnFrameCount",
+    "aVisibleParabolicBounceAt60FPSProducesAMarkAndIncomingSpeed"
+  ],
+  "after": {
+    "tests": 11,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "observedBallAssertedInPositiveControls": true,
+  "metrics": [
+    {
+      "fps": 30.0,
+      "hand": "false",
+      "return": "true",
+      "emitted": 0.5,
+      "contact": 0.29994730888552923,
+      "yPx": 194.5,
+      "call": "IN",
+      "speed": 1.097117115420825,
+      "uncertainty": 8.210099949584679,
+      "knownContactTime": 0.3,
+      "decisionDelayMs": 200.0,
+      "contactTimeErrorMs": 0.0526911144707598
+    },
+    {
+      "fps": 120.0,
+      "hand": "false",
+      "return": "true",
+      "emitted": 0.48333333333333334,
+      "contact": 0.2996974927166307,
+      "yPx": 194.5,
+      "call": "IN",
+      "speed": 1.1695304052460251,
+      "uncertainty": 7.496553862095544,
+      "knownContactTime": 0.3,
+      "decisionDelayMs": 183.33333333333334,
+      "contactTimeErrorMs": 0.3025072833692799
+    },
+    {
+      "fps": 240.0,
+      "hand": "false",
+      "return": "true",
+      "emitted": 0.475,
+      "contact": 0.3002279266742075,
+      "yPx": 194.53987504850514,
+      "call": "IN",
+      "speed": 1.1931531443128756,
+      "uncertainty": 7.363362928970508,
+      "knownContactTime": 0.3,
+      "decisionDelayMs": 175.0,
+      "contactTimeErrorMs": 0.22792667420751256
+    },
+    {
+      "fps": 60.0,
+      "hand": "false",
+      "return": "true",
+      "emitted": 0.5,
+      "contact": 0.30016973264922747,
+      "yPx": 194.5,
+      "call": "OUT",
+      "speed": 1.1619878822037475,
+      "uncertainty": 7.580069220890499,
+      "knownContactTime": 0.3,
+      "decisionDelayMs": 200.0,
+      "contactTimeErrorMs": 0.1697326492274831
+    },
+    {
+      "fps": 60.0,
+      "hand": "false",
+      "return": "true",
+      "emitted": 0.5,
+      "contact": 0.30016973264922747,
+      "yPx": 194.5,
+      "call": "IN",
+      "speed": 1.1619878822037475,
+      "uncertainty": 7.580069220890499,
+      "knownContactTime": 0.3,
+      "decisionDelayMs": 200.0,
+      "contactTimeErrorMs": 0.1697326492274831
+    }
+  ],
+  "mirror": "Same 11 cases in Swift, independently executed by Apple CI; see ios-ci.json.",
+  "physicalPhoneTest": false,
+  "limits": [
+    "Synthetic controlled trajectories are not real-ball accuracy or precision.",
+    "Slow rebound confirmation takes 175–200 ms after contact in these controls, without buffering playback.",
+    "Speed is apparent lateral/projected speed from the known ball diameter, not radar/3D."
+  ]
+}

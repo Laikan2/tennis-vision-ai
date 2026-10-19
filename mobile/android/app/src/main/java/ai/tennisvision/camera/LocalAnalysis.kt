@@ -570,7 +570,10 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     }
     if (ball == null) {
       val age = previous?.let { time-it.time } ?: 1.0
-      if (age > .10) { lost=previous ?: lost;path.clear() }
+      // Retain only an already observed, clean descending floor leg across a
+      // brief loss near contact. This does not extend the visible prediction.
+      val hold=if(canBridgeFloorLoss()) .16 else .10
+      if (age > hold) { lost=previous ?: lost;path.clear() }
       return LocalResult(null, prediction?.takeIf { age < .06 }, path.takeLast(16).map { CourtPoint(it.x,it.y) },
         null,blocked,null,if(scene.needsConfirmation) "Treino ativo · confira a área; impactos suspensos" else if(blocked) "Treino ativo · aguardando imagem estável" else if(candidates.size>1) "Alvos verdes ambíguos · aguardando continuidade" else "Bola não localizada · sem inventar posição",activeSettings,offset,scene.needsConfirmation)
     }
@@ -579,7 +582,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     if(!ball.supportsBallColor)ball=ball.copy(colorUncertain=true)
     path.add(ball)
     lost=null;acquisition=null
-    while (path.size > 40 || (path.isNotEmpty() && time-path.first().time > .6)) path.removeAt(0)
+    while (path.size > 160 || (path.isNotEmpty() && time-path.first().time > .6)) path.removeAt(0)
     val impact = if (!blocked) contact(width,height) else null
     val speed = speed(path)
     return LocalResult(ball,null,path.takeLast(16).map { CourtPoint(it.x,it.y) }, impact,blocked,speed,
@@ -641,7 +644,13 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     // The observed local maximum need not be the instant of contact. Estimate
     // the crossing of the observed incoming/outgoing legs, bounded by b and d.
     // This is two-sided interpolation, never an extrapolation from a lost ball.
-    val fit=if (settings.surface==ContactSurface.FLOOR) floorContact(p) else wallContact(p)
+    val fit=if (settings.surface==ContactSurface.FLOOR) {
+      // A wide window establishes the rebound, but its curved outer legs must
+      // not move the mark beyond the observed ball. Localise with the actual
+      // samples around the observed maximum when they are continuous.
+      val local=if(e.time-a.time>.200001) localFloorPeak(evidence) else null
+      (local?.let(::floorContact)) ?: floorContact(p)
+    } else wallContact(p)
     if(settings.surface==ContactSurface.WALL && fit==null) return null
     // REVIEW must have contact evidence too; never accumulate arbitrary tiny colour fragments.
     if(!c.resolved && (p.maxOf{it.radius}/p.minOf{it.radius}>1.65 ||
@@ -654,9 +663,10 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val missingFrame=intervals.last()>intervals[1]*1.55+.001
     val sparse=intervals.last()>.075 || missingFrame
     val localization=if(settings.surface==ContactSurface.FLOOR)floorLocalizationNoise(evidence,c.time) else 0.0
+    val missing=if(sparse) max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5,
+      max(sa,sb)*intervals.last()*.5) else 0.0
     val uncertainty=max(2.0,c.radius*.3 + (if (c.blurred) c.radius*.6 else 0.0) +
-      (fit?.error ?: 0.0) + localization +
-      if (sparse) max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5 else 0.0)
+      (fit?.error ?: 0.0) + localization + missing)
     val region=activeSettings
     val floorDistance=if(settings.surface==ContactSurface.FLOOR && settings.court==CourtLayout.CUSTOM)
       LocalGeometry.floorDistancePx(point,region.floorLine,width,height) else null
@@ -694,27 +704,52 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   }
 
   private data class ContactFit(val x: Double,val y: Double,val time: Double,val error: Double)
+  private fun floorReferenceKnown():Boolean {
+    val area=activeSettings
+    return settings.surface==ContactSurface.FLOOR && (LocalGeometry.validFloorLine(area.floorLine) ||
+      settings.court!=CourtLayout.CUSTOM && LocalGeometry.valid(area.polygon))
+  }
+  private fun cleanFloorSample(p:BallObservation)=p.resolved && p.supportsBallColor && !p.nearHand && !p.blurred
+  private fun canBridgeFloorLoss():Boolean {
+    if(!floorReferenceKnown() || path.size<3)return false
+    val p=path.takeLast(3);val a=p.first();val b=p.last()
+    return p.all(::cleanFloorSample) && p.maxOf{it.radius}/p.minOf{it.radius}<=1.35 &&
+      p.zipWithNext().all{(left,right)->right.time-left.time in .000001.. .075 && right.y>=left.y-.75} &&
+      b.y-a.y>max(2.0,b.radius*.3)
+  }
+  private fun localFloorPeak(points:List<BallObservation>):List<BallObservation>? {
+    val peak=points.indices.maxByOrNull{points[it].y} ?: return null
+    if(peak<2 || peak+2>=points.size)return null
+    val p=points.subList(peak-2,peak+3)
+    if(p.zipWithNext().any{(a,b)->b.time-a.time>.075} || p[2].y<=p.first().y || p[2].y<=p.last().y)return null
+    return p
+  }
   private fun floorEvidence(): List<BallObservation>? {
-    // The same physical bounce spans more frames at120/240FPS. Keep the
-    // original displacement evidence, and widen time support only when the
-    // last five observations cannot supply it. No predicted position is used.
-    for(stride in 1..8) {
+    // Search bounded physical time rather than eight fixed frame strides.
+    // A slower rebound can need more than 200 ms even at 60 FPS. Longer
+    // evidence requires a marked floor and clean, coherent observed legs.
+    for(stride in 1..((path.size-1)/4)) {
       val start=path.size-1-stride*4
-      if(start<0) break
-      val p=(0..4).map{path[start+it*stride]};val (a,b,c,d,e)=p
+      val a=path[start];val b=path[start+stride];val c=path[start+stride*2]
+      val d=path[start+stride*3];val e=path.last()
+      val span=e.time-a.time;if(span>.420001)break
       val travel=max(3.0,c.radius*.7)
       if(c.y-a.y<=travel || c.y-e.y<=travel || b.y<a.y || d.y<e.y || c.y<b.y || c.y<d.y)continue
       if(stride>1) {
-        if(e.time-a.time>.20 || c.nearHand || path.subList(start,path.size).any{it.nearHand || it.occluded})continue
+        val raw=path.subList(start,path.size);val extended=span>.200001
+        if(c.nearHand || raw.any{it.nearHand || it.occluded})continue
+        if(extended && (!floorReferenceKnown() || raw.any{!cleanFloorSample(it)} ||
+          raw.maxOf{it.radius}/raw.minOf{it.radius}>1.35))continue
         // A longer window must show coherent descent and ascent throughout,
         // not just five convenient samples of jitter or an unrelated turn.
         val middle=start+stride*2
         val noisy=(start until middle).any{path[it+1].y<path[it].y-.75} ||
           (middle until path.lastIndex).any{path[it+1].y>path[it].y+.75}
-        if(noisy && (!coherentFloorLeg(path.subList(start,middle+1),c.radius,true) ||
-          !coherentFloorLeg(path.subList(middle,path.size),c.radius,false)))continue
+        val factor=if(extended) .7 else .9
+        if((noisy || extended) && (!coherentFloorLeg(path.subList(start,middle+1),c.radius,true,factor) ||
+          !coherentFloorLeg(path.subList(middle,path.size),c.radius,false,factor)))continue
       }
-      return p
+      return listOf(a,b,c,d,e)
     }
     return null
   }
@@ -729,10 +764,10 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val errors=points.map{abs(it.y-my-slope*(it.time-first-mt))}
     return FloorLegSupport(slope*span,errors.max(),sqrt(errors.sumOf{it*it}/errors.size))
   }
-  private fun coherentFloorLeg(points:List<BallObservation>,radius:Double,descending:Boolean):Boolean {
+  private fun coherentFloorLeg(points:List<BallObservation>,radius:Double,descending:Boolean,factor:Double=.9):Boolean {
     val support=floorLegSupport(points) ?: return false
     val progress=support.displacement*(if(descending)1 else -1)
-    return progress>=max(5.0,radius*.9) && support.error<=max(2.0,radius*.35) &&
+    return progress>=max(5.0,radius*factor) && support.error<=max(2.0,radius*.35) &&
       support.rms<=max(.75,progress*.18)
   }
   private fun floorLocalizationNoise(points:List<BallObservation>,turn:Double):Double {

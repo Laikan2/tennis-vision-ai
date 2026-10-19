@@ -1,0 +1,64 @@
+{
+  "version": "0.6.16",
+  "productionSource": "b163035067a6036376a57ed04ad101c4d0242a6f",
+  "testSource": "d831fd02ceaa64210c96d0fd7debbae69f81eec2",
+  "platform": "Android 15/API35 local emulator, Windows WHPX, read-only AVD",
+  "model": "Android SDK built for x86_64",
+  "physicalDevice": false,
+  "serialGuard": "emulator-5574; ro.kernel.qemu=1 verified; no physical phone operations",
+  "completedScenarios": 10,
+  "mainFunctionalTests": 8,
+  "permissionGrant": 1,
+  "permissionDenyAfterSynchronizationFix": 1,
+  "initialFunctionalFailures": 0,
+  "initialPermissionGrantFailures": 0,
+  "initialPermissionDenialFailures": 1,
+  "correction": "The denial assertion now awaits the actual ActivityResult status/button for up to 4 seconds, and compares event count before/after; the failed targeted scenario was rerun and passed. The original failed evidence is retained privately.",
+  "productionAppUnchangedForPermissionRetest": true,
+  "offlineNetworkBefore": "none",
+  "offlineNetworkAfter": "none",
+  "auditHasInternetPermission": false,
+  "pipeline": {
+    "source": "synthetic H264 MP4 decoded by Android MediaCodec; no lens ground-truth claim",
+    "frames": 191,
+    "calls": "IN, OUT, REVIEW",
+    "p50AnalysisMs": 2.9066,
+    "p95AnalysisMs": 6.0827,
+    "outAudioEnqueued": 1,
+    "note": "SoundPool accepted playback; human audibility on a physical phone not verified",
+    "android": "15"
+  },
+  "lifecycle": {
+    "kind": "Android emulator lifecycle test",
+    "offlineBeforeLaunch": true,
+    "batterySaverBeforeLaunch": true,
+    "batteryPluggedBeforeLaunch": 0,
+    "batteryStatusBeforeLaunch": 3,
+    "batteryLevelBeforeLaunch": 50,
+    "screenBecameNonInteractive": true,
+    "screenInteractiveAfterWake": true,
+    "batterySaverAfterWake": true,
+    "offlineAfterWake": true
+  },
+  "screenshot": {
+    "path": "floor-pipeline-emulator.png",
+    "sha256": "62ad59ad3da52fe935029259e00d6830d10221886cc8119c6e6d86572c07b637"
+  },
+  "scenarios": [
+    "Decoded H264 floor marks IN/OUT/REVIEW and estimated speeds, persisted event counts, OUT SoundPool playback accepted",
+    "Wall returns stay candidates without false OUT audio",
+    "Separate floor/wall area setup and cancel",
+    "New session clears temporary areas while keeping history",
+    "Area touch/rapid taps/background and Activity recreation",
+    "Atomic storage write recovery",
+    "Preview ball contour without training or new contacts",
+    "Offline lock/wake and battery saver preserve settings",
+    "Camera grant delivers an actual emulator frame",
+    "Camera denial cannot claim readiness or add events and opens system settings"
+  ],
+  "limitations": [
+    "No physical Android/iPhone test or real lens ball ground truth.",
+    "Emulator metrics do not represent phone FPS or full physical latency.",
+    "Emulator audio disabled: accepted playback does not prove audibility."
+  ]
+}

@@ -61,11 +61,23 @@ class LocalPermissionTest {
     }
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
       repeat(2) {
+        var before=0
+        scenario.onActivity { before=it.testSession().events.size }
         scenario.onActivity { it.findViewById<Button>(R.id.localStart).performClick() }
         clickSystem("com.android.permissioncontroller:id/permission_deny_button")
+        // The system dialog can disappear before ActivityResult is delivered.
+        // Await the actual denied state rather than assuming a 250 ms delay.
+        var denied=false;var actual=""
+        repeat(40) { if(!denied) {
+          Thread.sleep(100)
+          scenario.onActivity {
+            actual=it.findViewById<TextView>(R.id.localStatus).text.toString()
+            denied=actual.contains("não autorizada") && it.findViewById<Button>(R.id.localStart).text.toString()=="Permitir câmera"
+          }
+        } }
+        assertTrue("Permission denial must reach the app; actual status: $actual",denied)
         scenario.onActivity {
-          assertTrue(it.findViewById<TextView>(R.id.localStatus).text.toString().contains("não autorizada"))
-          assertEquals(0,it.testSession().events.count { e -> e.time<0 })
+          assertEquals("Denied camera cannot add events",before,it.testSession().events.size)
         }
         assertEquals(PackageManager.PERMISSION_DENIED,context.checkSelfPermission(Manifest.permission.CAMERA))
       }
