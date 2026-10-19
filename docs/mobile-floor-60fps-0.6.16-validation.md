@@ -22,7 +22,26 @@ Detalhes numéricos: [regressão de impactos](validation/mobile-0.6.16/floor-60f
 
 ## Validações externas e limites
 
-Os testes nativos/compilações do iPhone, transmissão decodificada, Android emulado offline e comparação de desempenho foram enviados ao GitHub. Aguardam execução; seus resultados não estão incluídos nas afirmações acima.
+### Android emulado local
+
+Foram executados dez cenários em um emulador Android 15/API 35 neste Windows, com aceleração WHPX e AVD somente leitura. O script validou o serial `emulator-5574` e `ro.kernel.qemu=1`; nenhum telefone físico foi selecionado.
+
+Os oito testes funcionais e a concessão de câmera passaram na primeira execução. A recusa de câmera falhou na checagem imediata do texto após o diálogo do Android; o teste passou após aguardar o estado real devolvido por ActivityResult, com limite de quatro segundos. A asserção também passou a comparar o número de eventos antes/depois, verificando que a recusa não cria contatos. Apenas o teste foi alterado nessa repetição; a aplicação de produção permaneceu igual. A tentativa inicial com falha foi preservada.
+
+O vídeo H.264 sintético foi realmente decodificado por MediaCodec: 191 quadros produziram IN, OUT e REVISAR, com marcas visíveis, velocidade estimada e contagens persistidas verificadas pelo teste. SoundPool aceitou uma chamada OUT; a audibilidade não foi verificada porque o emulador estava sem áudio. O controle também conferiu áreas separadas, cancelamento, nova sessão/histórico, toques, segundo plano/recriação, gravação atômica, contorno sem iniciar treino, bloqueio/desbloqueio, economia de bateria e permissões.
+
+O processamento desse clipe emulado teve mediana de 2,91 ms e percentil 95 de 6,08 ms; esses tempos **não representam FPS ou atraso físico do celular**. Evidências: [resultado emulado](validation/mobile-0.6.16/android-runtime-local.json) e [marcas na interface](validation/mobile-0.6.16/floor-pipeline-emulator.png).
+
+### GitHub e iPhone pendentes
+
+Os testes nativos/compilações do iPhone, transmissão decodificada e comparação de desempenho foram enviados ao GitHub, mas permaneceram na fila sem iniciar. O GitHub registrou [degradação do Actions em 19/10/2026](https://www.githubstatus.com/incidents/8tzbpcnl75jp), com atrasos no processamento de workflows. Não há resultado de teste Swift, IPA 0.6.16 ou publicação conjunta verificados nesta etapa. A repetição Android no GitHub também aguarda execução; a evidência emulada acima é local.
+
+- [Compilação/testes iPhone](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363622).
+- [Comparação de desempenho](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363490).
+- [Repetição Android com sincronização do teste de permissão](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39285953917).
+- [Alterações e evidências no PR 11](https://github.com/Laikan2/tennis-vision-ai/pull/11).
+
+A versão 0.6.16 do Android está compilada localmente com a assinatura anterior. Os motores receberam a mesma correção, mas a nova versão ainda não foi disponibilizada à fonte AltStore: falta compilar e validar o iPhone antes da publicação conjunta. A versão pública anterior permanece 0.6.15. Não foi usado um IPA antigo com versão alterada.
 
 Nenhum celular foi acessado nesta etapa, a pedido do usuário. Não houve instalação, teste físico de bola, medição física de FPS ou validação de saques rápidos nesta versão. Dados sintéticos e três imagens anteriores de desenvolvimento não são um conjunto de contatos reais anotados. Não houve treinamento de modelo neural.
 
