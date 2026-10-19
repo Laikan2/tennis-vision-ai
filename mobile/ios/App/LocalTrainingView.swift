@@ -222,6 +222,7 @@ struct LocalTrainingView: View {
                         if model.visibleFrame==nil{VStack(spacing:12){Image(systemName:"camera").font(.largeTitle);Text(model.denied ? "Permita a câmera":model.cameraUnavailable ? "Câmera indisponível":"Preparando sua câmera");if model.denied{Button("Abrir Ajustes"){UIApplication.shared.open(URL(string:UIApplication.openSettingsURLString)!)}}}.padding(20)}
                     }.background(.black,in:RoundedRectangle(cornerRadius:16))
                     Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan).padding(.horizontal,10).padding(.vertical,7).background(Palette.background,in:Capsule()).accessibilityIdentifier("local.surface.mode")
+                    if model.editing==0{countingIndicator}
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
                     Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
@@ -276,6 +277,15 @@ struct LocalTrainingView: View {
         .sheet(isPresented:Binding(get:{model.diagnosticReport != nil},set:{if !$0{model.diagnosticReport=nil;model.prepare()}})){diagnosticView}
     }
     private func stat(_ name: String,_ value: Int,_ color: Color) -> some View{VStack(alignment:.leading,spacing:8){Text(name).font(.caption.weight(.semibold)).foregroundStyle(color);Text("\(value)").font(.system(size:30,weight:.medium,design:.rounded)).monospacedDigit()}.frame(maxWidth:.infinity,alignment:.leading).padding(16).background(Palette.panel,in:RoundedRectangle(cornerRadius:16))}
+    private var countingIndicator: some View{
+        let suspended=model.active && (model.needsAreaCheck || model.visibleResult?.movingCamera==true)
+        let tracking=model.config.surface == .track
+        let title = !model.active ? "CONTAGEM PAUSADA":suspended ? "IMPACTOS SUSPENSOS":tracking ? "SOMENTE RASTREAR":"CONTAGEM DE IMPACTOS ATIVA"
+        return Text(title).font(.caption.weight(.bold))
+            .foregroundStyle(suspended ? Color.orange:model.active && !tracking ? Palette.lime:Palette.muted)
+            .padding(.horizontal,12).padding(.vertical,8)
+            .background(Palette.panel,in:Capsule()).accessibilityIdentifier("local.counting.state")
+    }
     private var settingsView: some View{
         NavigationStack{Form{
             Section("Captura e distância"){
@@ -360,7 +370,8 @@ struct LocalTrainingView: View {
             HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}.padding(.horizontal,20)
             LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).frame(maxWidth:.infinity,maxHeight:.infinity)
             Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
-            Text(model.status).font(.footnote).foregroundStyle(Palette.muted).padding(.horizontal,16)
+            if model.editing==0{countingIndicator}
+            Text(model.status).font(.footnote).foregroundStyle(model.needsAreaCheck ? Color.orange:Palette.muted).padding(.horizontal,16)
             if model.editing>0{
                 Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
                 HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea);Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}

@@ -30,11 +30,19 @@ O primeiro ensaio Android instrumentado foi impedido por falhas de injeção de 
 
 O Android MediaCodec decodificou 191 quadros sintéticos e o fluxo gerou IN, OUT e REVISAR com persistência e um OUT aceito pelo SoundPool. A imagem do ensaio foi inspecionada, com etiquetas e velocidades estimadas legíveis e ligadas aos círculos por linhas. O som do emulador estava desativado: isso não comprova áudio audível em um celular. A mediana/p95 da análise nesse trecho emulado foi 7,31/20,26 ms; não são tempos de S25 ou câmera física.
 
-## Verificação física pendente
+## Verificação física da 0.6.13
 
 A [0.6.13 foi publicada para Android e iPhone](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.13). A leitura da fonte pública confirmou 0.6.13/build 14, e os downloads tiveram a integridade conferida. O marcador latest do Windows permaneceu em v0.6.11. Veja a [verificação da publicação](mobile-0.6.13/publication.json).
 
-A 0.6.13 ainda precisa ser instalada e medida no iPhone: na tentativa posterior à publicação, o aparelho deixou de ser enumerado pela conexão USB. O usuário foi solicitado a reconectar e abrir o AltStore. Os 60 FPS e 4,20–5,96 ms da medição anterior pertencem à **0.6.12**, em outro ensaio. A taxa solicitada não garante essa taxa de análise, e processamento→interface não é atraso total câmera→olho.
+Na retomada, a leitura USB confirmou **0.6.13/build 14 no iPhone 15 Pro, iOS 27.2 (24B5110a)**. Os dois históricos e seus 44 eventos foram preservados, com todos os eventos anteriores inalterados.
+
+No controle de 20,02 s sem bola nem mãos, preparado pelo usuário, foram entregues 1.202 quadros, com 60,02 FPS recebidos e análise média de 6,58 ms (máximo 11,29 ms). Houve **39 quadros com observação falsa de bola e nenhum candidato a contato**. O valor processamento→interface do último quadro foi 8,33 ms; não é atraso total câmera→olho. A referência do chão não estava marcada nesse diagnóstico, que não salva eventos.
+
+No controle de 20,01 s com a bola verde segurada e movimentada lentamente, o usuário confirmou zero quicadas. A bola apareceu nos 1.134 quadros entregues, com 55,92 FPS recebidos no final da janela, análise média de 14,93 ms e máximo de 17,90 ms. Nenhum candidato a contato foi produzido. A imagem inspecionada mostrou contorno grande e a indicação BOLA · PRÓXIMA À MÃO. Isso não mede perdas da câmera, precisão do centro ou detecção de uma bola solta.
+
+A área do chão pôde ser salva. A primeira linha ficou diagonal; foi refeita com dois pontos no alto e conferida visualmente. Em duas tentativas posteriores, o usuário informou três quicadas dentro da área em cada uma; nenhum novo evento foi salvo. As capturas amostradas mostram períodos de treino pausado e, após reposicionar a câmera, treino ativo com aviso de imagem alterada e impactos suspensos. Não houve verificação contínua de câmera estável e contagem ativa no instante de cada quicada. Portanto **não se calcula 0/6 de sensibilidade**, nem se atribui a falha somente ao detector ou somente à área. O teste OUT não avançou sem esse controle positivo válido.
+
+Uma regressão sintética separada encontrou uma falha adicional: depois de aparecer na mão, a bola podia continuar com o estado de proximidade de mão sobre um piso com duas cores, impedindo uma quicada que o mesmo cenário reconhecia quando a bola começava livre. A correção e sua validação pertencem à [0.6.14](mobile-0.6.14.md), e não às medições físicas da 0.6.13 acima. Veja o [registro físico sanitizado](mobile-0.6.13/iphone-physical.json).
 
 Não estão comprovados: contagem de todas as quicadas reais, precisão física de IN/OUT, posição exata dos impactos, velocidade 3D de saques, 200 km/h ou 120/240 FPS sustentados. Fotografias isoladas de evidência não permitem reconstruir uma quicada no tempo. É necessário repetir quedas com contagem conhecida e vídeo contínuo anotado para medir acertos, perdas e falsos contatos.
 

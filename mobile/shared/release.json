@@ -1,6 +1,6 @@
 {
-  "version": "0.6.13",
-  "baseline": "close-ball-hand-context-0.6.13",
+  "version": "0.6.14",
+  "baseline": "released-ball-current-hand-evidence-0.6.14",
   "platforms": [
     "android",
     "ios"
@@ -52,7 +52,9 @@
     "two-leg-contact-color-support",
     "resolution-scaled-background-context",
     "close-grip-contact-suppression",
-    "underexposed-felt-fragment-guard"
+    "underexposed-felt-fragment-guard",
+    "released-ball-current-hand-evidence",
+    "explicit-impact-suspension"
   ],
   "installation": {
     "android": "apk-confirmation",

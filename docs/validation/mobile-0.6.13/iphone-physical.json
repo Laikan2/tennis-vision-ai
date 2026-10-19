@@ -1,0 +1,106 @@
+{
+  "recordedAtUTC": "2026-10-19T03:24:37.895108+00:00",
+  "kind": "physical-iphone-camera-tests-not-match-certification",
+  "device": {
+    "model": "iPhone16,1",
+    "os": "27.2",
+    "osBuild": "24B5110a"
+  },
+  "installedVersion": "0.6.13",
+  "installedBuild": "14",
+  "installationReadFromDevice": true,
+  "history": {
+    "sessionsBefore": 2,
+    "sessionsAfter": 2,
+    "eventsBefore": 44,
+    "eventsAfter": 44,
+    "everyExistingEventUnchanged": true,
+    "newEvents": 0
+  },
+  "noBallCameraProbe": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 1202,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 2.08862500039686,
+    "maxAnalysisMs": 11.288791667539044,
+    "meanAnalysisMs": 6.579158555210543,
+    "observations": 39,
+    "os": "27.2",
+    "processingToUIAgeMs": 8.332000001246342,
+    "receivedFPS": 60.01665968068174,
+    "requestedFPS": 60,
+    "seconds": 20.015451083334483,
+    "sessionWrites": 0,
+    "version": "0.6.13",
+    "width": 720,
+    "humanCondition": "Ready, without ball or hands; fixed illuminated floor",
+    "falseObservedFrames": 39,
+    "areaPresent": false,
+    "surface": "floor"
+  },
+  "heldBallCameraProbe": {
+    "candidateContacts": 0,
+    "framesDeliveredToUI": 1134,
+    "height": 1280,
+    "kind": "physical-camera-probe-not-known-ball-ground-truth",
+    "lastConversionMs": 2.7522500004124595,
+    "maxAnalysisMs": 17.903583333463757,
+    "meanAnalysisMs": 14.928821318294492,
+    "observations": 1134,
+    "os": "27.2",
+    "processingToUIAgeMs": 18.627291667144164,
+    "receivedFPS": 55.91798381308021,
+    "requestedFPS": 60,
+    "seconds": 20.01182495833382,
+    "sessionWrites": 0,
+    "version": "0.6.13",
+    "width": 720,
+    "humanCondition": "Visible green ball, moved slowly while held; user confirmed zero real bounces",
+    "areaPresent": false,
+    "surface": "floor",
+    "inspectedScreenshot": "Whole large outline and BOLA · PRÓXIMA À MÃO"
+  },
+  "floorSetup": {
+    "savedOnDevice": true,
+    "initialBoundary": "Diagonal; not accepted as a correct floor reference for this view",
+    "adjustedBoundary": "Two top endpoints, nearly horizontal, visually verified",
+    "areaCoversMostOfImage": true,
+    "physicalMetricCalibration": false
+  },
+  "normalNoBallInterval": {
+    "eventsBefore": 44,
+    "eventsAfter": 44,
+    "archiveUnchanged": true,
+    "minimumWaitingSeconds": 20,
+    "pauseButtonObservedAtEnd": true,
+    "continuousActiveStateNotProven": "The immediate screenshot still shows Iniciar treino; do not treat this as a verified 20-second continuously active test"
+  },
+  "bounceAttempts": [
+    {
+      "humanReportedBounces": 3,
+      "humanReportedLocation": "All in center of area",
+      "newEvents": 0,
+      "limitation": "Sampled images include paused state; the whole bounce interval is not continuously verified as active"
+    },
+    {
+      "humanReportedBounces": 3,
+      "humanReportedLocation": "All inside after repositioning",
+      "newEvents": 0,
+      "limitation": "Sampled images show camera/view movement, paused state, and later Pausar treino with A imagem mudou warning; area confirmation was suspended"
+    }
+  ],
+  "bounceAttemptsConclusion": "No new contacts saved; not a validated recall or IN/OUT accuracy measurement because continuous stable active capture was not established",
+  "outTest": "Not performed: positive floor impact control did not establish valid active/stable capture",
+  "notProven": [
+    "real bounce recall",
+    "physical IN/OUT precision",
+    "impact center accuracy",
+    "real lateral speed",
+    "fast match balls",
+    "sustained 120/240 FPS"
+  ],
+  "processingToUIIsNotSensorToEyeLatency": true,
+  "privateEvidencePublished": false,
+  "followup": "A separate synthetic release-after-hand regression found a sticky nearHand state over a two-tone warm floor; corrective work is version 0.6.14, not installed in these measurements"
+}
