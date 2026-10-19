@@ -1,0 +1,22 @@
+{
+  "version": "0.6.14",
+  "release": "https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.14",
+  "altStoreSource": "https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json",
+  "publicSourceReadVersion": "0.6.14",
+  "publicSourceReadBuild": "15",
+  "sourceSizeMatchesVerifiedIPA": true,
+  "publicDownloadsVerifiedByPublisher": true,
+  "apkSha256": "695e20f55e23440eda01f6af7ec29a3a3d0c5656723acd5db5b57c79ceb4797c",
+  "ipaSha256": "e5f482198bdf34c11cb891d7cd70ba73884017778de58e868c0294ad022b1eb2",
+  "projectZip": {
+    "entries": 87,
+    "bytes": 193345,
+    "sha256": "a2dcee59840df296c59c6f4e9c008c6f42c1b2eb7d9314ff1cc753caf7026b28",
+    "onlyTrackedPublicSources": true
+  },
+  "newestStableAndroidVersion": "0.6.14",
+  "windowsLatestUnchanged": "v0.6.11",
+  "physicalIPhoneInstallationVerified": false,
+  "physicalTestPendingReason": "After publishing, the paired USB reader returned NoDeviceConnectedError; user asked to reconnect, unlock and update via AltStore. Last observed installed version: 0.6.13.",
+  "physicalInOutApproved": false
+}
