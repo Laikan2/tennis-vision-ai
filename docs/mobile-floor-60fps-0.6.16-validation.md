@@ -32,16 +32,23 @@ O vídeo H.264 sintético foi realmente decodificado por MediaCodec: 191 quadros
 
 O processamento desse clipe emulado teve mediana de 2,91 ms e percentil 95 de 6,08 ms; esses tempos **não representam FPS ou atraso físico do celular**. Evidências: [resultado emulado](validation/mobile-0.6.16/android-runtime-local.json) e [marcas na interface](validation/mobile-0.6.16/floor-pipeline-emulator.png).
 
-### GitHub e iPhone pendentes
+### iPhone e comparação de desempenho
 
-Os testes nativos/compilações do iPhone, transmissão decodificada e comparação de desempenho foram enviados ao GitHub, mas permaneceram na fila sem iniciar. O GitHub registrou [degradação do Actions em 19/10/2026](https://www.githubstatus.com/incidents/8tzbpcnl75jp), com atrasos no processamento de workflows. Não há resultado de teste Swift, IPA 0.6.16 ou publicação conjunta verificados nesta etapa. A repetição Android no GitHub também aguarda execução; a evidência emulada acima é local.
+A [execução nativa iOS](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363622) terminou com sucesso: **141 testes Swift**, compilação para iPhone físico sem assinatura, compilação para simulador, empacotamento do IPA e **60 quadros H.264 transmitidos e decodificados**. As versões e os áudios foram conferidos dentro do pacote. Isso não comprova câmera, contato ou saída de áudio de um iPhone físico.
 
-- [Compilação/testes iPhone](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363622).
-- [Comparação de desempenho](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363490).
-- [Repetição Android com sincronização do teste de permissão](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39285953917).
-- [Alterações e evidências no PR 11](https://github.com/Laikan2/tennis-vision-ai/pull/11).
+O passo opcional de abrir o simulador e produzir captura expirou após dois minutos. A ausência da captura foi registrada; não se afirmou validação visual ou uso de câmera no simulador. Evidência: [iOS CI](validation/mobile-0.6.16/ios-ci.json).
 
-A versão 0.6.16 do Android está compilada localmente com a assinatura anterior. Os motores receberam a mesma correção, mas a nova versão ainda não foi disponibilizada à fonte AltStore: falta compilar e validar o iPhone antes da publicação conjunta. A versão pública anterior permanece 0.6.15. Não foi usado um IPA antigo com versão alterada.
+A [comparação de desempenho](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363490) também passou: 12 cenas geradas, executadas em duas ordens, mantiveram as posições, rastros, contatos, incerteza e estados da referência. Só diferiram os campos de velocidade intencionalmente corrigidos na 0.6.15. Dois testes de memória com AddressSanitizer passaram. A referência é o commit da 0.6.10, não uma comparação direta 0.6.15→0.6.16. Ganhos nesse ensaio não representam FPS do iPhone. Evidências: [desempenho e limites](validation/mobile-0.6.16/performance.json).
+
+### Repetições Android no GitHub
+
+A primeira execução em nuvem falhou com o diálogo de ANR do **Pixel Launcher** sobre o aplicativo: seis testes funcionais e dois de permissões falharam com toques enviados a uma janela de outro processo. A execução seguinte parou antes dos testes porque `adb root` fechou a conexão do emulador. Os registros dessas falhas foram preservados. A pré-condição do script foi corrigida para confirmar o mesmo emulador, acesso root e boot completo, com tentativas limitadas de reconexão. As asserções funcionais não são repetidas automaticamente para ocultar falhas.
+
+A [nova execução do script corrigido](https://github.com/Laikan2/tennis-vision-ai/actions/runs/39287449425) ainda está em andamento/fila no momento desta redação. Os dez cenários Android concluídos e descritos acima foram executados **localmente**, não são apresentados como sucesso dessa execução em nuvem. O GitHub registrou [degradação do Actions durante a validação](https://www.githubstatus.com/incidents/8tzbpcnl75jp); os resultados de build e desempenho só foram aceitos após conferir seus artefatos e conclusões finais.
+
+### Publicação verificada
+
+A [0.6.16 para Android e iPhone](https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.16) foi publicada. A fonte AltStore foi relida sem cache e aponta para **0.6.16/build 17**; o APK é **0.6.16/código 29**. Tamanhos, SHA-256 e downloads públicos foram conferidos. O projeto iOS contém somente os 71 arquivos rastreados selecionados. A referência de atualização do Windows permaneceu v0.6.11. Evidência: [publicação](validation/mobile-0.6.16/publication.json). Código e revisão: [PR 11](https://github.com/Laikan2/tennis-vision-ai/pull/11).
 
 Nenhum celular foi acessado nesta etapa, a pedido do usuário. Não houve instalação, teste físico de bola, medição física de FPS ou validação de saques rápidos nesta versão. Dados sintéticos e três imagens anteriores de desenvolvimento não são um conjunto de contatos reais anotados. Não houve treinamento de modelo neural.
 

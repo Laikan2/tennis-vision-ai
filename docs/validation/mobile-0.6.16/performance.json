@@ -1,0 +1,31 @@
+{
+  "version": "0.6.16",
+  "sourceCommit": "b163035067a6036376a57ed04ad101c4d0242a6f",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39284363490",
+  "baselineCommit": "76ffd74374a2ffbb4f538aa9b57af83106a3692b",
+  "scenesPerOrder": 12,
+  "executionOrders": 2,
+  "allReferenceDetectionsAndContactsIdentical": true,
+  "allReferenceFrameOutputsIdentical": false,
+  "intentionalVelocityChangedFramesByOrder": [
+    24,
+    24
+  ],
+  "speedupRangeByOrder": [
+    {
+      "min": 4.024748820425116,
+      "max": 7.713141181635591
+    },
+    {
+      "min": 4.312872276696908,
+      "max": 7.596737692131441
+    }
+  ],
+  "sanitizedBufferTests": {
+    "tool": "AddressSanitizer",
+    "tests": 2,
+    "failures": 0
+  },
+  "physicalIPhoneBenchmarkOfThisBuild": false,
+  "scope": "Generated 12-frame scenes on Apple CI versus 0.6.10 baseline; not phone FPS, complete latency, or a direct 0.6.15 comparison. Long-floor and loss behavior tested separately."
+}
