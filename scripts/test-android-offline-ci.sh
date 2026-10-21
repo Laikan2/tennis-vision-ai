@@ -75,7 +75,7 @@ adb shell am instrument -w -r -e class ai.tennisvision.camera.LocalTrainingTest 
   2>&1 | tee "$proof/device-tests.log"
 result=${PIPESTATUS[0]}
 set -e
-if ! grep -Eq '^OK \(8 tests\)' "$proof/device-tests.log"; then result=1; fi
+if ! grep -Eq '^OK \(9 tests\)' "$proof/device-tests.log"; then result=1; fi
 for method in allowingCameraActuallyProducesFrames deniedCameraNeverPretendsReadyAndCanOpenSettings; do
   adb shell am force-stop ai.tennisvision.camera.audit
   adb shell pm revoke ai.tennisvision.camera.audit android.permission.CAMERA

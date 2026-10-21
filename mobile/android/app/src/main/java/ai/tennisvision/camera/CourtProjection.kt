@@ -5,7 +5,7 @@ import kotlin.math.abs
 /** Projective guide, not a 3-D ball position or a speed calibration. */
 object CourtProjection {
   fun point(corners: List<CourtPoint>,u: Double,v: Double): CourtPoint? {
-    if(!LocalGeometry.valid(corners)) return null
+    if(!LocalGeometry.projectedPolygon(corners)) return null
     val (p0,p1,p2,p3)=corners
     val dx1=p1.x-p2.x;val dx2=p3.x-p2.x
     val dy1=p1.y-p2.y;val dy2=p3.y-p2.y

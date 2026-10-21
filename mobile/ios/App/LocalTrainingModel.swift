@@ -115,12 +115,13 @@ final class LocalTrainingStore {
     private var opening=false,overlayStartID=0
     var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
     var needsAreaCheck:Bool{visibleResult?.areaNeedsConfirmation == true}
+    var lastVisibleContact:VisionImpact?{visibleEvents.last(where:{$0.decision != .rejected})}
     var surfaceTitle:String{
         if editing>0{return "EDITANDO \(editingArea?.surface == .wall ? "PAREDE":"CHÃO") · APLICAR AO CONCLUIR"}
         switch config.surface{case .floor:return "CHÃO · QUICADAS";case .wall:return "PAREDE · CONTATOS PARA REVISÃO";case .track:return "RASTREAMENTO · SEM IMPACTOS"}
     }
     var surfaceHint:String{
-        if needsAreaCheck{return "IMPACTOS SUSPENSOS · fixe o iPhone e confira os cantos em Marcar área. A imagem mudou; a área anterior precisa ser conferida."}
+        if needsAreaCheck{return "IMPACTOS SUSPENSOS · fixe o iPhone e confira os cantos. Se coincidem, toque em Área coincide; caso contrário, ajuste a marcação."}
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
         if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
         if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: use Marcar chão e conclua os dois passos: área e limite do piso. Sem a referência, o contato exige revisão."}
@@ -134,9 +135,9 @@ final class LocalTrainingStore {
     var outsideCount: Int{session.events.filter{$0.decision == .outside}.count}
     var reviewCount: Int{session.events.filter{[VisionCall.review,.unmarked].contains($0.decision)}.count}
     var accuracy: String{let n=insideCount+outsideCount;return n>0 ? "\(insideCount*100/n)%":"—"}
-    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.16"}
+    var appVersion: String{Bundle.main.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "0.6.17"}
     var totalContacts: Int{session.events.filter{$0.decision != .rejected}.count}
-    var areaSummary: String{VisionGeometry.valid(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
+    var areaSummary: String{VisionGeometry.projectedPolygon(config.polygon) ? "\(config.surface == .wall ? "Parede":config.court == .full ? "Quadra inteira":config.court == .half ? "Meia quadra":"Chão") · área temporária desta sessão" : "\(config.surface == .wall ? "Parede":"Chão") · área ainda não marcada"}
     var currentOffset: VisionPoint{visibleResult?.cameraOffset ?? VisionPoint(0,0)}
     init(){
         lineVoice.onStatus={[weak self] message in self?.audioStatus=message}
@@ -184,7 +185,7 @@ final class LocalTrainingStore {
         guard ready,editing==0,!testing,!savingError,!cameraProbe else{return}
         if active{pause();return}
         if session.events.count>=2000{error="Sessão chegou a 2.000 contatos. Comece outra; o histórico será mantido.";return}
-        if VisionGeometry.valid(config.polygon) && !self.confirmed && !confirmed{confirmArea=true;return}
+        if VisionGeometry.projectedPolygon(config.polygon) && !self.confirmed && !confirmed{confirmArea=true;return}
         self.confirmed=true;active=true;camera.setAnalysis(true);status="Treino no iPhone · aguardando bola"
     }
     func receive(_ frame: LocalCameraFrame,events: [LocalCameraFrame]){
@@ -235,7 +236,7 @@ final class LocalTrainingStore {
                     "observations":probeObservations,"candidateContacts":probeContacts,"sessionWrites":0,
                     "nearHandFrames":probeNearHand,"unresolvedFrames":probeUnresolved,
                     "movingCameraFrames":probeMoving,"areaSuspendedFrames":probeAreaSuspended,
-                    "surface":config.surface.rawValue,"areaPresent":VisionGeometry.valid(config.polygon),
+                    "surface":config.surface.rawValue,"areaPresent":VisionGeometry.projectedPolygon(config.polygon),
                     "contactDetails":probeContactDetails,"sampledDeliveredFrames":probeTrace,
                     "initialThermalState":probeInitialThermal,"finalThermalState":ProcessInfo.processInfo.thermalState.rawValue,
                     "lowPowerMode":ProcessInfo.processInfo.isLowPowerModeEnabled]
@@ -286,6 +287,22 @@ final class LocalTrainingStore {
     func changeSurface(_ surface:VisionSurface){guard editing==0,!savingArea else{return};confirmed=false;persist(currentArea.selectingSurface(surface))}
     func cancelEdit(){guard !savingArea else{return};editing=0;draft=[];frozen=nil;editingCourt=nil;editorConfig=nil;homeSetup=nil;status="Edição cancelada · modo \(config.surface == .wall ? "parede":config.surface == .floor ? "chão":"somente rastrear") mantido"}
     func redraw(){draft=[]}
+    func useWholeImageFloor(){
+        guard editing==2,!savingArea else{return}
+        draft=VisionFloorBoundaryDraft.wholeImage;saveArea()
+    }
+    func confirmCurrentArea(){
+        guard ready,editing==0,!savingArea,needsAreaCheck else{return}
+        // Explicit visual confirmation, never an automatic acceptance after a
+        // different view merely becomes still. Preserve history and settings.
+        let resume=active,value=currentArea
+        overlayStartID=session.events.map{$0.id}.max() ?? 0
+        persist(value){[weak self] in
+            guard let self else{return};self.confirmed=true
+            self.status="Área conferida · impactos liberados nesta posição"
+            if resume{self.begin(confirmed:true)}
+        }
+    }
     var canSaveArea: Bool{!savingArea && (editing==2 ? VisionGeometry.validLine(draft):VisionGeometry.valid(draft))}
     func saveArea(){
         guard canSaveArea else{return}

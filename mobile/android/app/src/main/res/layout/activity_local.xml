@@ -13,9 +13,11 @@
    <TextView android:id="@+id/localStatus" style="@style/CameraLabel" android:text="Permita a câmera para começar" android:textSize="16sp" android:layout_marginTop="8dp" android:paddingHorizontal="12dp" android:accessibilityLiveRegion="polite" />
    <TextView android:id="@+id/localMetrics" style="@style/CameraBody" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="Processamento local · sem computador" android:textSize="11sp" />
    <TextView android:id="@+id/localSurface" style="@style/CameraLabel" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="CHÃO · QUICADAS" android:textSize="12sp" android:textColor="@color/tv_accent" android:accessibilityLiveRegion="polite" />
+   <Button android:id="@+id/localConfirmArea" style="@style/CameraSecondary" android:text="Área coincide · retomar impactos" android:visibility="gone" />
    <ai.tennisvision.camera.LocalCourtView android:id="@+id/localVideo" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" />
    <LinearLayout android:id="@+id/localEditor" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" android:visibility="gone">
     <TextView android:id="@+id/localEditorHint" style="@style/CameraBody" android:textSize="12sp" />
+    <Button android:id="@+id/localWholeFloor" style="@style/CameraSecondary" android:text="Toda a imagem é piso · salvar" android:visibility="gone" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp">
      <Button android:id="@+id/localSaveArea" style="@style/CameraPrimary" android:layout_width="0dp" android:layout_weight="1" android:text="Salvar área" />
      <Button android:id="@+id/localRedraw" style="@style/CameraSecondary" android:layout_width="0dp" android:layout_weight="1" android:layout_marginStart="6dp" android:text="Recomeçar" />

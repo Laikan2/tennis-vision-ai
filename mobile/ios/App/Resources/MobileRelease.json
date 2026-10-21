@@ -1,6 +1,6 @@
 {
-  "version": "0.6.16",
-  "baseline": "floor-contact-time-support-0.6.16",
+  "version": "0.6.17",
+  "baseline": "contact-surfaces-and-visible-floor-0.6.17",
   "platforms": [
     "android",
     "ios"
@@ -64,7 +64,14 @@
     "bounded-floor-loss-history",
     "slow-rebound-time-support",
     "local-peak-contact-position",
-    "time-scaled-gap-uncertainty"
+    "time-scaled-gap-uncertainty",
+    "whole-image-floor-setup",
+    "excluded-floor-shading",
+    "bounded-projected-area-geometry",
+    "explicit-area-reconfirmation",
+    "time-supported-wall-return",
+    "numbered-impact-crosshair",
+    "fullscreen-latest-contact-speed"
   ],
   "installation": {
     "android": "apk-confirmation",

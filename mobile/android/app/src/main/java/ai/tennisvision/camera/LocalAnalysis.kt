@@ -45,8 +45,10 @@ data class LocalResult(val observed: BallObservation?, val predicted: CourtPoint
 object LocalGeometry {
   fun impactPoint(event: LocalImpact,offset: CourtPoint)=CourtPoint(
     event.point.x+offset.x-event.cameraOffset.x,event.point.y+offset.y-event.cameraOffset.y)
-  fun valid(points: List<CourtPoint>): Boolean {
-    if (points.size != 4 || points.any { !it.x.isFinite() || !it.y.isFinite() || it.x !in 0.0..1.0 || it.y !in 0.0..1.0 }) return false
+  fun valid(points: List<CourtPoint>)=validShape(points,0.0)
+  fun projectedPolygon(points:List<CourtPoint>)=validShape(points,.035)
+  private fun validShape(points: List<CourtPoint>,margin:Double): Boolean {
+    if (points.size != 4 || points.any { !it.x.isFinite() || !it.y.isFinite() || it.x < -margin || it.x > 1+margin || it.y < -margin || it.y > 1+margin }) return false
     val turns = points.indices.map { i ->
       val a = points[i]; val b = points[(i + 1) % 4]; val c = points[(i + 2) % 4]
       (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x)
@@ -55,19 +57,23 @@ object LocalGeometry {
     return area >= .005 && (turns.all { it > .00001 } || turns.all { it < -.00001 })
   }
 
-  fun validFloorLine(points: List<CourtPoint>) = points.size == 2 && points.all {
+  fun projectedFloorLine(points: List<CourtPoint>) = points.size == 2 && points.all {
+    it.x.isFinite() && it.y.isFinite()
+  } && abs(points[1].x-points[0].x)>.2
+
+  fun validFloorLine(points: List<CourtPoint>) = projectedFloorLine(points) && points.all {
     it.x.isFinite() && it.y.isFinite() && it.x in 0.0..1.0 && it.y in 0.0..1.0
   } && abs(points[1].x - points[0].x) > .2
 
   fun onFloor(point: CourtPoint, line: List<CourtPoint>): Boolean {
-    if (!validFloorLine(line)) return false
+    if (!projectedFloorLine(line)) return false
     val (a, b) = line
     val y = a.y + (point.x - a.x) * (b.y - a.y) / (b.x - a.x)
     return point.y > y + .01
   }
 
   fun floorDistancePx(point: CourtPoint, line: List<CourtPoint>, width: Int, height: Int): Double? {
-    if (!validFloorLine(line)) return null
+    if (!projectedFloorLine(line)) return null
     val (a,b)=line
     val slope=(b.y-a.y)*height/((b.x-a.x)*width)
     val boundaryY=(a.y+(point.x-a.x)*(b.y-a.y)/(b.x-a.x))*height
@@ -75,9 +81,24 @@ object LocalGeometry {
     return (point.y*height-boundaryY)/sqrt(1+slope*slope)
   }
 
+  /** Clip only the non-floor half-plane to the image for honest editor feedback. */
+  fun excludedFloorRegion(line:List<CourtPoint>):List<CourtPoint> {
+    if(!projectedFloorLine(line))return emptyList()
+    val (a,b)=line
+    fun signed(p:CourtPoint)=p.y-a.y-(p.x-a.x)*(b.y-a.y)/(b.x-a.x)
+    val box=listOf(CourtPoint(0.0,0.0),CourtPoint(1.0,0.0),CourtPoint(1.0,1.0),CourtPoint(0.0,1.0))
+    val clipped=mutableListOf<CourtPoint>()
+    for(i in box.indices) {
+      val p=box[i];val q=box[(i+1)%box.size];val d=signed(p);val e=signed(q)
+      if(d<0)clipped.add(p)
+      if((d<0)!=(e<0)){val t=d/(d-e);clipped.add(CourtPoint(p.x+(q.x-p.x)*t,p.y+(q.y-p.y)*t))}
+    }
+    return clipped.takeIf{it.size>=3} ?: emptyList()
+  }
+
   fun classify(point: CourtPoint, radius: Double, uncertainty: Double,
     polygon: List<CourtPoint>, width: Int, height: Int): LineCall {
-    if (!valid(polygon)) return LineCall.UNMARKED
+    if (!projectedPolygon(polygon)) return LineCall.UNMARKED
     val p = CourtPoint(point.x * width, point.y * height)
     val vertices = polygon.map { CourtPoint(it.x * width, it.y * height) }
     var inside = false
@@ -443,6 +464,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var lastImpact = -10.0
   private var unstableUntil = -1.0
   private var serial = 0L
+  private var floorBoundaryNoticeUntil = -1.0
   private var dimensions = 0 to 0
   private var offset=CourtPoint(0.0,0.0)
   val cameraOffset get()=offset
@@ -452,7 +474,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var motionAcquisition: BallObservation?=null
   val activeSettings get()=settings.translated(offset)
   fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
-  fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; offset=CourtPoint(0.0,0.0) }
+  fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
   fun process(pixels: IntArray, width: Int, height: Int, time: Double): LocalResult {
     if (dimensions != width to height) { reset(); dimensions = width to height }
@@ -589,6 +611,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       when {
         scene.needsConfirmation -> "Treino ativo · confira a área em Marcar área; impactos suspensos"
         blocked -> "Treino ativo · aguardando a imagem estabilizar; impactos suspensos"
+        time<floorBoundaryNoticeUntil -> "Retorno acima do piso marcado · ajuste o limite ou use Toda a imagem é piso"
         ball.occluded -> "Bola parcialmente oculta · sem velocidade ou impacto automático"
         ball.colorUncertain -> "Sinal de cor fraco · acompanhamento incerto · revise o contato"
         !ball.resolved -> "Bola ≈${(ball.radius*2).toInt()} px · ${if(min(width,height)>=1080) "filme meia quadra ou aproxime a câmera" else "teste 1080p ou filme mais perto"} · revise IN/OUT"
@@ -623,7 +646,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
 
   private fun contact(width: Int, height: Int): LocalImpact? {
     if (settings.surface == ContactSurface.TRACK || path.size < 5) return null
-    val p = if(settings.surface==ContactSurface.FLOOR) floorEvidence() ?: return null else path.takeLast(5)
+    val p = (if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()) ?: return null
     val evidence=path.filter{it.time>=p.first().time && it.time<=p.last().time}
     val a=p[0]; val b=p[1]; val c=p[2]; val d=p[3]; val e=p[4]
     // REVIEW is a contact claim too: require colour-supported observations
@@ -638,7 +661,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val incoming=CourtPoint((b.x-a.x)/(b.time-a.time),(b.y-a.y)/(b.time-a.time))
     val outgoing=CourtPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
     val sa=hypot(incoming.x,incoming.y);val sb=hypot(outgoing.x,outgoing.y)
-    val wallTurn=sa>80 && sb>80 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb)<.35
+    val wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb)<.35
     if (settings.surface == ContactSurface.FLOOR && !floorTurn) return null
     if (settings.surface == ContactSurface.WALL && !wallTurn) return null
     // The observed local maximum need not be the instant of contact. Estimate
@@ -672,9 +695,11 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       LocalGeometry.floorDistancePx(point,region.floorLine,width,height) else null
     // A reversal clearly above a marked floor is not even a floor-contact candidate.
     // Keep near-boundary uncertainty for review and continue detecting outside the IN polygon.
-    if (floorDistance!=null && floorDistance + uncertainty < 0.0) return null
+    if (floorDistance!=null && floorDistance + uncertainty < 0.0) {
+      floorBoundaryNoticeUntil=lastFrame+.8;return null
+    }
     var call=LocalGeometry.classify(point,c.radius,uncertainty,region.polygon,width,height)
-    val courtKnown=settings.court!=CourtLayout.CUSTOM && LocalGeometry.valid(region.polygon)
+    val courtKnown=settings.court!=CourtLayout.CUSTOM && LocalGeometry.projectedPolygon(region.polygon)
     val floorKnown = settings.surface != ContactSurface.FLOOR || courtKnown || LocalGeometry.onFloor(point,region.floorLine)
     if (!floorKnown && call != LineCall.UNMARKED) call=LineCall.REVIEW
     if (sparse && call != LineCall.UNMARKED) call=LineCall.REVIEW
@@ -699,6 +724,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(path.filter{it.time<=c.time}),uncertainty,reason,settings.surface,
       cameraOffset=offset,evidenceOffset=offset)
     lastImpact=contactTime
+    floorBoundaryNoticeUntil = -1.0
     path.removeAll { it.time <= c.time }
     return result
   }
@@ -706,8 +732,8 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private data class ContactFit(val x: Double,val y: Double,val time: Double,val error: Double)
   private fun floorReferenceKnown():Boolean {
     val area=activeSettings
-    return settings.surface==ContactSurface.FLOOR && (LocalGeometry.validFloorLine(area.floorLine) ||
-      settings.court!=CourtLayout.CUSTOM && LocalGeometry.valid(area.polygon))
+    return settings.surface==ContactSurface.FLOOR && (LocalGeometry.projectedFloorLine(area.floorLine) ||
+      settings.court!=CourtLayout.CUSTOM && LocalGeometry.projectedPolygon(area.polygon))
   }
   private fun cleanFloorSample(p:BallObservation)=p.resolved && p.supportsBallColor && !p.nearHand && !p.blurred
   private fun canBridgeFloorLoss():Boolean {
@@ -723,6 +749,32 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val p=points.subList(peak-2,peak+3)
     if(p.zipWithNext().any{(a,b)->b.time-a.time>.075} || p[2].y<=p.first().y || p[2].y<=p.last().y)return null
     return p
+  }
+  private fun wallEvidence():List<BallObservation>? {
+    // A five-frame turn has sub-pixel legs at high capture rates. Require
+    // observed displacement over bounded time, and reject hand/jitter paths.
+    for(stride in 1..((path.size-1)/4)) {
+      val start=path.size-1-stride*4
+      val p=(0..4).map{path[start+it*stride]};val (a,b,c,d,e)=p
+      if(e.time-a.time>.240001)break
+      val raw=path.subList(start,path.size)
+      if(raw.any{it.nearHand || it.occluded} || raw.maxOf{it.radius}/raw.minOf{it.radius}>1.65)continue
+      val travel=max(3.0,c.radius*.5)
+      if(hypot(c.x-a.x,c.y-a.y)<travel || hypot(c.x-e.x,c.y-e.y)<travel)continue
+      val vx=(b.x-a.x)/(b.time-a.time);val vy=(b.y-a.y)/(b.time-a.time)
+      val ux=(e.x-d.x)/(e.time-d.time);val uy=(e.y-d.y)/(e.time-d.time)
+      val sa=hypot(vx,vy);val sb=hypot(ux,uy)
+      if(sa<=20 || sb<=20 || (vx*ux+vy*uy)/(sa*sb)>=.35)continue
+      val fit=wallContact(p) ?: continue
+      val error=raw.maxOf { q ->
+        val before=q.time<=fit.time;val anchor=if(before)a else e
+        hypot(q.x-anchor.x-(if(before)vx else ux)*(q.time-anchor.time),
+          q.y-anchor.y-(if(before)vy else uy)*(q.time-anchor.time))
+      }
+      if(error>max(2.0,c.radius*.35))continue
+      return p
+    }
+    return null
   }
   private fun floorEvidence(): List<BallObservation>? {
     // Search bounded physical time rather than eight fixed frame strides.
