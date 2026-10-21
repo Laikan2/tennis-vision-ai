@@ -51,6 +51,7 @@ class LocalVideoPanel(context: Context,attrs: AttributeSet?=null): LinearLayout(
 /** One fitted coordinate system for pixels, touches, trajectories and saved areas. */
 class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,attrs) {
   var viewportHeightLimit=Int.MAX_VALUE
+    set(value){if(field!=value){field=value;forceLayout()}}
   var settings=LocalSettings()
   val visibleSettings get()=result?.referencedTo(settings)?.activeArea ?: settings
   var events: List<LocalImpact> = emptyList()
@@ -101,6 +102,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   fun resetReference() { result=null;events=emptyList();invalidate() }
   fun begin(mode: Int,reference: LocalSettings=visibleSettings) { editing=mode; draft=if (mode==2) reference.floorLine.toList() else reference.polygon.toList(); selected=-1; anchor=null; loupePoint=null; changed() }
   fun redraw() { draft=emptyList(); selected=-1; anchor=null; loupePoint=null; changed() }
+  fun wholeImageFloor() { if(editing==2){draft=wholeImageFloorLine();changed()} }
   fun finish() { editing=0; draft=emptyList(); result=null; loupePoint=null; invalidate() }
   private fun changed() { onDraft?.invoke(if (editing==2) LocalGeometry.validFloorLine(draft) else LocalGeometry.valid(draft)); invalidate() }
   override fun performClick(): Boolean { super.performClick(); return true }
@@ -194,7 +196,15 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     line(area,area.size==4,regionColor,area.size==4)
     val layout=if(editing!=0) editorLayout else displayed.court
     CourtProjection.guides(area,layout).forEach { line(it,false,0x88ffffff.toInt()) }
-    if(layout==CourtLayout.CUSTOM && displayed.surface==ContactSurface.FLOOR) line(if (editing==2) draft else displayed.floorLine,false,amber)
+    if(layout==CourtLayout.CUSTOM && displayed.surface==ContactSurface.FLOOR) {
+      val boundary=if(editing==2) draft else displayed.floorLine
+      val excluded=LocalGeometry.excludedFloorRegion(boundary)
+      if(excluded.isNotEmpty()) {
+        val shade=Path();excluded.forEachIndexed { i,p -> val s=screen(p);if(i==0)shade.moveTo(s.x,s.y)else shade.lineTo(s.x,s.y) };shade.close()
+        paint.color=0x28ffa040;paint.style=Paint.Style.FILL;canvas.drawPath(shade,paint)
+      }
+      line(boundary,false,amber)
+    }
     if (editing!=0) {
       draft.forEachIndexed { i,p ->
         val s=screen(p); paint.color=cyan; canvas.drawCircle(s.x,s.y,9*density,paint)
@@ -224,6 +234,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
       labelObstacles.add(RectF(s.x-9*density,s.y-9*density,s.x+9*density,s.y+9*density))
       paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
+      paint.strokeWidth=1.5f*density;canvas.drawLine(s.x-4*density,s.y,s.x+4*density,s.y,paint);canvas.drawLine(s.x,s.y-4*density,s.x,s.y+4*density,paint)
       pulses[e.id]?.let { started ->
         val progress=(android.os.SystemClock.elapsedRealtime()-started)/480f
         if (progress in 0f..1f) {
@@ -236,7 +247,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     }
     visibleMarks.takeLast(3).asReversed().forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset))
-      label((if(e.surface==ContactSurface.WALL) "PAREDE · " else "")+callLabel(e.decision)+(e.speedKmh?.let { " · ≈${it.toInt()} km/h" } ?: ""),s.x+11*density,s.y-8*density,callColor(e.decision),s)
+      label("#${e.id} "+callLabel(e.decision)+(e.speedKmh?.let { " · ≈"+String.format(java.util.Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h" } ?: ""),s.x+11*density,s.y-8*density,callColor(e.decision),s)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->

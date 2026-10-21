@@ -37,8 +37,10 @@ public struct VisionResult: Sendable {
     public var areaNeedsConfirmation=false
 }
 public enum VisionGeometry {
-    public static func valid(_ p: [VisionPoint]) -> Bool {
-        guard p.count==4,p.allSatisfy({$0.x.isFinite && $0.y.isFinite && (0...1).contains($0.x) && (0...1).contains($0.y)}) else{return false}
+    public static func valid(_ p:[VisionPoint])->Bool{validShape(p,margin:0)}
+    public static func projectedPolygon(_ p:[VisionPoint])->Bool{validShape(p,margin:0.035)}
+    private static func validShape(_ p: [VisionPoint],margin:Double) -> Bool {
+        guard p.count==4,p.allSatisfy({$0.x.isFinite && $0.y.isFinite && $0.x >= -margin && $0.x <= 1+margin && $0.y >= -margin && $0.y <= 1+margin}) else{return false}
         let turns=(0..<4).map { i -> Double in
             let a=p[i],b=p[(i+1)%4],c=p[(i+2)%4];return (b.x-a.x)*(c.y-b.y)-(b.y-a.y)*(c.x-b.x)
         }
@@ -47,21 +49,36 @@ public enum VisionGeometry {
         let area=abs(twiceArea)/2
         return area>=0.005 && (turns.allSatisfy{$0>0.00001} || turns.allSatisfy{$0 < -0.00001})
     }
+    public static func projectedFloorLine(_ p:[VisionPoint])->Bool {
+        p.count==2 && p.allSatisfy{$0.x.isFinite && $0.y.isFinite} && abs(p[1].x-p[0].x)>0.2
+    }
     public static func validLine(_ p: [VisionPoint]) -> Bool {
-        p.count==2 && p.allSatisfy{(0...1).contains($0.x) && (0...1).contains($0.y)} && abs(p[1].x-p[0].x)>0.2
+        projectedFloorLine(p) && p.allSatisfy{(0...1).contains($0.x) && (0...1).contains($0.y)}
     }
     public static func floorDistance(_ p: VisionPoint,_ line: [VisionPoint],_ width: Int,_ height: Int) -> Double? {
-        guard validLine(line) else{return nil};let a=line[0],b=line[1],w=Double(width),h=Double(height)
+        guard projectedFloorLine(line) else{return nil};let a=line[0],b=line[1],w=Double(width),h=Double(height)
         let slope=(b.y-a.y)*h/((b.x-a.x)*w),y=(a.y+(p.x-a.x)*(b.y-a.y)/(b.x-a.x))*h
         return (p.y*h-y)/sqrt(1+slope*slope)
     }
     public static func onFloor(_ p: VisionPoint,_ line: [VisionPoint]) -> Bool {
-        guard validLine(line) else{return false}
+        guard projectedFloorLine(line) else{return false}
         let a=line[0],b=line[1],y=a.y+(p.x-a.x)*(b.y-a.y)/(b.x-a.x)
         return p.y>y+0.01
     }
+    public static func excludedFloorRegion(_ line:[VisionPoint])->[VisionPoint] {
+        guard projectedFloorLine(line) else{return []};let a=line[0],b=line[1]
+        func signed(_ p:VisionPoint)->Double{p.y-a.y-(p.x-a.x)*(b.y-a.y)/(b.x-a.x)}
+        let box=[VisionPoint(0,0),VisionPoint(1,0),VisionPoint(1,1),VisionPoint(0,1)]
+        var clipped=[VisionPoint]()
+        for i in box.indices {
+            let p=box[i],q=box[(i+1)%box.count],d=signed(p),e=signed(q)
+            if d<0{clipped.append(p)}
+            if (d<0) != (e<0){let t=d/(d-e);clipped.append(VisionPoint(p.x+(q.x-p.x)*t,p.y+(q.y-p.y)*t))}
+        }
+        return clipped.count>=3 ? clipped:[]
+    }
     public static func classify(_ p: VisionPoint,radius: Double,uncertainty: Double,polygon: [VisionPoint],width: Int,height: Int) -> VisionCall {
-        guard valid(polygon) else{return .unmarked}
+        guard projectedPolygon(polygon) else{return .unmarked}
         let x=p.x*Double(width),y=p.y*Double(height);var inside=false,distance=Double.infinity
         let v=polygon.map{VisionPoint($0.x*Double(width),$0.y*Double(height))}
         for i in 0..<4 {
@@ -77,7 +94,7 @@ public enum VisionGeometry {
         VisionPoint(event.point.x+offset.x-event.cameraOffset.x,event.point.y+offset.y-event.cameraOffset.y)
     }
     public static func guides(_ p: [VisionPoint],court: VisionCourt) -> [[VisionPoint]] {
-        guard valid(p),court != .custom else{return []}
+        guard projectedPolygon(p),court != .custom else{return []}
         func project(_ u: Double,_ v: Double) -> VisionPoint? {
             let dx1=p[1].x-p[2].x,dx2=p[3].x-p[2].x,dy1=p[1].y-p[2].y,dy2=p[3].y-p[2].y
             let dx3=p[0].x-p[1].x+p[2].x-p[3].x,dy3=p[0].y-p[1].y+p[2].y-p[3].y,det=dx1*dy2-dx2*dy1
@@ -335,13 +352,14 @@ public final class LocalVision {
     private let scene=VisionSceneReference()
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
     private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
+    private var floorBoundaryNoticeUntil = -1.0
     public private(set) var offset=VisionPoint(0,0)
     public init(settings: VisionSettings=VisionSettings()){self.settings=settings}
     public var activeSettings: VisionSettings {
         settings.translated(by:offset)
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;offset=VisionPoint(0,0)}
+    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
@@ -436,6 +454,7 @@ public final class LocalVision {
         let message: String
         if scene.needsConfirmation{message="Treino ativo · confira a área em Marcar área; impactos suspensos"}
         else if blocked{message="Treino ativo · aguardando a imagem estabilizar; impactos suspensos"}
+        else if time<floorBoundaryNoticeUntil{message="Retorno acima do piso marcado · ajuste o limite ou use Toda a imagem é piso"}
         else if b.occluded{message="Bola parcialmente oculta · contato suspenso"}
         else if !b.resolved{message="Bola ≈\(Int(b.radius*2)) px · detalhe incerto · revise IN/OUT"}
         else if b.nearHand{message="Bola perto da mão · impacto suspenso"}
@@ -462,7 +481,7 @@ public final class LocalVision {
     }
     private func contact() -> VisionImpact? {
         guard settings.surface != .track,path.count>=5 else{return nil}
-        guard let p=settings.surface == .floor ? floorEvidence():Array(path.suffix(5)) else{return nil}
+        guard let p=settings.surface == .floor ? floorEvidence():wallEvidence() else{return nil}
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],evidence=path.filter{$0.time>=p[0].time && $0.time<=p[4].time}
         // Even REVIEW needs ball-colour evidence on both observed legs.
         // One coloured sample at the turn cannot certify a whole trajectory.
@@ -474,7 +493,7 @@ public final class LocalVision {
         let incoming=VisionPoint((b.x-a.x)/(b.time-a.time),(b.y-a.y)/(b.time-a.time))
         let outgoing=VisionPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
         let sa=hypot(incoming.x,incoming.y),sb=hypot(outgoing.x,outgoing.y)
-        let wallTurn=sa>80 && sb>80 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb) < 0.35
+        let wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb) < 0.35
         if settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn{return nil}
         // Outer curved legs establish a slow rebound, but locate its mark
         // using continuous samples at the observed peak whenever available.
@@ -494,9 +513,9 @@ public final class LocalVision {
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
         let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing+localization),area=activeSettings
         let floorDistance=settings.surface == .floor && settings.court == .custom ? VisionGeometry.floorDistance(point,area.floorLine,width,height):nil
-        if let dist=floorDistance,dist+uncertainty<0{return nil}
+        if let dist=floorDistance,dist+uncertainty<0{floorBoundaryNoticeUntil=lastFrame+0.8;return nil}
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
-        let courtKnown=settings.court != .custom && VisionGeometry.valid(area.polygon)
+        let courtKnown=settings.court != .custom && VisionGeometry.projectedPolygon(area.polygon)
         let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
         if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || evidence.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
         let reason: String
@@ -510,13 +529,13 @@ public final class LocalVision {
         else if call == .unmarked{reason="Quicada candidata; marque a área para IN/OUT."}
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
         let incomingSpeed=velocity(path.filter{$0.time<=c.time})
-        serial+=1;lastImpact=t;path.removeAll{$0.time<=c.time}
+        serial+=1;lastImpact=t;floorBoundaryNoticeUntil = -1;path.removeAll{$0.time<=c.time}
         return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}
     private func floorReferenceKnown()->Bool {
         let area=activeSettings
-        return settings.surface == .floor && (VisionGeometry.validLine(area.floorLine) || settings.court != .custom && VisionGeometry.valid(area.polygon))
+        return settings.surface == .floor && (VisionGeometry.projectedFloorLine(area.floorLine) || settings.court != .custom && VisionGeometry.projectedPolygon(area.polygon))
     }
     private func cleanFloorSample(_ p:VisionBall)->Bool{p.resolved && p.supportsBallColor && !p.nearHand && !p.blurred}
     private func canBridgeFloorLoss()->Bool {
@@ -530,6 +549,31 @@ public final class LocalVision {
         let p=Array(points[(peak-2)...(peak+2)])
         if zip(p,p.dropFirst()).contains(where:{$0.1.time-$0.0.time>0.075}) || p[2].y<=p[0].y || p[2].y<=p[4].y{return nil}
         return p
+    }
+    private func wallEvidence()->[VisionBall]? {
+        // Time/displacement support preserves a visible return at 120/240 FPS;
+        // every supporting sample remains observed, not a predicted position.
+        for stride in 1...max(1,(path.count-1)/4) {
+            let start=path.count-1-stride*4
+            if start<0{break}
+            let p=(0...4).map{path[start+$0*stride]},a=p[0],b=p[1],c=p[2],d=p[3],e=p[4]
+            if e.time-a.time>0.240001{break}
+            let raw=Array(path[start...]),radii=raw.map{$0.radius}
+            if raw.contains(where:{$0.nearHand || $0.occluded}) || radii.max()!/radii.min()!>1.65{continue}
+            let travel=max(3,c.radius*0.5)
+            if hypot(c.x-a.x,c.y-a.y)<travel || hypot(c.x-e.x,c.y-e.y)<travel{continue}
+            let vx=(b.x-a.x)/(b.time-a.time),vy=(b.y-a.y)/(b.time-a.time)
+            let ux=(e.x-d.x)/(e.time-d.time),uy=(e.y-d.y)/(e.time-d.time),sa=hypot(vx,vy),sb=hypot(ux,uy)
+            if sa<=20 || sb<=20 || (vx*ux+vy*uy)/(sa*sb)>=0.35{continue}
+            guard let fit=wallContact(p) else{continue}
+            let error=raw.map{q -> Double in
+                let before=q.time<=fit.time,anchor=before ? a:e
+                return hypot(q.x-anchor.x-(before ? vx:ux)*(q.time-anchor.time),q.y-anchor.y-(before ? vy:uy)*(q.time-anchor.time))
+            }.max() ?? .infinity
+            if error>max(2,c.radius*0.35){continue}
+            return p
+        }
+        return nil
     }
     private func floorEvidence()->[VisionBall]? {
         // Bound physical time instead of fixed frame count. Only marked-floor,

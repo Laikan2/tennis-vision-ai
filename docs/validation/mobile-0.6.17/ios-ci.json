@@ -1,0 +1,50 @@
+{
+  "version": "0.6.17",
+  "build": "18",
+  "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39546388994",
+  "xctestCount": 147,
+  "steps": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "timed_out_optional_diagnostic",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  },
+  "stepsReportedByGitHub": {
+    "Set up job": "success",
+    "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Generate Xcode project": "success",
+    "Core regression tests": "success",
+    "Build for physical iPhone without signing": "success",
+    "Build for simulator": "success",
+    "Package IPA for personal signing on Windows": "success",
+    "Receiver integration": "success",
+    "Simulator launch and screenshot": "success",
+    "Upload unsigned validation artifacts": "success",
+    "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262": "success",
+    "Complete job": "success"
+  },
+  "ipa": {
+    "version": "0.6.17",
+    "minimumIOS": "17.4",
+    "bundleIdentifier": "ai.tennisvision.camera.ios",
+    "signing": "required-by-installation-tool",
+    "filename": "Tennis-Vision-Camera-iOS-v0.6.17-AltStore.ipa",
+    "bytes": 868325,
+    "sha256": "b11e711aa09c723b9c445397fe1aa77d0426dbd7b9572035ae0cf9cfdb96adeb"
+  },
+  "voiceAssetsVerifiedInIPA": true,
+  "receiverDecodedFrames": 60,
+  "simulatorScreenshotPresent": false,
+  "simulatorDiagnosticTimedOut": true,
+  "simulatorRuntimeVerification": "Not verified: no simulator launch screenshot; builds/core tests only",
+  "physicalIPhoneTestOfThisBuild": false
+}

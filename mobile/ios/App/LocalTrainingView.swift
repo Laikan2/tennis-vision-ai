@@ -87,7 +87,15 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         let cyan=area.surface == .wall ? UIColor.systemPurple:UIColor.systemCyan
         line(area.polygon,closed:true,color:cyan)
         for guide in VisionGeometry.guides(area.polygon,court:area.court){line(guide,closed:false,color:cyan.withAlphaComponent(0.6),width:1)}
-        if area.surface == .floor{line(area.floorLine,closed:false,color:.systemOrange)}
+        if area.surface == .floor && area.court == .custom{
+            let boundary=editing==2 ? draft:area.floorLine
+            let excluded=VisionGeometry.excludedFloorRegion(boundary)
+            if let first=excluded.first{
+                let shade=UIBezierPath();shade.move(to:screen(first));excluded.dropFirst().forEach{shade.addLine(to:screen($0))};shade.close()
+                UIColor.systemOrange.withAlphaComponent(0.16).setFill();shade.fill()
+            }
+            line(boundary,closed:false,color:.systemOrange)
+        }
         if editing>0 {
             line(draft,closed:editing != 2 && draft.count==4,color:editing==2 && draft.count==2 && !VisionGeometry.validLine(draft) ? .systemOrange:lime,width:3)
             for (i,p) in draft.enumerated(){let c=screen(p);lime.setFill();UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14)).fill();label("\(i+1)",at:CGPoint(x:c.x+11,y:c.y-18),color:lime)}
@@ -99,6 +107,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color=event.decision.color
             labelObstacles.append(CGRect(x:c.x-9,y:c.y-9,width:18,height:18))
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
+            let cross=UIBezierPath();cross.move(to:CGPoint(x:c.x-4,y:c.y));cross.addLine(to:CGPoint(x:c.x+4,y:c.y));cross.move(to:CGPoint(x:c.x,y:c.y-4));cross.addLine(to:CGPoint(x:c.x,y:c.y+4));cross.lineWidth=1.5;cross.stroke()
             if let start=pulses[event.id]{
                 let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-start)/0.48)),radius=CGFloat(9+23*progress)
                 color.withAlphaComponent(CGFloat((1-progress)*0.82)).setStroke()
@@ -107,7 +116,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         }
         for event in visibleMarks.suffix(3).reversed(){
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0)))
-            label((event.surface == .wall ? "PAREDE · ":"")+event.decision.label+(event.speed.map{" · ≈\(Int($0)) km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
+            label("#\(event.id) "+event.decision.label+(event.speed.map{" · ≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
         }
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
@@ -222,13 +231,14 @@ struct LocalTrainingView: View {
                         if model.visibleFrame==nil{VStack(spacing:12){Image(systemName:"camera").font(.largeTitle);Text(model.denied ? "Permita a câmera":model.cameraUnavailable ? "Câmera indisponível":"Preparando sua câmera");if model.denied{Button("Abrir Ajustes"){UIApplication.shared.open(URL(string:UIApplication.openSettingsURLString)!)}}}.padding(20)}
                     }.background(.black,in:RoundedRectangle(cornerRadius:16))
                     Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan).padding(.horizontal,10).padding(.vertical,7).background(Palette.background,in:Capsule()).accessibilityIdentifier("local.surface.mode")
-                    if model.editing==0{countingIndicator}
+                    if model.editing==0{countingIndicator;areaRecovery}
                     Text(model.status).font(.subheadline.weight(.medium)).foregroundStyle(model.active ? Palette.lime:Palette.muted).accessibilityIdentifier("local.status")
                     Text(model.areaSummary).font(.footnote).foregroundStyle(Palette.muted)
                     Text(model.surfaceHint).font(.footnote).foregroundStyle(model.needsAreaCheck ? .orange:Palette.muted).accessibilityIdentifier("local.surface.hint")
                     if !model.active && model.editing==0{Text("O contorno procura a bola na prévia. Iniciar treino ativa a contagem de impactos.").font(.footnote).foregroundStyle(Palette.muted)}
                     if model.editing>0 {
                         Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
+                        if model.editing==2{wholeFloorButton}
                         HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea).accessibilityIdentifier("local.area.save");Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}
                     }else{
                         Text("Teste em casa").font(.subheadline.weight(.semibold))
@@ -277,6 +287,26 @@ struct LocalTrainingView: View {
         .sheet(isPresented:Binding(get:{model.diagnosticReport != nil},set:{if !$0{model.diagnosticReport=nil;model.prepare()}})){diagnosticView}
     }
     private func stat(_ name: String,_ value: Int,_ color: Color) -> some View{VStack(alignment:.leading,spacing:8){Text(name).font(.caption.weight(.semibold)).foregroundStyle(color);Text("\(value)").font(.system(size:30,weight:.medium,design:.rounded)).monospacedDigit()}.frame(maxWidth:.infinity,alignment:.leading).padding(16).background(Palette.panel,in:RoundedRectangle(cornerRadius:16))}
+    private var wholeFloorButton:some View{
+        Button("Toda a imagem é piso · salvar"){model.useWholeImageFloor()}
+            .buttonStyle(.bordered).disabled(model.savingArea).accessibilityIdentifier("local.floor.whole")
+    }
+    @ViewBuilder private var areaRecovery:some View{
+        if model.needsAreaCheck{
+            Button("Área coincide · retomar impactos"){model.confirmCurrentArea()}
+                .buttonStyle(.bordered).tint(.orange).accessibilityIdentifier("local.area.confirm")
+        }
+    }
+    @ViewBuilder private var lastContactSummary:some View{
+        if let hit=model.lastVisibleContact{
+            Button{model.review(hit)}label:{
+                VStack(spacing:3){
+                    Text("\(hit.surface == .wall ? "Parede":"Chão") · impacto estimado #\(hit.id) · \(hit.decision.label)").font(.caption.weight(.semibold))
+                    Text(hit.speed.map{"≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h lateral"} ?? "Velocidade indisponível neste contato").font(.caption2)
+                }.foregroundStyle(Color(hit.decision.color))
+            }.buttonStyle(.plain).accessibilityIdentifier("local.contact.latest")
+        }else{Text("Nenhuma nova marca nesta área").font(.caption).foregroundStyle(Palette.muted)}
+    }
     private var countingIndicator: some View{
         let suspended=model.active && (model.needsAreaCheck || model.visibleResult?.movingCamera==true)
         let tracking=model.config.surface == .track
@@ -370,10 +400,11 @@ struct LocalTrainingView: View {
             HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}.padding(.horizontal,20)
             LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).frame(maxWidth:.infinity,maxHeight:.infinity)
             Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
-            if model.editing==0{countingIndicator}
+            if model.editing==0{countingIndicator;areaRecovery;lastContactSummary}
             Text(model.status).font(.footnote).foregroundStyle(model.needsAreaCheck ? Color.orange:Palette.muted).padding(.horizontal,16)
             if model.editing>0{
                 Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
+                if model.editing==2{wholeFloorButton}
                 HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea);Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}
             }else{
                 HStack{

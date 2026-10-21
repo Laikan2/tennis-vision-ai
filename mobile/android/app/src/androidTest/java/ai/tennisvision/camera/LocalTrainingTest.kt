@@ -90,6 +90,28 @@ class LocalTrainingTest {
     drag(scenario,CourtPoint(.05,.28),CourtPoint(.05,.28)); drag(scenario,CourtPoint(.95,.28),CourtPoint(.95,.28))
     tap(scenario,R.id.localSaveArea)
   }
+  @Test fun wholeFloorSetupSavesWithVisibleActionsWithoutDrawingALine() {
+    ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
+      ready(scenario);var events=0;var sounds=0
+      scenario.onActivity{events=it.testSession().events.size;sounds=it.testSoundCount()}
+      tap(scenario,R.id.localArea);tap(scenario,R.id.localRedraw)
+      drag(scenario,CourtPoint(.2,.35),CourtPoint(.7,.9));tap(scenario,R.id.localSaveArea)
+      scenario.onActivity {
+        assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing)
+        assertEquals(View.VISIBLE,it.findViewById<View>(R.id.localWholeFloor).visibility)
+      }
+      screenshot("whole-floor-editor-0.6.17")
+      tap(scenario,R.id.localWholeFloor)
+      scenario.onActivity {
+        val s=it.testConfig();assertEquals(ContactSurface.FLOOR,s.surface)
+        assertTrue(LocalGeometry.valid(s.polygon));assertEquals(wholeImageFloorLine(),s.floorLine)
+        assertTrue(LocalGeometry.excludedFloorRegion(s.floorLine).isEmpty())
+        assertEquals(View.GONE,it.findViewById<View>(R.id.localEditor).visibility)
+        assertEquals(events,it.testSession().events.size);assertEquals(sounds,it.testSoundCount())
+      }
+      screenshot("whole-floor-saved-0.6.17")
+    }
+  }
   @Test fun visiblePreviewBallDoesNotRequireStartingTrainingOrChangeStatistics() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
       ready(scenario);var before=0;var sounds=0;var key="";var config=LocalSettings()

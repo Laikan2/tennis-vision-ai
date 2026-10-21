@@ -122,6 +122,8 @@ class LocalTrainingActivity: AppCompatActivity() {
     findViewById<Button>(R.id.localArea).setOnClickListener { edit(1,surface=ContactSurface.FLOOR,home=true) }
     findViewById<Button>(R.id.localWall).setOnClickListener { edit(1,surface=ContactSurface.WALL,home=true) }
     findViewById<Button>(R.id.localFloor).setOnClickListener { edit(2) }
+    findViewById<Button>(R.id.localWholeFloor).setOnClickListener { if(court.editing==2){court.wholeImageFloor();finishEdit(true)} }
+    findViewById<Button>(R.id.localConfirmArea).setOnClickListener { confirmCurrentArea() }
     findViewById<Button>(R.id.localCourt).setOnClickListener {
       if(!frameReady) { showError("Aguarde a imagem antes de marcar a quadra."); return@setOnClickListener }
       AlertDialog.Builder(this).setTitle("Que parte da quadra aparece?")
@@ -192,7 +194,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     if (!camera.running) { openCamera(); return }
     if (!frameReady || court.editing!=0 || !sessionLoaded) return
     if (analyzing) { pauseAnalysis(); return }
-    if(config.surface!=ContactSurface.TRACK && LocalGeometry.valid(config.polygon) && !areaConfirmed) {
+    if(config.surface!=ContactSurface.TRACK && LocalGeometry.projectedPolygon(config.polygon) && !areaConfirmed) {
       val mode=if(config.court==CourtLayout.CUSTOM) 1 else 3
       if(mustMarkArea) {
         AlertDialog.Builder(this).setTitle("Câmera reposicionada")
@@ -245,6 +247,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     val now=SystemClock.elapsedRealtime()
     court.present(frame)
     val currentResult=frame.result.referencedTo(config)
+    findViewById<View>(R.id.localConfirmArea).visibility=if(currentResult.areaNeedsConfirmation && court.editing==0) View.VISIBLE else View.GONE
     if (now-lastInfo>600) {
       lastInfo=now
       metrics.text=String.format(Locale.getDefault(),"%d × %d · %.0f FPS recebidos · até %d solicitados\nConversão %.1f ms · detecção %.1f ms\n%s · sem computador",frame.width,frame.height,frame.captureFps,frame.requestedFps,frame.conversionMs,frame.detectorMs,frame.lensLabel)
@@ -274,7 +277,11 @@ class LocalTrainingActivity: AppCompatActivity() {
     val event=detected.copy(id=(session.events.maxOfOrNull { it.id } ?: 0L)+1,evidenceOffset=frame.contactOffset ?: detected.evidenceOffset)
     session=session.copy(events=session.events+event)
     court.events=(court.events+event).takeLast(24); renderStats(); saveSession(frame,event)
-    findViewById<TextView>(R.id.localDecision).apply { text=court.callLabel(event.decision); setTextColor(court.callColor(event.decision)) }
+    findViewById<TextView>(R.id.localDecision).apply {
+      val speed=event.speedKmh?.let { "≈"+String.format(Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h lateral" } ?: "Velocidade indisponível"
+      text="${if(event.surface==ContactSurface.WALL) "Parede" else "Chão"} · marca #${event.id} · ${court.callLabel(event.decision)}\n$speed"
+      setTextColor(court.callColor(event.decision))
+    }
     if (LineVoicePolicy.enabled(event.decision,config.sound,inVoice)) sound.play(event.decision)
     if (session.events.size>=2000) pauseAnalysis()
   }
@@ -316,6 +323,8 @@ class LocalTrainingActivity: AppCompatActivity() {
   }
   private fun updateEditorHint(valid: Boolean) {
     if(!::court.isInitialized || court.editing==0) return
+    findViewById<View>(R.id.localConfirmArea).visibility=View.GONE
+    findViewById<View>(R.id.localWholeFloor).visibility=if(court.editing==2) View.VISIBLE else View.GONE
     findViewById<TextView>(R.id.localSurface).text="EDITANDO ${if(editorConfig.surface==ContactSurface.WALL) "PAREDE" else "CHÃO"} · APLICAR AO CONCLUIR"
     findViewById<Button>(R.id.localSaveArea).text=if(homeSetup?.surface==ContactSurface.FLOOR && homeSetup?.stage==HomeAreaSetup.Stage.AREA) "Próximo: limite do piso" else "Salvar área"
     val hint=when {
@@ -366,7 +375,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     findViewById<TextView>(R.id.localSurface).text=when(config.surface) {
       ContactSurface.FLOOR->"CHÃO · QUICADAS";ContactSurface.WALL->"PAREDE · CONTATOS PARA REVISÃO";ContactSurface.TRACK->"RASTREAMENTO · SEM IMPACTOS"
     }
-    findViewById<TextView>(R.id.localAreaSummary).text=if(!LocalGeometry.valid(config.polygon)) "Sem área nesta lente e orientação · marque os quatro cantos."
+    findViewById<TextView>(R.id.localAreaSummary).text=if(!LocalGeometry.projectedPolygon(config.polygon)) "Sem área nesta lente e orientação · marque os quatro cantos."
       else if(config.surface==ContactSurface.WALL) "Parede desta sessão · a área do chão permanece separada."
       else when(config.court) { CourtLayout.FULL->"Quadra inteira · dois lados. IN/OUT usa o contorno marcado; saque não é classificado por caixa de serviço.";CourtLayout.HALF->"Meia quadra · rede até o fundo. Confira os cantos se reposicionar o celular.";else->"Chão desta sessão · a área da parede permanece separada." }
     val hint=when {
@@ -376,6 +385,15 @@ class LocalTrainingActivity: AppCompatActivity() {
       else -> "Chão: aguarda descida e retorno no piso; perto da linha pode exigir revisão."
     }
     findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint+"\nÁreas temporárias · limpas ao fechar o app ou iniciar nova sessão.")
+  }
+  private fun confirmCurrentArea() {
+    if(!frameReady || court.editing!=0 || !mustMarkArea)return
+    val resume=analyzing;val reference=court.visibleSettings
+    pauseAnalysis();config=reference;areaConfirmed=true;mustMarkArea=false
+    store.saveSettings(cameraKey,config);court.settings=config;court.resetReference();camera.update(config)
+    uiEpoch++;pending.set(null);findViewById<View>(R.id.localConfirmArea).visibility=View.GONE
+    renderAreaSummary();status.text="Área conferida · impactos liberados nesta posição"
+    if(resume && foreground)toggleAnalysis()
   }
   private fun surfaceName()=when(config.surface) { ContactSurface.FLOOR->"Chão";ContactSurface.WALL->"Parede";ContactSurface.TRACK->"Somente rastrear" }
   internal fun beginNewSession() {

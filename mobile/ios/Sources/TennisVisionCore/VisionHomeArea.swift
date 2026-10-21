@@ -1,10 +1,11 @@
 import Foundation
 
 public enum VisionFloorBoundaryDraft {
+    public static var wholeImage:[VisionPoint]{[VisionPoint(0,0),VisionPoint(1,0)]}
     public static func hint(_ points:[VisionPoint])->String {
-        if points.count<2{return "\(points.count)/2 pontos · marque um ponto à esquerda e outro à direita, onde a parede encontra o chão."}
+        if points.count<2{return "\(points.count)/2 pontos · marque onde a parede encontra o chão, ou use Toda a imagem é piso se não há parede visível."}
         if !VisionGeometry.validLine(points){return "Os pontos estão próximos demais na horizontal. Toque mais à esquerda ou à direita para ajustar um extremo; depois salve."}
-        return "2/2 pontos · limite pronto. O piso fica abaixo da linha. Toque em Salvar área para concluir."
+        return "O piso fica ABAIXO da linha; a região sombreada não conta quicadas. Toque em Salvar área ou, se só aparece chão, em Toda a imagem é piso."
     }
     public static func placing(_ point:VisionPoint,in points:[VisionPoint],width:Double,height:Double)->[VisionPoint] {
         guard point.x.isFinite,point.y.isFinite,(0...1).contains(point.x),(0...1).contains(point.y),width>0,height>0 else{return points}

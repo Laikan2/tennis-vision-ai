@@ -115,6 +115,51 @@ class LocalCourtLayoutTest {
     assertTrue(activity.findViewById<TextView>(R.id.localSurface).text.startsWith("PAREDE"))
     controller.pause().stop().destroy()
   }
+  @Test fun wholeFloorButtonSavesWithoutDrawingAnArtificialHorizon() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture(true));shadowOf(Looper.getMainLooper()).idle();draw(activity,"whole-floor-before",1920,864)
+    val court=activity.findViewById<LocalCourtView>(R.id.localVideo)
+    fun click(id:Int){activity.findViewById<Button>(id).performClick();shadowOf(Looper.getMainLooper()).idle()}
+    click(R.id.localArea);click(R.id.localRedraw)
+    assertEquals(View.GONE,activity.findViewById<View>(R.id.localWholeFloor).visibility)
+    fun touch(p:CourtPoint,action:Int){val q=court.pointOnScreen(p);android.view.MotionEvent.obtain(0,20,action,q.x,q.y,0).also{court.onTouchEvent(it);it.recycle()}}
+    touch(CourtPoint(.1,.2),android.view.MotionEvent.ACTION_DOWN);touch(CourtPoint(.9,.92),android.view.MotionEvent.ACTION_UP)
+    val expected=court.draft.toList();click(R.id.localSaveArea)
+    assertEquals(2,court.editing);assertEquals(View.VISIBLE,activity.findViewById<View>(R.id.localWholeFloor).visibility)
+    draw(activity,"whole-floor-option",1920,864)
+    for(id in listOf(R.id.localWholeFloor,R.id.localSaveArea,R.id.localRedraw,R.id.localCancelArea)) {
+      val v=activity.findViewById<View>(id);val pos=IntArray(2);v.getLocationOnScreen(pos)
+      assertTrue("Floor step action $id clipped: y=${pos[1]}, h=${v.height}",pos[1]>=0 && pos[1]+v.height<=864)
+    }
+    click(R.id.localWholeFloor)
+    assertEquals(0,court.editing);assertEquals(expected,activity.testConfig().polygon)
+    assertEquals(wholeImageFloorLine(),activity.testConfig().floorLine)
+    assertTrue(LocalGeometry.excludedFloorRegion(activity.testConfig().floorLine).isEmpty())
+    assertEquals(View.GONE,activity.findViewById<View>(R.id.localEditor).visibility)
+    controller.pause().stop().destroy()
+  }
+  @Test fun sceneNeedsExplicitConfirmationAndKeepsHistoryWhenRearmed() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture());shadowOf(Looper.getMainLooper()).idle()
+    val config=LocalSettings(polygon=area,floorLine=wholeImageFloorLine())
+    val old=LocalImpact(1,1.0,CourtPoint(.2,.8),5.0,LineCall.IN,8.0,2.0,"Historical contact",ContactSurface.FLOOR)
+    fun set(name:String,value:Any){LocalTrainingActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)}
+    set("config",config);set("session",LocalSession(events=listOf(old)));set("analyzing",true)
+    val court=activity.findViewById<LocalCourtView>(R.id.localVideo);court.settings=config;court.events=listOf(old)
+    val blocked=LocalResult(null,null,emptyList(),null,true,null,"View changed",activeArea=config,areaNeedsConfirmation=true)
+    activity.receiveFrame(fixture().copy(result=blocked));shadowOf(Looper.getMainLooper()).idle()
+    assertEquals(View.VISIBLE,activity.findViewById<View>(R.id.localConfirmArea).visibility)
+    assertEquals(1,activity.testSession().events.size)
+    // No hardware is involved in this UI fixture; validate a paused confirmation.
+    set("analyzing",false);activity.findViewById<Button>(R.id.localConfirmArea).performClick();shadowOf(Looper.getMainLooper()).idle()
+    assertEquals(config,activity.testConfig());assertEquals(listOf(old),activity.testSession().events)
+    assertTrue("Old-coordinate marks must not be restored",court.events.isEmpty())
+    assertEquals(View.GONE,activity.findViewById<View>(R.id.localConfirmArea).visibility)
+    assertEquals(0,activity.testSoundCount())
+    controller.pause().stop().destroy()
+  }
   @Test fun reviewingHistoryAfterReferenceResetDoesNotRestoreOldContactMarks() {
     val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
     val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
