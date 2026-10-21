@@ -1,0 +1,46 @@
+{
+  "version": "0.6.17",
+  "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39546388790",
+  "tests": 11,
+  "failures": 0,
+  "attempt": 2,
+  "physicalDevice": false,
+  "android": "15",
+  "api": 35,
+  "model": "sdk_gphone64_x86_64",
+  "auditHasInternetPermission": false,
+  "pipeline": {
+    "source": "synthetic H264 MP4 decoded by Android MediaCodec; no lens ground-truth claim",
+    "frames": 191,
+    "calls": "IN, OUT, REVIEW",
+    "p50AnalysisMs": 5.951621,
+    "p95AnalysisMs": 24.138498,
+    "outAudioEnqueued": 1,
+    "note": "SoundPool accepted playback; human audibility on a physical phone not verified",
+    "android": "15"
+  },
+  "lifecycle": {
+    "kind": "Android emulator lifecycle test",
+    "offlineBeforeLaunch": true,
+    "batterySaverBeforeLaunch": true,
+    "batteryPluggedBeforeLaunch": 0,
+    "batteryStatusBeforeLaunch": 3,
+    "batteryLevelBeforeLaunch": 50,
+    "screenBecameNonInteractive": true,
+    "screenInteractiveAfterWake": true,
+    "batterySaverAfterWake": true,
+    "offlineAfterWake": true
+  },
+  "cameraSnapshot": {
+    "kind": "camera UI exercise; scene is not labelled tennis footage",
+    "device": "sdk_gphone64_x86_64",
+    "android": "15",
+    "metrics": "1280 × 720 · 9 FPS recebidos · até 30 solicitados\nConversão 77.7 ms · detecção 106.0 ms\nEquilibrada · campo 51° · câmera 1 · sem computador\nExposição recente 4.5 ms · captura → UI ≈170 ms\nBola ≈144 px · detalhe insuficiente para decisão automática"
+  },
+  "wholeImageFloorEditorExercised": true,
+  "limits": [
+    "Emulated Android. Synthetic H264 decoded by MediaCodec, not real-ball accuracy.",
+    "No physical phone FPS or audio audibility proof."
+  ]
+}

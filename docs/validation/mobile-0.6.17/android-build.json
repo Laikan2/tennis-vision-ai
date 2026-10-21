@@ -1,0 +1,29 @@
+{
+  "version": "0.6.17",
+  "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3",
+  "jvmTests": {
+    "tests": 282,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "pythonRegressionTests": 28,
+  "apk": {
+    "version": "0.6.17",
+    "versionCode": 30,
+    "filename": "Tennis-Vision-Camera-Android-v0.6.17.apk",
+    "bytes": 3252832,
+    "sha256": "40e772cf47d697eac8b40b2c5bbb355372e898a1e375a21e67a5cb7b882c7fb0",
+    "certificateSha256": "faf843630ad0a52fef6ca4f844cae592e3da1e266b7b823f481c34d3b2049ce9",
+    "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3"
+  },
+  "actualManifestAndSignatureVerified": true,
+  "voiceAssetsVerifiedInAPK": true,
+  "lint": {
+    "Warning": 156
+  },
+  "physicalAndroidTest": false,
+  "limits": [
+    "JVM/UI controls are not physical camera or ball accuracy."
+  ]
+}

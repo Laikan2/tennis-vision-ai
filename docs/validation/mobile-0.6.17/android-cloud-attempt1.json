@@ -1,0 +1,12 @@
+{
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39546388790/attempts/1",
+  "attempt": 1,
+  "mainTests": 9,
+  "mainFailures": 7,
+  "permissionTests": 2,
+  "permissionFailures": 2,
+  "pixelLauncherANRVisibleInLog": true,
+  "systemDialogInterceptedApplicationTouches": true,
+  "functionalValidationCompleted": false,
+  "action": "Started a new independent emulator attempt without weakening assertions or suppressing ANRs"
+}

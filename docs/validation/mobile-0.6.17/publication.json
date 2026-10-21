@@ -1,0 +1,53 @@
+{
+  "version": "0.6.17",
+  "iosBuild": "18",
+  "androidCode": 30,
+  "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3",
+  "verifiedAtUTC": "2026-10-21T05:10:49.953000+00:00",
+  "release": "https://github.com/Laikan2/tennis-vision-releases/releases/tag/mobile-v0.6.17",
+  "public": true,
+  "assets": [
+    {
+      "name": "Tennis-Vision-Camera-Android-v0.6.17.apk",
+      "bytes": 3252832,
+      "sha256": "40e772cf47d697eac8b40b2c5bbb355372e898a1e375a21e67a5cb7b882c7fb0",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.17/Tennis-Vision-Camera-Android-v0.6.17.apk"
+    },
+    {
+      "name": "Tennis-Vision-Camera-iOS-v0.6.17-AltStore.ipa",
+      "bytes": 868325,
+      "sha256": "b11e711aa09c723b9c445397fe1aa77d0426dbd7b9572035ae0cf9cfdb96adeb",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.17/Tennis-Vision-Camera-iOS-v0.6.17-AltStore.ipa"
+    },
+    {
+      "name": "Tennis-Vision-Camera-iOS-v0.6.17-Projeto.zip",
+      "bytes": 204377,
+      "sha256": "d40805390a84558e2fb792dff75390770744fd4ded5817b022c2d57d62544738",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.17/Tennis-Vision-Camera-iOS-v0.6.17-Projeto.zip"
+    },
+    {
+      "name": "mobile-v0.6.17.json",
+      "bytes": 1006,
+      "sha256": "e8fd5fe22b8fc009f3f4c13813cfe35fd179fcfc5873787fdf2444b74e610a27",
+      "url": "https://github.com/Laikan2/tennis-vision-releases/releases/download/mobile-v0.6.17/mobile-v0.6.17.json"
+    }
+  ],
+  "apkAndIpaPublicDownloadsVerifiedByPublisher": true,
+  "publicAssetSizesAndDigestsRechecked": true,
+  "canonicalAltStoreURL": "https://raw.githubusercontent.com/Laikan2/tennis-vision-releases/main/altstore.json",
+  "canonicalFeedReadWithoutCache": true,
+  "altStoreVersion": "0.6.17",
+  "altStoreBuild": "18",
+  "altStoreDownloadURLAndSizeMatchIPA": true,
+  "projectContainsOnlyTrackedPaths": true,
+  "projectTrackedFiles": 72,
+  "windowsLatest": "v0.6.11",
+  "installationOfThisBuildVerified": false,
+  "physicalValidationOfThisBuild": false,
+  "phoneUseDeferredAtUserRequest": true,
+  "notes": [
+    "No physical phone was accessed.",
+    "Unsigned IPA requires personal signing/confirmation in AltStore.",
+    "Private screen recordings are not bundled or published."
+  ]
+}

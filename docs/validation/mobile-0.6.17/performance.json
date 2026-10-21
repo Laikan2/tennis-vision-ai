@@ -1,0 +1,30 @@
+{
+  "version": "0.6.17",
+  "sourceCommit": "db4f0c183cd21caa1b96235ea01c3552ec871ee3",
+  "run": "https://github.com/Laikan2/tennis-vision-ai/actions/runs/39546388956",
+  "baselineCommit": "76ffd74374a2ffbb4f538aa9b57af83106a3692b",
+  "scenesPerOrder": 12,
+  "executionOrders": 2,
+  "referenceDetectionsAndContactsIdentical": true,
+  "allReferenceFrameOutputsIdentical": false,
+  "intentionalVelocityChangedFramesByOrder": [
+    24,
+    24
+  ],
+  "speedupRangeByOrder": [
+    {
+      "min": 3.771733504083,
+      "max": 8.243898271439727
+    },
+    {
+      "min": 4.314351436129462,
+      "max": 7.968203628606556
+    }
+  ],
+  "sanitizedBufferTests": {
+    "tests": 2,
+    "failures": 0
+  },
+  "physicalIPhoneBenchmarkOfThisBuild": false,
+  "scope": "12 generated scenes on Apple CI against 0.6.10; not phone FPS, full latency or a direct 0.6.16 performance comparison."
+}
