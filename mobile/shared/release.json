@@ -1,6 +1,6 @@
 {
-  "version": "0.6.17",
-  "baseline": "contact-surfaces-and-visible-floor-0.6.17",
+  "version": "0.6.18",
+  "baseline": "texture-aware-tracking-and-contact-diagnostics-0.6.18",
   "platforms": [
     "android",
     "ios"
@@ -71,7 +71,14 @@
     "explicit-area-reconfirmation",
     "time-supported-wall-return",
     "numbered-impact-crosshair",
-    "fullscreen-latest-contact-speed"
+    "fullscreen-latest-contact-speed",
+    "patterned-clothing-context",
+    "local-olive-felt-contrast",
+    "appearance-gated-fast-association",
+    "floor-wall-boundary-separation",
+    "live-track-id-and-contact-diagnostics",
+    "surface-coloured-impact-pulse",
+    "configurable-marker-duration"
   ],
   "installation": {
     "android": "apk-confirmation",

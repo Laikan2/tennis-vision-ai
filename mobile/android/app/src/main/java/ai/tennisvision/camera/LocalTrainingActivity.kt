@@ -110,6 +110,9 @@ class LocalTrainingActivity: AppCompatActivity() {
     // Session files are bounded; loading is delegated to disk, not camera startup.
     disk.execute { val saved=store.current(); main.post { if (!closed) { session=saved; sessionLoaded=true; renderStats(); store.warning?.let(::showError) } } }
     court=findViewById(R.id.localVideo); status=findViewById(R.id.localStatus); metrics=findViewById(R.id.localMetrics); start=findViewById(R.id.localStart)
+    val diagnosticsPrefs=getSharedPreferences("local-diagnostics",MODE_PRIVATE)
+    court.debugOverlay=diagnosticsPrefs.getBoolean("visible",false)
+    court.markerDurationSeconds=diagnosticsPrefs.getInt("marker-seconds",0)
     camera=LocalCamera(this,{ key -> store.settings(key) },::receiveFrame) { message -> main.post { if (!closed && foreground) { pauseAnalysis(); frameReady=false; showError(message); start.text="Reabrir câmera"; start.isEnabled=true } } }
     updates=CameraUpdates(this)
     ContextCompat.registerReceiver(this,screenReceiver,IntentFilter().apply {
@@ -256,6 +259,7 @@ class LocalTrainingActivity: AppCompatActivity() {
       frame.exposureMs?.let { diagnostics.add(String.format(Locale.getDefault(),"Exposição recente %.1f ms",it)) }
       ageMs?.takeIf { it in 0.0..10000.0 }?.let { diagnostics.add("captura → UI ≈${it.toInt()} ms") }
       if(diagnostics.isNotEmpty()) metrics.append("\n"+diagnostics.joinToString(" · "))
+      if(court.debugOverlay)metrics.append("\n"+currentResult.diagnostics.summary+"\nEscore visual = suporte da silhueta; não é probabilidade calibrada")
       frame.result.observed?.let { ball ->
         metrics.append("\nBola ≈${(ball.radius*2).toInt()} px · "+if(ball.resolved) "observada" else "detalhe insuficiente para decisão automática")
       }
@@ -408,7 +412,8 @@ class LocalTrainingActivity: AppCompatActivity() {
     pauseAnalysis()
     val choices=arrayOf("Superfície: ${when(config.surface) { ContactSurface.FLOOR->"chão"; ContactSurface.WALL->"parede (revisão)"; else->"somente rastrear" }}",
       "Vozes IN / OUT · ElevenLabs","Marcas na imagem: ${if (config.marks) "visíveis" else "ocultas"}",
-      "Perfil de captura / bateria","Começar nova sessão","Exportar sessão (JSON)","Transmitir para PC (opcional)","Como usar sem computador")
+      "Perfil de captura / bateria","Começar nova sessão","Exportar sessão (JSON)","Transmitir para PC (opcional)","Como usar sem computador",
+      "Diagnóstico ao vivo: ${if(court.debugOverlay) "ligado" else "desligado"}","Duração das marcas: ${if(court.markerDurationSeconds==0) "sessão" else "${court.markerDurationSeconds} s"}")
     AlertDialog.Builder(this).setTitle("Seu treino local").setItems(choices) { _,which -> when(which) {
       0 -> AlertDialog.Builder(this).setTitle("Superfície observada").setItems(arrayOf("Chão · quicadas","Parede · candidatos para revisão","Somente rastrear · sem impactos")) { _,i ->
         config=court.visibleSettings.selectingSurface(ContactSurface.entries[i]);areaConfirmed=false;court.resetReference();persistConfig()
@@ -420,6 +425,11 @@ class LocalTrainingActivity: AppCompatActivity() {
         .setPositiveButton("Começar") { _,_ -> beginNewSession() }.setNegativeButton("Cancelar",null).show()
       5 -> exportFile.launch("Tennis-Vision-${session.id}.json")
       6 -> { camera.stop(); startActivity(Intent(this,MainActivity::class.java)) }
+      8 -> {court.debugOverlay=!court.debugOverlay;getSharedPreferences("local-diagnostics",MODE_PRIVATE).edit().putBoolean("visible",court.debugOverlay).apply();court.invalidate()}
+      9 -> AlertDialog.Builder(this).setTitle("Duração das marcas na imagem").setItems(arrayOf("5 segundos","15 segundos","30 segundos","Toda a sessão")) {_,i->
+        court.markerDurationSeconds=listOf(5,15,30,0)[i]
+        getSharedPreferences("local-diagnostics",MODE_PRIVATE).edit().putInt("marker-seconds",court.markerDurationSeconds).apply();court.invalidate()
+      }.setMessage(null).show()
       7 -> AlertDialog.Builder(this).setTitle("Treino sem PC").setMessage("QUADRA\n1. Celular fixo e na horizontal, com os quatro cantos e margem para bolas fora.\n2. Ajuste lente e detalhe em Enquadramento.\n3. Toque em Marcar quadra: inteira ou metade. Toque nos quatro cantos ao redor do piso; ajuste com a lupa e salve.\n4. Confira a área e inicie.\n\nQUARTO\nUse Marcar chão: arraste a área, avance e indique o limite parede/piso. Use Marcar parede para a área de contato na parede. As duas marcações ficam separadas somente nesta sessão; nova sessão ou fechar o app limpa as áreas. Troque a superfície em Ajustes. Candidatos de parede exigem revisão.\n\nA busca cobre a imagem inteira. Bola minúscula, borrão, mão, perda de quadros e contato incerto exigem revisão. O contorno da área não prova sozinho que uma bola tocou o chão. IN/OUT refere-se à área marcada, sem regras automáticas de saque.\n\nPequenas translações com fundo texturizado são compensadas durante o treino. Reposicionar ou girar o celular exige conferir e remarcar. Uma lente ampla mostra mais, mas deixa a bola menor. Velocidade lateral estimada pela bola de 67 mm; não mede um saque em 3D.\n\nTela bloqueada ou outro app pausa e salva. Internet só é usada nas atualizações opcionais.")
         .setPositiveButton("Entendi",null).show()
     } }.setNegativeButton("Fechar",null).show()

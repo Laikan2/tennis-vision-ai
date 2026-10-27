@@ -24,9 +24,10 @@ data class BallObservation(val x: Double, val y: Double, val radius: Double,
   val motionSupport: Double=1.0, val occluded: Boolean=false,
   val colorUncertain: Boolean=false,
   val diameterX: Double=0.0,val diameterY: Double=0.0,val distinctFelt: Boolean=false,val feltChroma: Double=0.0,
-  val greenDominant: Boolean=false) {
-  val resolved get()=!occluded && !colorUncertain && radius>=2.5 && confidence>=.5
-  val supportsBallColor get()=greenDominant || feltChroma>=107
+  val greenDominant: Boolean=false, val contrastFelt: Boolean=false,
+  val patterned: Boolean=false) {
+  val resolved get()=!occluded && !colorUncertain && !patterned && radius>=2.5 && confidence>=.5
+  val supportsBallColor get()=greenDominant || feltChroma>=107 || contrastFelt
 }
 data class LocalImpact(val id: Long, val time: Double, val point: CourtPoint,
   val radius: Double, val call: LineCall, val speedKmh: Double?,
@@ -40,7 +41,7 @@ data class LocalResult(val observed: BallObservation?, val predicted: CourtPoint
   val trail: List<CourtPoint>, val impact: LocalImpact?, val movingCamera: Boolean,
   val speedKmh: Double?, val message: String,
   val activeArea: LocalSettings?=null, val cameraOffset: CourtPoint=CourtPoint(0.0,0.0),
-  val areaNeedsConfirmation:Boolean=false)
+  val areaNeedsConfirmation:Boolean=false, val diagnostics:TrackingDiagnostics=TrackingDiagnostics())
 
 object LocalGeometry {
   fun impactPoint(event: LocalImpact,offset: CourtPoint)=CourtPoint(
@@ -265,7 +266,7 @@ class GreenBallDetector {
       if (mask[seed].toInt() != 1 || strongGreen[seed].toInt()!=1 || pass==0 && (chroma[seed].toInt() and 255)<82) continue
       var head = 0; var tail = 1; queue[0] = seed; mask[seed] = 0
       var xmin = width; var xmax = 0; var ymin = height; var ymax = 0
-      var sumX = 0.0; var sumY = 0.0; var sumLight=0.0; var sumChroma=0L;var sumRed=0L;var sumGreen=0L; var changed = 0
+      var sumX = 0.0; var sumY = 0.0; var sumLight=0.0; var sumChroma=0L;var sumRed=0L;var sumGreen=0L;var sumBlue=0L; var changed = 0
       var strongCount=0;var weightSum=0.0;var weightedX=0.0;var weightedY=0.0
       var strongXmin=width;var strongXmax=-1;var strongYmin=height;var strongYmax=-1
       while (head < tail) {
@@ -273,7 +274,7 @@ class GreenBallDetector {
         xmin = min(xmin, x); xmax = max(xmax, x); ymin = min(ymin, y); ymax = max(ymax, y)
         sumX += x; sumY += y; sumLight+=luminance(pixels[i])
         sumChroma+=(chroma[i].toInt() and 255)
-        sumRed+=((pixels[i] shr 16)and 255);sumGreen+=((pixels[i] shr 8)and 255)
+        sumRed+=((pixels[i] shr 16)and 255);sumGreen+=((pixels[i] shr 8)and 255);sumBlue+=(pixels[i]and 255)
         if(strongGreen[i].toInt()==1) {
           strongCount++;strongXmin=min(strongXmin,x);strongXmax=max(strongXmax,x)
           strongYmin=min(strongYmin,y);strongYmax=max(strongYmax,y)
@@ -338,6 +339,10 @@ class GreenBallDetector {
       val followed = prior != null && time-prior.time < .14 && hypot(x-prior.x,y-prior.y) < max(30.0, prior.radius*6)
       if(aspect>4.5 && changed<tail*.25 && !followed) continue
       var skin = 0; var movingSkin = 0; var ring = 0;var closeRing=0;var closeGrip=0
+      var surroundChroma=0L;var surroundCount=0
+      val needsContrast=radius>=2.5 && aspect<=1.9 && fill in .50.. .90 &&
+        sumChroma.toDouble()/tail<107 && sumGreen<sumRed*1.05 &&
+        strongCount>=tail*.55 && sumGreen>=sumRed*.75 && sumGreen>=sumBlue*1.8
       val reach = max(6, (radius*2.4).toInt())
       for (py in max(0,y.toInt()-reach)..min(height-1,y.toInt()+reach) step 2)
         for (px in max(0,x.toInt()-reach)..min(width-1,x.toInt()+reach) step 2) {
@@ -345,6 +350,7 @@ class GreenBallDetector {
           if (distance < radius*1.2) continue
           val c = pixels[py*width+px]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
           ring++
+          if(needsContrast && distance>=radius*1.8) { surroundChroma+=max(0,g-b)*255/max(1,max(r,g));surroundCount++ }
           if(distance<=radius*1.8) {
             closeRing++
             if(gripSkin(c) && strongGreen[py*width+px].toInt()==0)closeGrip++
@@ -384,13 +390,19 @@ class GreenBallDetector {
       }
       val closeGripPresent=closeRing>=4 && closeGrip>=closeRing*.08 &&
         (if(radius<6)smallGripBounded else closeGrip<=closeRing*.65)
+      // Exposure changes yellow felt to olive. Absolute chroma alone rejects
+      // that ball while preferring brighter printed clothing. Require a compact
+      // silhouette AND local chroma separation; warm wood without a boundary
+      // cannot acquire a track by satisfying the broad colour mask alone.
+      val contrastFelt=needsContrast && surroundCount>0 &&
+        sumChroma.toDouble()/tail-surroundChroma.toDouble()/surroundCount>=32
       // Warm floor colours cannot keep a previous hand attached after release.
       // Each observation needs present grip, partial silhouette or moving skin.
       found.add(BallObservation(x,y,radius,time,if(haloOnly) min(fill,.45) else if(min(w,h)<5) min(fill,.6) else fill.coerceAtMost(.95),
         closePartial || closeGripPresent || ring > 0 && skin > ring*.18 && (movingSkin > ring*.12 || boundedGrip), aspect>1.6,sumLight/tail,
         if(previous.isEmpty()) 0.0 else changed.toDouble()/tail,colorUncertain=haloOnly,diameterX=w.toDouble(),diameterY=h.toDouble(),
         distinctFelt=closePartial || radius>=2.5 && aspect<=1.6 && fill>=.55 && saturated,occluded=closePartial || seamFragment,
-        feltChroma=sumChroma.toDouble()/tail,greenDominant=sumGreen>=sumRed*1.05))
+        feltChroma=sumChroma.toDouble()/tail,greenDominant=sumGreen>=sumRed*1.05,contrastFelt=contrastFelt))
       bounds.add(intArrayOf(xmin,ymin,xmax,ymax));masses.add(tail)
     }
     // Fingers or a dark printed seam can split one ball into two components.
@@ -440,7 +452,8 @@ class GreenBallDetector {
           min(if(matchSeam).8 else .6,min(a.confidence,b.confidence)),nearHand=!matchSeam || a.nearHand || b.nearHand,luminance=a.luminance*weight+b.luminance*(1-weight),
           motionSupport=max(a.motionSupport,b.motionSupport),occluded=!matchSeam,
           diameterX=(max(aa[2],bb[2])-min(aa[0],bb[0])+1).toDouble(),diameterY=(max(aa[3],bb[3])-min(aa[1],bb[1])+1).toDouble(),
-          distinctFelt=matchSeam,feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight),greenDominant=a.greenDominant && b.greenDominant))
+          distinctFelt=matchSeam,feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight),greenDominant=a.greenDominant && b.greenDominant,
+          contrastFelt=a.contrastFelt && b.contrastFelt))
       }
       found.clear();found.addAll(joined)
     }
@@ -449,6 +462,20 @@ class GreenBallDetector {
       // incomplete edge region is ambiguous too, not an isolated small target.
       val margin=max(max(6.0,b.radius*3),min(box[2]-box[0]+1,box[3]-box[1]+1)*.35)
       b.x>=box[0]-margin && b.x<=box[2]+margin && b.y>=box[1]-margin && b.y<=box[3]+margin } }
+    // A bright fleck embedded in a cluster of similar fragments is ambiguous
+    // visual texture, not a new ball. Bound neighbour work in very busy frames;
+    // large resolved balls are retained and two separate balls stay ambiguous.
+    val texture=found.filter { it.radius<=12 && it.feltChroma>=45 }.take(192)
+    for(i in found.indices) {
+      val b=found[i];if(b.radius>12 || b.occluded)continue
+      val reach=max(24.0,b.radius*6);var neighbours=0;var mass=0.0
+      for(q in texture) {
+        if(q===b || q.radius>b.radius*2.5 || hypot(q.x-b.x,q.y-b.y)>reach)continue
+        neighbours++;mass+=q.radius*q.radius
+        if(neighbours>=3 && mass>=b.radius*b.radius*.35)break
+      }
+      if(neighbours>=3 && mass>=b.radius*b.radius*.35)found[i]=b.copy(patterned=true)
+    }
     if (previous.size != pixels.size) previous = IntArray(pixels.size)
     pixels.copyInto(previous)
     val reusable=previousGreen;previousGreen=rawGreen;rawGreen=reusable
@@ -472,16 +499,41 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var acquisition: BallObservation?=null
   private var tinyAcquisition: BallObservation?=null
   private var motionAcquisition: BallObservation?=null
+  private var trackSerial=0L
+  private var contactReason="Aguardando trajetória"
+  private var debugCandidates=emptyList<BallObservation>()
+  private var usableCandidates=0
+  private var rejectedTurn=false
+  private fun diagnosed(r:LocalResult):LocalResult {
+    val state=when {
+      r.movingCamera -> "CÂMERA INSTÁVEL"
+      r.impact!=null -> r.impact.evidence.name
+      rejectedTurn -> "DIREÇÃO ALTERADA · SEM CONTATO"
+      r.observed?.nearHand==true -> "NA MÃO · SEM IMPACTO"
+      r.observed!=null -> "OBSERVADO"
+      r.predicted!=null -> "PREVISTO · SEM MEDIÇÃO"
+      lost!=null -> "RASTREAMENTO PERDIDO"
+      else -> "BUSCANDO"
+    }
+    return r.copy(diagnostics=TrackingDiagnostics(trackSerial.takeIf{path.isNotEmpty()},state,
+      debugCandidates.size,usableCandidates,debugCandidates.count{it.patterned},contactReason,debugCandidates.take(12)))
+  }
+  private fun rejectContact(reason:String):LocalImpact? {contactReason=reason;rejectedTurn=true;return null}
   val activeSettings get()=settings.translated(offset)
   fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
   fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
   fun process(pixels: IntArray, width: Int, height: Int, time: Double): LocalResult {
+    if(width !in 1..8192 || height !in 1..8192 || pixels.size.toLong()!=width.toLong()*height || !time.isFinite())
+      return LocalResult(null,null,emptyList(),null,false,null,"Quadro ou timestamp inválido · descartado")
     if (dimensions != width to height) { reset(); dimensions = width to height }
     if (!time.isFinite() || time <= lastFrame) return LocalResult(null,null,emptyList(),null,false,null,"Timestamp repetido: quadro descartado")
     if (lastFrame >= 0 && time-lastFrame > .25) path.clear()
     lastFrame = time
+    contactReason=if(settings.surface==ContactSurface.TRACK) "Contagem desligada · somente rastrear" else "Aguardando descida/aproximação e retorno observados"
+    rejectedTurn=false
     val (components, cameraMoved) = detector.detect(pixels,width,height,time,path.lastOrNull(),activeSettings.polygon)
+    debugCandidates=components
     val motion=detector.alignment
     var sceneChanged=cameraMoved || motion.large
     if(motion.reliable && (motion.dx!=0 || motion.dy!=0)) {
@@ -506,8 +558,9 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
         CourtPoint(last.x+(last.x-before.x)*f,last.y+(last.y-before.y)*f)
       } else CourtPoint(last.x,last.y)
     } else null
-    val candidates=components.filter { b -> b.supportsBallColor || weakReference!=null &&
-      hypot(b.x-weakReference.x,b.y-weakReference.y)<=max(12.0,(last?.radius ?: 0.0)*3) }
+    val candidates=components.filter { b -> !b.patterned && (b.supportsBallColor || weakReference!=null &&
+      hypot(b.x-weakReference.x,b.y-weakReference.y)<=max(12.0,(last?.radius ?: 0.0)*3)) }
+    usableCandidates=candidates.size
     var previous = path.lastOrNull()
     // A tiny printed/highlight island must not lock out the now resolved
     // silhouette containing it. This is an ownership change, never a bounce.
@@ -560,7 +613,16 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
         val dt=time-previous.time
         val step=prior2?.let { hypot(previous.x-it.x,previous.y-it.y)*dt/(previous.time-it.time) } ?: 0.0
         val timeGate=width*(.12*max(1.0,dt*60)).coerceAtMost(.23)
-        val gate=if(previous.nearHand) width*.36 else min(width*.23,max(timeGate,step*1.8+previous.radius*4))
+        val uniqueFast=prior2==null && acquiring.size==1 && previous.resolved && b.resolved &&
+          b.motionSupport>=.25 && b.radius/previous.radius in .75..1.33 &&
+          abs(b.feltChroma-previous.feltChroma)<35 && b.luminance/max(1.0,previous.luminance) in .65..1.5
+        val predictedFast=prior2!=null && b.resolved && b.motionSupport>=.25 && dt<=.075 &&
+          hypot(b.x-prediction!!.x,b.y-prediction.y)<max(12.0,step*.35+previous.radius*2)
+        // Fast balls must not be rejected merely for moving >12% of the image
+        // in one observed frame. Extra reach needs a unique matching silhouette
+        // or a supported velocity prediction, never a fabricated position.
+        val gate=if(previous.nearHand) width*.36 else if(uniqueFast)width*.28 else if(predictedFast)
+          min(width*.5,max(timeGate,step*1.5+previous.radius*4)) else min(width*.23,max(timeGate,step*1.8+previous.radius*4))
         if(hypot(b.x-previous.x,b.y-previous.y)>gate) null
         else b to (hypot(b.x-prediction!!.x,b.y-prediction.y)+abs(b.radius-previous.radius)*4)
       }
@@ -596,18 +658,19 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       // brief loss near contact. This does not extend the visible prediction.
       val hold=if(canBridgeFloorLoss()) .16 else .10
       if (age > hold) { lost=previous ?: lost;path.clear() }
-      return LocalResult(null, prediction?.takeIf { age < .06 }, path.takeLast(16).map { CourtPoint(it.x,it.y) },
-        null,blocked,null,if(scene.needsConfirmation) "Treino ativo · confira a área; impactos suspensos" else if(blocked) "Treino ativo · aguardando imagem estável" else if(candidates.size>1) "Alvos verdes ambíguos · aguardando continuidade" else "Bola não localizada · sem inventar posição",activeSettings,offset,scene.needsConfirmation)
+      return diagnosed(LocalResult(null, prediction?.takeIf { age < .06 }, path.takeLast(16).map { CourtPoint(it.x,it.y) },
+        null,blocked,null,if(scene.needsConfirmation) "Treino ativo · confira a área; impactos suspensos" else if(blocked) "Treino ativo · aguardando imagem estável" else if(candidates.size>1) "Alvos verdes ambíguos · aguardando continuidade" else "Bola não localizada · sem inventar posição",activeSettings,offset,scene.needsConfirmation))
     }
     if (previous != null && (time-previous.time > .25 || ball.radius/previous.radius !in
       (if(previous.nearHand || previous.occluded) .35..3.5 else .48..2.1))) path.clear()
     if(!ball.supportsBallColor)ball=ball.copy(colorUncertain=true)
+    if(path.isEmpty())trackSerial++
     path.add(ball)
     lost=null;acquisition=null
     while (path.size > 160 || (path.isNotEmpty() && time-path.first().time > .6)) path.removeAt(0)
     val impact = if (!blocked) contact(width,height) else null
     val speed = speed(path)
-    return LocalResult(ball,null,path.takeLast(16).map { CourtPoint(it.x,it.y) }, impact,blocked,speed,
+    return diagnosed(LocalResult(ball,null,path.takeLast(16).map { CourtPoint(it.x,it.y) }, impact,blocked,speed,
       when {
         scene.needsConfirmation -> "Treino ativo · confira a área em Marcar área; impactos suspensos"
         blocked -> "Treino ativo · aguardando a imagem estabilizar; impactos suspensos"
@@ -618,7 +681,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
         ball.nearHand -> "Bola próxima à mão: impacto suspenso"
         ball.blurred -> "Bola borrada observada · velocidade indisponível"
         else -> "Bola observada"
-      },activeSettings,offset,scene.needsConfirmation)
+      },activeSettings,offset,scene.needsConfirmation))
   }
 
   private fun speed(points: List<BallObservation>): Double? {
@@ -646,15 +709,18 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
 
   private fun contact(width: Int, height: Int): LocalImpact? {
     if (settings.surface == ContactSurface.TRACK || path.size < 5) return null
-    val p = (if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()) ?: return null
+    val p = (if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()) ?: run {
+      contactReason=if(path.any{it.nearHand || it.occluded}) "Mão/oclusão na trajetória · aguardando voo livre" else "Sem retorno coerente observado dos dois lados do contato"
+      return null
+    }
     val evidence=path.filter{it.time>=p.first().time && it.time<=p.last().time}
     val a=p[0]; val b=p[1]; val c=p[2]; val d=p[3]; val e=p[4]
     // REVIEW is a contact claim too: require colour-supported observations
     // before and after the turn, not just one coloured sample at its centre.
     if(evidence.none{it.time<c.time && it.supportsBallColor} ||
-      evidence.none{it.time>c.time && it.supportsBallColor}) return null
+      evidence.none{it.time>c.time && it.supportsBallColor}) return rejectContact("Cor/forma sem suporte nos dois lados do retorno")
     if (c.time-lastImpact < .18 || e.time-a.time > .65 || c.nearHand || (d.nearHand && e.nearHand) ||
-      evidence.zipWithNext().any { (left,right) -> right.time-left.time > .25 }) return null
+      evidence.zipWithNext().any { (left,right) -> right.time-left.time > .25 }) return rejectContact("Retorno duplicado, ocluso ou sem continuidade temporal")
     val travel = max(3.0,c.radius*.7)
     val floorTurn = c.y-a.y > travel && c.y-e.y > travel && b.y >= a.y && d.y >= e.y &&
       c.y>=b.y && c.y>=d.y
@@ -691,12 +757,19 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val uncertainty=max(2.0,c.radius*.3 + (if (c.blurred) c.radius*.6 else 0.0) +
       (fit?.error ?: 0.0) + localization + missing)
     val region=activeSettings
+    // The floor boundary separates physical planes; the IN target polygon
+    // must not suppress real contacts outside the target.
+    if(settings.surface==ContactSurface.WALL) {
+      val distance=LocalGeometry.floorDistancePx(point,region.floorLine,width,height)
+      if(distance!=null && distance>uncertainty+c.radius)
+        return rejectContact("Retorno sobre o piso no modo parede · selecione Chão")
+    }
     val floorDistance=if(settings.surface==ContactSurface.FLOOR && settings.court==CourtLayout.CUSTOM)
       LocalGeometry.floorDistancePx(point,region.floorLine,width,height) else null
     // A reversal clearly above a marked floor is not even a floor-contact candidate.
     // Keep near-boundary uncertainty for review and continue detecting outside the IN polygon.
     if (floorDistance!=null && floorDistance + uncertainty < 0.0) {
-      floorBoundaryNoticeUntil=lastFrame+.8;return null
+      floorBoundaryNoticeUntil=lastFrame+.8;return rejectContact("Retorno acima do limite do piso · sem evidência de contato com o chão")
     }
     var call=LocalGeometry.classify(point,c.radius,uncertainty,region.polygon,width,height)
     val courtKnown=settings.court!=CourtLayout.CUSTOM && LocalGeometry.projectedPolygon(region.polygon)
@@ -724,6 +797,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(path.filter{it.time<=c.time}),uncertainty,reason,settings.surface,
       cameraOffset=offset,evidenceOffset=offset)
     lastImpact=contactTime
+    contactReason=reason
     floorBoundaryNoticeUntil = -1.0
     path.removeAll { it.time <= c.time }
     return result

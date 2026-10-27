@@ -53,12 +53,22 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   var viewportHeightLimit=Int.MAX_VALUE
     set(value){if(field!=value){field=value;forceLayout()}}
   var settings=LocalSettings()
+  var debugOverlay=false
+  var markerDurationSeconds=0
+  private val arrivals=mutableMapOf<Long,Long>()
+  private fun activeMarks():List<LocalImpact> {
+    val now=android.os.SystemClock.elapsedRealtime()
+    return events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface &&
+      (markerDurationSeconds==0 || now-(arrivals[it.id] ?: 0L)<markerDurationSeconds*1000L) }.takeLast(24)
+  }
   val visibleSettings get()=result?.referencedTo(settings)?.activeArea ?: settings
   var events: List<LocalImpact> = emptyList()
     set(value) {
       val previous=field.map { it.id }.toSet()
       val now=android.os.SystemClock.elapsedRealtime()
       value.filter { it.id !in previous && it.decision!=LineCall.REJECTED }.forEach { pulses[it.id]=now }
+      value.filter { it.id !in previous }.forEach { arrivals[it.id]=now }
+      arrivals.keys.retainAll(value.map { it.id }.toSet())
       pulses.keys.retainAll(value.map { it.id }.toSet())
       field=value
       invalidate()
@@ -142,7 +152,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     if (image==null) return super.onTouchEvent(event)
     if (editing==0) {
       if (event.actionMasked==MotionEvent.ACTION_UP && settings.marks) {
-        events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.minByOrNull { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); hypot(s.x-event.x,s.y-event.y) }
+        activeMarks().minByOrNull { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); hypot(s.x-event.x,s.y-event.y) }
           ?.let { e -> val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); if (hypot(s.x-event.x,s.y-event.y)<28*resources.displayMetrics.density) onImpact?.invoke(e.id) }
         performClick()
       }
@@ -194,6 +204,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     val regionColor=if(displayed.surface==ContactSurface.WALL) Color.rgb(185,140,255) else cyan
     val area=if (editing==1 || editing==3) draft else displayed.polygon
     line(area,area.size==4,regionColor,area.size==4)
+    if(debugOverlay && editing==0) {
+      displayed.floorPolygon?.let { line(it,true,cyan) }
+      displayed.wallPolygon?.let { line(it,true,Color.rgb(185,140,255)) }
+    }
     val layout=if(editing!=0) editorLayout else displayed.court
     CourtProjection.guides(area,layout).forEach { line(it,false,0x88ffffff.toInt()) }
     if(layout==CourtLayout.CUSTOM && displayed.surface==ContactSurface.FLOOR) {
@@ -229,16 +243,18 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
       }
       return
     }
-    val visibleMarks=if(settings.marks && result?.movingCamera!=true) events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface }.takeLast(24) else emptyList()
+    val visibleMarks=if(settings.marks && result?.movingCamera!=true) activeMarks() else emptyList()
     visibleMarks.forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset)); val color=callColor(e.decision)
       labelObstacles.add(RectF(s.x-9*density,s.y-9*density,s.x+9*density,s.y+9*density))
-      paint.color=color; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
+      val surfaceColor=if(e.surface==ContactSurface.WALL)Color.rgb(185,140,255) else cyan
+      paint.color=surfaceColor; paint.style=Paint.Style.STROKE; paint.strokeWidth=2*density; canvas.drawCircle(s.x,s.y,7*density,paint); paint.style=Paint.Style.FILL
+      paint.color=color
       paint.strokeWidth=1.5f*density;canvas.drawLine(s.x-4*density,s.y,s.x+4*density,s.y,paint);canvas.drawLine(s.x,s.y-4*density,s.x,s.y+4*density,paint)
       pulses[e.id]?.let { started ->
         val progress=(android.os.SystemClock.elapsedRealtime()-started)/480f
         if (progress in 0f..1f) {
-          paint.color=color;paint.alpha=((1-progress)*210).toInt();paint.style=Paint.Style.STROKE;paint.strokeWidth=3*density
+          paint.color=surfaceColor;paint.alpha=((1-progress)*210).toInt();paint.style=Paint.Style.STROKE;paint.strokeWidth=3*density
           canvas.drawCircle(s.x,s.y,(9+23*progress)*density,paint)
           paint.alpha=255;paint.style=Paint.Style.FILL
           postInvalidateOnAnimation()
@@ -252,6 +268,14 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->
       val iw=image?.width ?: return@let; val ih=image?.height ?: return@let
+      if(debugOverlay) {
+        for(b in r.diagnostics.samples.filter{it.patterned}) {
+          val p=screen(CourtPoint(b.x/iw,b.y/ih));val rx=(b.radius/iw*rect.width()).toFloat().coerceAtLeast(3*density)
+          paint.color=red;paint.alpha=120;paint.style=Paint.Style.STROKE;paint.strokeWidth=density
+          canvas.drawRect(p.x-rx,p.y-rx,p.x+rx,p.y+rx,paint)
+        }
+        paint.alpha=255;paint.style=Paint.Style.FILL
+      }
       line(r.trail.map { CourtPoint(it.x/iw,it.y/ih) },false,lime)
       r.observed?.let { b ->
         val s=screen(CourtPoint(b.x/iw,b.y/ih))
@@ -261,6 +285,10 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
         paint.style=Paint.Style.STROKE;paint.color=0xff0a0a0a.toInt();paint.strokeWidth=4*density
         canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint)
         paint.color=color;paint.strokeWidth=2*density;canvas.drawOval(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
+        if(debugOverlay) {
+          paint.style=Paint.Style.STROKE;paint.strokeWidth=density;canvas.drawRect(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
+          label("ID ${r.diagnostics.trackId ?: "—"} · visual ${(b.confidence*100).toInt()}%",s.x+rx+5*density,s.y+22*density,color)
+        }
         label(if(b.nearHand) "BOLA · PRÓXIMA À MÃO" else if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
       r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label("PREVISÃO",s.x,s.y,amber) }
