@@ -18,11 +18,14 @@ jobs:
       - name: Prepare unchanged baseline and common benchmark
         run: |
           set -euo pipefail
-          git fetch --depth 1 origin 76ffd74374a2ffbb4f538aa9b57af83106a3692b
+          # Compare with the actual 0.6.17 source before this change, not the
+          # older 0.6.10 array implementation (which inflates the speedup).
+          git fetch --depth 1 origin fe10be92658e0c2dde5d1febc9d4cd5cedd790e7
           mkdir -p /tmp/tennis-baseline
           git archive FETCH_HEAD mobile/ios | tar -xf - -C /tmp/tennis-baseline
           cp mobile/ios/Package.swift /tmp/tennis-baseline/mobile/ios/Package.swift
-          cp -R mobile/ios/Performance /tmp/tennis-baseline/mobile/ios/Performance
+          mkdir -p /tmp/tennis-baseline/mobile/ios/Performance
+          cp -R mobile/ios/Performance/. /tmp/tennis-baseline/mobile/ios/Performance/
       - name: Baseline release timings
         working-directory: /tmp/tennis-baseline/mobile/ios
         run: swift run -c release VisionBenchmark /tmp/baseline.json > /tmp/baseline.log
@@ -36,10 +39,10 @@ jobs:
           (cd /tmp/tennis-baseline/mobile/ios && swift run --skip-build -c release VisionBenchmark /tmp/baseline-repeat.json > /tmp/baseline-repeat.log)
       - name: Check identical detections and compare timings
         run: |
-          # Temporal velocity intentionally changed in 0.6.15; AdaptiveMotionTests
-          # checks it. All ball, trail, impact, uncertainty and state fields stay strict.
-          python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json --allow-velocity-change
-          python3 scripts/compare-ios-throughput.py /tmp/baseline-repeat.json /tmp/candidate-repeat.json /tmp/comparison-repeat.json --allow-velocity-change
+          # These common fixtures must retain every detection and speed result.
+          # New deliberate classification changes have separate regression tests.
+          python3 scripts/compare-ios-throughput.py /tmp/baseline.json /tmp/candidate.json /tmp/comparison.json
+          python3 scripts/compare-ios-throughput.py /tmp/baseline-repeat.json /tmp/candidate-repeat.json /tmp/comparison-repeat.json
       - name: Check borrowed-buffer memory safety
         if: always()
         working-directory: mobile/ios

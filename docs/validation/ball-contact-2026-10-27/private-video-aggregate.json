@@ -1,0 +1,82 @@
+{
+  "provenance": "Manually reviewed native crops from a screen recording containing existing overlays. Development diagnostics, not independent raw-camera validation.",
+  "positiveCrops": 10,
+  "negativeFloorCrops": 10,
+  "negativeClothingAndOverlayCrops": 10,
+  "baseline": "fe10be92658e0c2dde5d1febc9d4cd5cedd790e7",
+  "candidate": "db2287dec9e3389ecd336aa507869cb123a1aa95",
+  "results": {
+    "baseline-crops": {
+      "correct_ball": 5,
+      "wrong_target": 0,
+      "missed_ball": 5,
+      "floor_false_target": 0,
+      "clothing_false_target": 2,
+      "meanCenterErrorPx": 1.528354551466213,
+      "maxCenterErrorPx": 2.119064710990216,
+      "precision": 0.7142857142857143,
+      "recall": 0.5
+    },
+    "after-crops": {
+      "correct_ball": 8,
+      "wrong_target": 0,
+      "missed_ball": 2,
+      "floor_false_target": 0,
+      "clothing_false_target": 2,
+      "meanCenterErrorPx": 2.9364264740741266,
+      "maxCenterErrorPx": 7.9925190185236135,
+      "precision": 0.8,
+      "recall": 0.8
+    }
+  },
+  "repeatTimingWindowsJVM": {
+    "baseline-timing": [
+      {
+        "round": 1,
+        "frames": 960,
+        "medianMs": 3.5757,
+        "p95Ms": 8.3558
+      },
+      {
+        "round": 2,
+        "frames": 960,
+        "medianMs": 2.53675,
+        "p95Ms": 5.9916
+      }
+    ],
+    "candidate-timing": [
+      {
+        "round": 1,
+        "frames": 960,
+        "medianMs": 2.3245500000000003,
+        "p95Ms": 2.9243
+      },
+      {
+        "round": 2,
+        "frames": 960,
+        "medianMs": 2.34725,
+        "p95Ms": 2.5642
+      }
+    ]
+  },
+  "timingLimits": "Whole replay, one warm-up pass, two measured passes per revision. Windows JDK 17, emulator tests also active during part of the run; not physical phone FPS or sensor-to-display delay.",
+  "continuousScreenReplay": {
+    "baseline-sequence": {
+      "correct_ball": 5,
+      "wrong_target": 2,
+      "missed_ball": 3,
+      "frames": 960,
+      "scene_blocked_frames": 955,
+      "events": 0
+    },
+    "after-sequence-final": {
+      "correct_ball": 5,
+      "wrong_target": 1,
+      "missed_ball": 4,
+      "frames": 960,
+      "scene_blocked_frames": 955,
+      "events": 0
+    }
+  },
+  "continuousScreenReplayLimits": "The screen recording already contains overlays. Scene/reference blocking in 955/960 frames makes zero events unsuitable as evidence of either contact recall or false-impact rate. Reviewed observation recall did not improve."
+}

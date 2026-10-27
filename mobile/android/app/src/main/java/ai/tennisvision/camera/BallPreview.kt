@@ -21,6 +21,9 @@ class BallPreview {
       b.copy(x=p.x,y=p.y,radius=b.radius*min(sx,sy),diameterX=b.diameterX*sx,diameterY=b.diameterY*sy,colorUncertain=b.colorUncertain || !b.resolved)
     }
     return LocalResult(observed,detected.predicted?.let(::point),detected.trail.map(::point),null,false,null,
-      if(observed==null)"Prévia procurando bola · inicie para contar impactos" else "Bola visível · inicie o treino para contar impactos",area,offset)
+      if(observed==null)"Prévia procurando bola · inicie para contar impactos" else "Bola visível · inicie o treino para contar impactos",area,offset,
+      diagnostics=detected.diagnostics.copy(samples=detected.diagnostics.samples.map { b ->
+        val p=point(CourtPoint(b.x,b.y));b.copy(x=p.x,y=p.y,radius=b.radius*min(sx,sy),diameterX=b.diameterX*sx,diameterY=b.diameterY*sy)
+      }))
   }
 }

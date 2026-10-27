@@ -79,7 +79,7 @@ class LocalTrainingTest {
     val folder=File(context.getExternalFilesDir(null),"offline-proof").apply { mkdirs() }
     instrumentation.uiAutomation.takeScreenshot()?.let { bitmap -> File(folder,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }; bitmap.recycle() }
   }
-  private fun area(scenario: ActivityScenario<LocalTrainingActivity>) {
+  private fun area(scenario: ActivityScenario<LocalTrainingActivity>,floorTop:Double=.28) {
     tap(scenario,R.id.localArea); tap(scenario,R.id.localRedraw)
     drag(scenario,CourtPoint(.2,.35),CourtPoint(.7,.9))
     scenario.onActivity { assertTrue(it.findViewById<Button>(R.id.localSaveArea).isEnabled) }
@@ -87,7 +87,7 @@ class LocalTrainingTest {
     // The floor wizard advances directly to its boundary step, without saving yet.
     scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
     tap(scenario,R.id.localRedraw)
-    drag(scenario,CourtPoint(.05,.28),CourtPoint(.05,.28)); drag(scenario,CourtPoint(.95,.28),CourtPoint(.95,.28))
+    drag(scenario,CourtPoint(.05,floorTop),CourtPoint(.05,floorTop)); drag(scenario,CourtPoint(.95,floorTop),CourtPoint(.95,floorTop))
     tap(scenario,R.id.localSaveArea)
   }
   @Test fun wholeFloorSetupSavesWithVisibleActionsWithoutDrawingALine() {
@@ -150,7 +150,9 @@ class LocalTrainingTest {
   }
   @Test fun decodedVerticalReturnsCreateWallMarksWithoutFalseOutAudio() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
-      ready(scenario);area(scenario)
+      // This fixture tests wall returns. Put its floor boundary below those
+      // returns; floor contacts in wall mode must be rejected by the core.
+      ready(scenario);area(scenario,floorTop=.97)
       tap(scenario,R.id.localWall);tap(scenario,R.id.localRedraw)
       drag(scenario,CourtPoint(.1,.1),CourtPoint(.9,.95));tap(scenario,R.id.localSaveArea)
       tap(scenario,R.id.localStart)
@@ -385,6 +387,20 @@ class LocalTrainingTest {
         assertEquals(sounds+1,activity.testSoundCount())
         val saved=activity.testSession().events.takeLast(3)
         assertEquals(events.map { it.call },saved.map { it.call })
+        val court=activity.findViewById<LocalCourtView>(R.id.localVideo)
+        court.debugOverlay=true;court.markerDurationSeconds=0
+        fun render(marks:Boolean):Bitmap {
+          court.settings=court.settings.copy(marks=marks)
+          return Bitmap.createBitmap(court.width,court.height,Bitmap.Config.ARGB_8888).also{court.draw(android.graphics.Canvas(it))}
+        }
+        val hidden=render(false);val shown=render(true)
+        val contact=court.pointOnScreen(events.first().point)
+        val reach=(14*context.resources.displayMetrics.density).toInt();var changed=0
+        for(y in (contact.y.toInt()-reach).coerceAtLeast(0)..(contact.y.toInt()+reach).coerceAtMost(court.height-1))
+          for(x in (contact.x.toInt()-reach).coerceAtLeast(0)..(contact.x.toInt()+reach).coerceAtMost(court.width-1))
+            if(hidden.getPixel(x,y)!=shown.getPixel(x,y))changed++
+        assertTrue("The marker must render at the actual normalized contact, not merely increment a counter",changed>12)
+        hidden.recycle();shown.recycle()
       }
       screenshot("02-decoded-fixture-in-out-review")
       var id=""

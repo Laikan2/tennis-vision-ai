@@ -20,7 +20,7 @@ class PrivateVideoRegressionTest {
       val candidates=GreenBallDetector().detect(pixels,w,h,time,null).first
       val b=r.observed
       result.append(listOf(f[0],time,b?.x,b?.y,b?.radius,b?.confidence,b?.nearHand,b?.occluded,
-        candidates.joinToString(";"){"${it.x}:${it.y}:${it.radius}:${it.confidence}:chroma=${it.feltChroma}:green=${it.greenDominant}:resolved=${it.resolved}"},ms,r.message.replace(',',';')).joinToString(",")).append('\n')
+        candidates.joinToString(";"){"${it.x}:${it.y}:${it.radius}:${it.confidence}:chroma=${it.feltChroma}:green=${it.greenDominant}:resolved=${it.resolved}:contrast=${it.contrastFelt}:occluded=${it.occluded}:patterned=${it.patterned}:uncertain=${it.colorUncertain}:hand=${it.nearHand}"},ms,r.message.replace(',',';')).joinToString(",")).append('\n')
     }
     File("build/reports/private-video.csv").apply { parentFile?.mkdirs();writeText(result.toString()) }
   }

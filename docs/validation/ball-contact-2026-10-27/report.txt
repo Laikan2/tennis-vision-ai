@@ -1,0 +1,214 @@
+TENNIS VISION MOBILE 0.6.18 — DETECÇÃO E CONTATOS
+Data: 27/10/2026
+Base de comparação: fe10be92658e0c2dde5d1febc9d4cd5cedd790e7 (0.6.17).
+Código dos aplicativos: db2287dec9e3389ecd336aa507869cb123a1aa95.
+
+ESCOPO E CONCLUSÃO
+
+Correções no processamento Kotlin/Swift, acompanhamento, evidência de contato
+e desenho das marcas. A versão é uma melhoria incremental, não uma certificação
+de arbitragem nem uma demonstração de que todos os impactos reais são encontrados.
+O motor atual usa cor, componentes conectados, forma, contraste e sequência
+temporal. Não foi treinada ou substituída uma rede neural nesta entrega.
+
+CAUSAS E CORREÇÕES
+
+1. Detalhes verdes próximos entre si na roupa podiam adquirir um rastreamento.
+   O detector identifica grupos de fragmentos compatíveis com textura antes de
+   adquirir um alvo. A busca entre vizinhos é limitada. O filtro não elimina
+   genericamente pessoas nem comprova que todo objeto verde restante seja bola.
+
+2. Feltro pouco iluminado era descartado, e dedos dividiam uma bola em pequenos
+   componentes. O contexto de cor ao redor de uma silhueta compacta e de partes
+   unidas por um dedo agora ajuda a conservar a observação. Partes escondidas
+   continuam marcadas como oclusão/mão: sem velocidade ou impacto automático.
+   Uma tentativa de ampliar indiscriminadamente a cor aceita foi descartada:
+   quatro regressões existentes voltaram a reconhecer fragmentos marrons.
+
+3. O limite de associação podia perder uma bola com deslocamento grande entre
+   quadros. Uma extensão limitada exige alvo único, tamanho, cor, luminância,
+   movimento e, quando disponível, previsão coerentes. Não gera observações
+   inventadas. A previsão visual continua limitada a 60 ms; a reacquisição
+   recebe outro identificador quando a trajetória anterior se perde.
+
+4. O vídeo enviado mostra o modo PAREDE durante movimentos aparentemente voltados
+   para o piso. Os modos têm evidências diferentes. Um retorno claramente abaixo
+   de uma linha física de piso salva é rejeitado no modo parede. O atalho
+   “Toda a imagem é piso” não é tratado como uma linha física para bloquear
+   todos os futuros contatos de parede. A área de IN não recorta a procura por
+   impactos: um contato fora dela continua podendo resultar em OUT.
+
+5. Marcas recebem anel/pulso ciano para chão e roxo para parede. A cruz e o
+   rótulo mantêm a cor de IN/OUT/REVISAR. Há duração de 5, 15, 30 segundos ou
+   sessão, preservando o histórico. O desenho usa coordenadas normalizadas do
+   contato estimado, compensação já existente e proporção do quadro exibido.
+
+6. Ajustes → Diagnóstico ao vivo mostra caixa, contorno, ID, escore visual,
+   observação/previsão/perda, texturas rejeitadas, áreas e motivo de contato.
+   O escore visual não é uma probabilidade calibrada de acerto. A interface
+   separa FPS recebidos e FPS efetivamente analisados, com conversão e análise
+   em milissegundos. Esses números não são uma medida de atraso sensor→tela.
+
+7. A rotina Android intermediária cresceu de 7.197 para 8.249 bytes de bytecode,
+   prejudicando a otimização da JVM nos testes. Extraímos os trabalhos de
+   contexto para funções menores; a rotina ficou com 7.509 bytes. A suíte local
+   caiu de 8 min 28 s na implementação intermediária para 1 min 23 s na final.
+   Isso não equivale a esse ganho contra a 0.6.17 no celular. No Swift, o núcleo
+   de segmentação foi separado das closures de empréstimo de buffers, mantendo
+   o uso síncrono e os testes de segurança de memória.
+
+TESTES ANDROID
+
+Ambiente: emulador Android 15/API 35, Android SDK built for x86_64; não S25 físico.
+Suíte JVM final: 291 testes, zero falhas, zero erros, zero ignorados. Inclui a
+reprodução opcional dos arquivos privados, que não estão no repositório.
+Comparação de tempo adicional: teste opcional com aquecimento e duas passagens.
+Ferramentas de pacote, fonte AltStore e publicação: 30 testes Python aprovados.
+O APK Release final (0.6.18/code 31), com otimização R8 e a assinatura preservada,
+também foi instalado e aberto no emulador. A tela da câmera emulada foi conferida.
+O comando de abertura retornou sucesso; a captura da árvore de acessibilidade
+não terminou porque a prévia não ficava ociosa. Isso não foi contado como um
+teste de navegação aprovado, nem como falha comprovada da câmera.
+
+Aplicativo audit instalado com dados separados e sem permissão INTERNET;
+rede padrão ausente confirmada antes e depois. Nove testes de uso e dois testes
+de permissão passaram: câmera, permissão aceita/negada, editor por gestos,
+cancelamento, chão/parede separados, início/pausa, persistência do histórico,
+segundo plano, bloqueio/desbloqueio e economia de bateria. São ações reais no
+Android emulado; a imagem da câmera emulada não representa uma quadra real.
+
+Uma repetição no GitHub (40579890839) falhou: o log mostra a janela de ANR do
+Pixel Launcher cobrindo a tela e recebendo os toques dirigidos ao aplicativo.
+Sete testes de uso e os dois de permissão falharam nessa execução. O erro foi
+mantido no histórico, não convertido em aprovação. O emulador hospedado foi
+reduzido de 1440×3120 para o perfil de 1080p, com 3 GB de RAM e uma verificação
+de janela de ANR antes de iniciar os cenários. Nenhum teste funcional recebe
+repetição automática nem dispensa uma asserção. Isso ajusta o ambiente de CI,
+não representa uma melhoria medida no aparelho do usuário.
+A execução corrigida 40580906031 passou nos nove testes de uso e nos dois
+de permissão. Os cenários não foram removidos ou enfraquecidos.
+
+No teste H.264 conhecido, 191 quadros foram decodificados pelo MediaCodec e
+analisados pelo motor do app. Foram encontrados os três contatos conhecidos:
+IN, OUT, REVISAR. Um OUT foi enfileirado para áudio. A imagem desenhada com
+marcas foi comparada à imagem sem marcas nos pixels do contato, além de conferir
+contagem, decisão, quadro de evidência e histórico. A captura de tela anexada
+usa esse vídeo SINTÉTICO; não é prova de impactos vistos pela lente.
+Tempos desse cenário emulado: mediana 2,5118 ms; p95 4,6999 ms, em 320×240.
+Audibilidade no alto-falante de um aparelho físico não foi testada.
+
+Retornos sintéticos de parede também passaram: candidatos exigem revisão e
+não disparam OUT automaticamente. O teste de associação rápida conserva nove
+observações, um ID e um candidato, com erro de até 2 px no ponto conhecido.
+A velocidade equivalente gerada fica entre 180 e 220 km/h; NÃO é um saque
+real medido a 200 km/h. A suíte inclui bola parada, oclusão, mão carregando a
+bola, objetos parecidos, piso quente, exposição, impactos consecutivos, borda,
+mudança de resolução, perda de trajetória e entradas inválidas.
+
+VÍDEO ENVIADO: RESULTADOS E LIMITES
+
+O arquivo tem 384×848, aproximadamente 60 FPS codificados e 36,34 s. É uma
+gravação da tela do aplicativo: há rótulos, rastros e marcas já pintados sobre
+os pixels. A imagem útil da câmera é pequena. Esses elementos não são dados
+brutos da câmera e podem virar falsos alvos ao analisar a tela novamente.
+
+Foram revisados dez recortes nativos com bola visível e vinte sem bola:
+dez de piso e dez de roupa/marcações. Não houve redimensionamento, apagamento
+de objetos ou geração de bola nessas amostras. São dados de desenvolvimento
+do mesmo vídeo, NÃO uma avaliação independente em vídeos inéditos.
+
+Antes → depois, nesses recortes:
+- Bola localizada dentro da tolerância anotada: 5/10 → 8/10.
+- Bola perdida: 5/10 → 2/10.
+- Falsos alvos no piso: 0/10 → 0/10.
+- Falsos alvos em roupa/marcações: 2/10 → 2/10.
+- Precisão nessa amostra: 71,4% → 80%; recall: 50% → 80%.
+- Erro médio dos centros aceitos: 1,53 → 2,94 px; máximo: 2,12 → 7,99 px.
+  Os conjuntos aceitos diferem: as recuperações incluem partes escondidas;
+  não houve melhora demonstrada da precisão geométrica de todos os centros.
+
+Também foi reproduzida a sequência inteira, mantendo estado entre 960 quadros
+amostrados de 4 a 36 s. Nas dez observações revisadas, acertos 5→5, alvos errados
+2→1 e ausências 3→4. Portanto a melhoria dos recortes NÃO deve ser apresentada
+como ganho de recall no rastreamento completo. O estado de movimento/referência
+ficou bloqueado em 955/960 quadros desse replay da tela já anotada. Os zero
+eventos nele NÃO provam ausência de falsos impactos nem medem impactos perdidos.
+Não foi obtido ground truth independente do instante e posição física de contato.
+
+Uma comparação repetida só do núcleo, com a mesma sequência e uma passagem
+de aquecimento, mediu em Windows/JDK 17:
+- 0.6.17: medianas 3,576/2,537 ms; p95 8,356/5,992 ms.
+- 0.6.18: medianas 2,325/2,347 ms; p95 2,924/2,564 ms.
+São 960 quadros por passagem; houve testes de emulador ativos durante parte da
+execução. Não converter esses valores em FPS ou atraso garantido no telefone.
+
+IOS E DESEMPENHO NATIVO
+
+Comparação Release no mesmo executor macOS, contra a 0.6.17, com doze cenários
+e repetição em ordem inversa: todas as saídas comuns permaneceram idênticas,
+incluindo velocidade. AddressSanitizer passou. O desempenho variou por cena:
+razão antes/depois de 0,74 a 1,26 na primeira passagem e 0,77 a 1,56 na segunda.
+Logo existem cenários mais lentos e não há ganho geral garantido.
+Em 1920×1080, medianas finais de aproximadamente 16,7–35,1 ms e p95 até 49,6 ms
+nesse executor. Isso não sustenta prometer 60/120/240 análises/s, nem é uma
+medição no iPhone. Os JSONs anexados contêm todos os resultados sem seleção.
+
+O build nativo para iPhone e o build para simulador passaram no GitHub Actions,
+assim como 154 testes Swift. O teste de transporte recebeu e decodificou 60
+quadros H.264. A primeira tentativa de abrir o simulador excedeu dois minutos;
+como essa etapa era opcional, a conclusão geral aparecia como sucesso. Isso
+NÃO comprovava a abertura do aplicativo. A etapa passou a ser obrigatória,
+com seis minutos para inicialização, instalação, abertura e captura da tela.
+A execução 40579890891 concluiu todas essas etapas. O log registra o PID 13352
+do app aberto e a captura PNG. A imagem mostra a versão 0.6.18 e o estado
+“Câmera indisponível” no simulador; comprova abertura e feedback, não captura
+pela lente ou detecção de impactos no iPhone físico.
+
+O QUE CONTINUA SEM VALIDAÇÃO
+
+Nenhum iPhone ou Android físico foi reconhecido por USB nesta rodada, apesar
+da tentativa de conexão. Não foram verificados: câmera real da versão nova,
+impactos reais em piso/parede com contagem conhecida, precisão em partidas,
+saques de 200 km/h, radar para referência de velocidade, autonomia/temperatura
+e funcionamento real dos modos 120/240 FPS. Não foi testado desligando o PC
+com um celular físico; a independência foi exercitada no Android emulado sem
+rede e sem serviços de análise externos.
+
+Uma câmera monocular não comprova contato com parede apenas por inversão de
+direção. Esses eventos continuam candidatos para revisão. A velocidade é uma
+estimativa lateral baseada em tempo observado e tamanho aparente, não 3D nem
+radar. Bola minúscula, borrada, escondida ou sem retorno visível pode ser perdida.
+Não há taxa válida de recall/precisão de impactos reais ou erro de velocidade.
+
+PRÓXIMA VALIDAÇÃO FÍSICA REPRODUZÍVEL
+
+Celular fixo, boa luz e superfície correta: 30 s sem bola; bola na mão sem
+contato; dez quedas IN; dez OUT; dez perto da linha; dez retornos de parede.
+Contar cada contato real separadamente e guardar vídeo bruto da câmera,
+sem rastros/legendas gravados sobre a imagem. Comparar eventos, duplicações,
+falsos positivos, quadros antes/depois e posições, antes de afirmar precisão
+em jogo. O limite do piso é a separação física parede/chão; a área azul é o
+alvo IN. Para parede, selecionar Marcar parede. Para quicadas, Marcar chão.
+
+PRESERVAÇÃO E DISTRIBUIÇÃO
+
+Trabalho realizado em checkout isolado. Não foram apagados dados, históricos,
+credenciais, pareamentos ou configurações dos aplicativos do usuário. Áreas
+temporárias de sessão mantêm a regra existente de não reaplicar marcações
+antigas a uma câmera reaberta. Aplicativos Android/iOS continuam independentes
+de Windows no treino local. A transmissão opcional ao PC permanece disponível.
+Vídeos, recortes e imagens pessoais não foram enviados ao repositório público.
+O APK preserva a assinatura anterior. O IPA requer assinatura pessoal no iOS;
+disponibilidade no GitHub não elimina a renovação exigida pela instalação Apple.
+
+EVIDÊNCIAS
+
+android-known-contacts.png: renderização Android com fixture sintética.
+android-pipeline.json e android-lifecycle.json: resultados reais do emulador.
+ios-simulator.png: app aberto no simulador, sem câmera disponível.
+private-video-aggregate.json: métricas agregadas, sem imagens pessoais.
+ios-throughput*.json: desempenho completo das duas passagens nativas.
+PR: https://github.com/Laikan2/tennis-vision-ai/pull/13
+iOS: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40579890891
+Android CI: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40580906031
+Desempenho/ASAN: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40576958582

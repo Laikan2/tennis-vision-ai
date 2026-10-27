@@ -1,0 +1,12 @@
+{
+  "kind": "Android emulator lifecycle test",
+  "offlineBeforeLaunch": true,
+  "batterySaverBeforeLaunch": true,
+  "batteryPluggedBeforeLaunch": 0,
+  "batteryStatusBeforeLaunch": 3,
+  "batteryLevelBeforeLaunch": 50,
+  "screenBecameNonInteractive": true,
+  "screenInteractiveAfterWake": true,
+  "batterySaverAfterWake": true,
+  "offlineAfterWake": true
+}

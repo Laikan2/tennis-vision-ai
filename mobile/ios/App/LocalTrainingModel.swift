@@ -74,6 +74,8 @@ final class LocalTrainingStore {
     @Published var lensID=UserDefaults.standard.string(forKey:"local.lens") ?? ""
     @Published var rate=UserDefaults.standard.object(forKey:"local.rate") as? Int ?? 60
     @Published var metrics="Aguardando imagens reais"
+    @Published var debugOverlay=UserDefaults.standard.bool(forKey:"local.debug-overlay") {didSet{UserDefaults.standard.set(debugOverlay,forKey:"local.debug-overlay")}}
+    @Published var markerDuration=UserDefaults.standard.integer(forKey:"local.marker-seconds") {didSet{UserDefaults.standard.set(markerDuration,forKey:"local.marker-seconds")}}
     @Published var confirmArea=false
     @Published var confirmed=false
     @Published var history=[LocalTrainingSession]()
@@ -255,6 +257,8 @@ final class LocalTrainingStore {
             lastInfo=now
             metrics=String(format:"%d × %d · %.0f FPS recebidos · %d solicitados\nConversão %.1f ms · análise %.1f ms\nProcessamento → tela ≈%.0f ms · exposição %.1f ms",frame.width,frame.height,frame.fps,frame.requestedFPS,frame.conversionMs,frame.analysisMs,(now-frame.startedAt)*1000,frame.exposureMs)
             if let b=frame.result.observed{metrics+="\nBola ≈\(Int(b.radius*2)) px · \(b.resolved ? "observada":"detalhe incerto")"}
+            if active{metrics+=String(format:"\n%.0f FPS analisados",frame.processedFPS)}
+            if debugOverlay{metrics+="\n"+frame.result.diagnostics.summary+"\nEscore visual = suporte da silhueta; não é probabilidade calibrada"}
             if active && editing==0{status=visibleResult?.message ?? "Atualizando área"}
         }
     }

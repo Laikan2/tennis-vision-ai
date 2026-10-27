@@ -8,6 +8,12 @@ extension VisionCall {
 final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     var frameValue: LocalCameraFrame?,result: VisionResult?,config=VisionSettings()
     var arrivalTimes=[Int:TimeInterval]()
+    var debugOverlay=false,markerDuration=0
+    private var activeMarks:[VisionImpact] {
+        let now=ProcessInfo.processInfo.systemUptime
+        return Array(events.filter{$0.decision != .rejected && $0.surface==config.surface &&
+            (markerDuration==0 || now-(arrivalTimes[$0.id] ?? 0)<Double(markerDuration))}.suffix(24))
+    }
     var events=[VisionImpact](){didSet{
         let previous=Set(oldValue.map{$0.id}),now=ProcessInfo.processInfo.systemUptime
         let live=Set(events.map{$0.id});pulses=pulses.filter{live.contains($0.key)}
@@ -102,12 +108,16 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             if let p=touchPoint{magnifier(p,image:f.image)}
             return
         }
-        let visibleMarks=config.marks && !f.result.movingCamera ? Array(events.filter{$0.decision != .rejected}.suffix(24)):[]
+        if debugOverlay {
+            if let floor=area.floorPolygon{line(floor,closed:true,color:.systemCyan)}
+            if let wall=area.wallPolygon{line(wall,closed:true,color:.systemPurple)}
+        }
+        let visibleMarks=config.marks && !f.result.movingCamera ? activeMarks:[]
         for event in visibleMarks{
-            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color=event.decision.color
+            let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0))),color:UIColor=event.surface == .wall ? .systemPurple:.systemCyan
             labelObstacles.append(CGRect(x:c.x-9,y:c.y-9,width:18,height:18))
             color.setStroke();let path=UIBezierPath(ovalIn:CGRect(x:c.x-7,y:c.y-7,width:14,height:14));path.lineWidth=2;path.stroke()
-            let cross=UIBezierPath();cross.move(to:CGPoint(x:c.x-4,y:c.y));cross.addLine(to:CGPoint(x:c.x+4,y:c.y));cross.move(to:CGPoint(x:c.x,y:c.y-4));cross.addLine(to:CGPoint(x:c.x,y:c.y+4));cross.lineWidth=1.5;cross.stroke()
+            event.decision.color.setStroke();let cross=UIBezierPath();cross.move(to:CGPoint(x:c.x-4,y:c.y));cross.addLine(to:CGPoint(x:c.x+4,y:c.y));cross.move(to:CGPoint(x:c.x,y:c.y-4));cross.addLine(to:CGPoint(x:c.x,y:c.y+4));cross.lineWidth=1.5;cross.stroke()
             if let start=pulses[event.id]{
                 let progress=min(1,max(0,(ProcessInfo.processInfo.systemUptime-start)/0.48)),radius=CGFloat(9+23*progress)
                 color.withAlphaComponent(CGFloat((1-progress)*0.82)).setStroke()
@@ -119,6 +129,13 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             label("#\(event.id) "+event.decision.label+(event.speed.map{" · ≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
         }
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
+        if debugOverlay {
+            UIColor.systemRed.withAlphaComponent(0.5).setStroke()
+            for b in result.diagnostics.samples where b.patterned {
+                let p=screen(VisionPoint(b.x/Double(f.width),b.y/Double(f.height))),r=max(3,CGFloat(b.radius/Double(f.width))*imageRect.width)
+                let box=UIBezierPath(rect:CGRect(x:p.x-r,y:p.y-r,width:r*2,height:r*2));box.lineWidth=1;box.stroke()
+            }
+        }
         line(result.trail.map{VisionPoint($0.x/Double(f.width),$0.y/Double(f.height))},closed:false,color:lime)
         if let ball=result.observed {
             let p=screen(VisionPoint(ball.x/Double(f.width),ball.y/Double(f.height))),color=ball.resolved ? lime:.systemOrange
@@ -127,6 +144,10 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
             let outline=UIBezierPath(ovalIn:CGRect(x:p.x-rx,y:p.y-ry,width:rx*2,height:ry*2))
             UIColor(white:0.04,alpha:0.95).setStroke();outline.lineWidth=4;outline.stroke()
             color.setStroke();outline.lineWidth=2;outline.stroke()
+            if debugOverlay {
+                let box=UIBezierPath(rect:CGRect(x:p.x-rx,y:p.y-ry,width:rx*2,height:ry*2));box.lineWidth=1;box.stroke()
+                label("ID \(result.diagnostics.trackId.map(String.init) ?? "—") · visual \(Int(ball.confidence*100))%",at:CGPoint(x:p.x+rx+5,y:p.y+22),color:color)
+            }
             let text=ball.nearHand ? "BOLA · PRÓXIMA À MÃO":ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈\(Int($0)) km/h lateral"} ?? "BOLA"
             label(text,at:CGPoint(x:p.x+rx+5,y:p.y),color:color)
         }
@@ -147,7 +168,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         if editing==0 {
             guard config.marks,let f=frameValue,!f.result.movingCamera else{return}
             let offset=result?.cameraOffset ?? VisionPoint(0,0)
-            let candidates=events.filter{$0.decision != .rejected}
+            let candidates=activeMarks
             if let event=candidates.min(by:{a,b in
                 let x=screen(VisionGeometry.impactPoint(a,offset:offset)),y=screen(VisionGeometry.impactPoint(b,offset:offset))
                 return hypot(x.x-location.x,x.y-location.y)<hypot(y.x-location.x,y.y-location.y)
@@ -193,6 +214,7 @@ struct LocalCourtCanvas: UIViewRepresentable {
     func updateUIView(_ view: LocalCourtSurface,context: Context){
         view.frameValue=model.visibleFrame;view.result=model.visibleResult;view.config=model.editingArea ?? model.config
         view.arrivalTimes=model.contactAnimationTimes;view.events=model.visibleEvents
+        view.debugOverlay=model.debugOverlay;view.markerDuration=model.markerDuration
         view.confirmed=model.confirmed;view.editing=model.editing;view.draft=model.draft;view.onDraft={model.draft=$0}
         view.onImpact={id in if let hit=model.session.events.first(where:{$0.id==id}){model.review(hit)}}
         view.refreshGestures();view.setNeedsDisplay()
@@ -332,6 +354,7 @@ struct LocalTrainingView: View {
                 Picker("Superfície",selection:Binding(get:{model.config.surface},set:{model.changeSurface($0)})){Text("Chão · quicadas").tag(VisionSurface.floor);Text("Parede · revisão").tag(VisionSurface.wall);Text("Somente rastrear").tag(VisionSurface.track)}
                 Text("Trocar a superfície recupera a marcação de chão ou parede desta sessão. Nova sessão ou fechar o app limpa as áreas; histórico e preferências continuam salvos.").font(.footnote)
                 Toggle("Mostrar marcas de impacto",isOn:Binding(get:{model.config.marks},set:{var s=model.config;s.marks=$0;model.persist(s)}))
+                Picker("Duração das marcas",selection:$model.markerDuration){Text("Toda a sessão").tag(0);Text("5 segundos").tag(5);Text("15 segundos").tag(15);Text("30 segundos").tag(30)}
                 Toggle("Som OUT",isOn:Binding(get:{model.config.sound},set:{var s=model.config;s.sound=$0;model.persist(s)}))
                 Toggle("Som IN · opcional",isOn:Binding(get:{model.inVoice},set:{model.setInVoice($0)}))
                 Button("Testar som OUT"){model.playOut()}.accessibilityIdentifier("local.sound.test")
@@ -340,6 +363,8 @@ struct LocalTrainingView: View {
                 Text("Voz Brian · ElevenLabs · chamadas claras. Chamadas automáticas só ocorrem com uma decisão IN/OUT; REVISAR permanece silencioso. OUT tem prioridade. Se não ouvir, confira o volume de mídia e a saída Bluetooth. O teste não altera as contagens.").font(.footnote)
             }
             Section("Sessão e testes"){
+                Toggle("Diagnóstico ao vivo",isOn:$model.debugOverlay).accessibilityIdentifier("local.debug.overlay")
+                Text("Mostra ID, caixa, escore visual, texturas rejeitadas, áreas e motivo de contato. Os tempos medidos aparecem abaixo da câmera.").font(.footnote)
                 Button("Começar nova sessão"){model.newSession()}
                 Button("Preparar exportação JSON"){model.exportSession()}
                 if let url=model.exportURL{ShareLink("Compartilhar sessão",item:url)}
