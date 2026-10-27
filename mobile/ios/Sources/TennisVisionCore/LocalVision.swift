@@ -559,7 +559,10 @@ public final class LocalVision {
     }
     private func contact() -> VisionImpact? {
         guard settings.surface != .track,path.count>=5 else{return nil}
-        guard let p=settings.surface == .floor ? floorEvidence():wallEvidence() else{
+        let simple=settings.surface == .floor ? floorEvidence():wallEvidence()
+        let robust=simple==nil && (settings.surface == .wall || floorReferenceKnown()) ? ObservedContactFit.find(path,surface:settings.surface):nil
+        let depth=simple==nil && robust==nil && (settings.surface == .wall || floorReferenceKnown()) ? DepthContactFit.find(path,width:width,height:height):nil
+        guard let p=simple ?? robust?.support ?? depth?.support else{
             contactReason=path.contains{$0.nearHand || $0.occluded} ? "Mão/oclusão na trajetória · aguardando voo livre":"Sem retorno coerente observado dos dois lados do contato";return nil
         }
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],evidence=path.filter{$0.time>=p[0].time && $0.time<=p[4].time}
@@ -574,11 +577,11 @@ public final class LocalVision {
         let outgoing=VisionPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
         let sa=hypot(incoming.x,incoming.y),sb=hypot(outgoing.x,outgoing.y)
         let wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb) < 0.35
-        if settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn{return nil}
+        if robust==nil && depth==nil && (settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn){return nil}
         // Outer curved legs establish a slow rebound, but locate its mark
         // using continuous samples at the observed peak whenever available.
         let local=e.time-a.time>0.200001 ? localFloorPeak(evidence):nil
-        let fit=settings.surface == .floor ? (local.flatMap{floorContact($0)} ?? floorContact(p)):wallContact(p)
+        let fit=(robust ?? depth).map{Fit(x:$0.x,y:$0.y,time:$0.time,error:$0.error)} ?? (settings.surface == .floor ? (local.flatMap{floorContact($0)} ?? floorContact(p)):wallContact(p))
         if settings.surface == .wall && fit==nil{return nil}
         let t=fit?.time ?? c.time
         // Tiny colour fragments are common on textured walls and compression edges.
@@ -587,7 +590,7 @@ public final class LocalVision {
             let radii=p.map{$0.radius},lights=p.map{$0.luminance}
             if radii.max()!/radii.min()!>1.65 || lights.max()!/max(1,lights.min()!)>1.8 || (settings.surface == .floor && fit==nil){return nil}
         }
-        let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor ? c.radius:0))/Double(height))
+        let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor && depth==nil ? c.radius:0))/Double(height))
         let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
         let missing=sparse ? max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5,max(sa,sb)*intervals.last!*0.5):0
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
@@ -602,9 +605,10 @@ public final class LocalVision {
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
         let courtKnown=settings.court != .custom && VisionGeometry.projectedPolygon(area.polygon)
         let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
-        if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || evidence.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall){call = .review}
+        if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || evidence.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall || depth != nil){call = .review}
         let reason: String
-        if settings.surface == .wall{reason="Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."}
+        if depth != nil{reason="Retorno em profundidade observado pelo tamanho da bola. Centro e contato são estimados; confirme a superfície na revisão."}
+        else if settings.surface == .wall{reason="Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."}
         else if evidence.contains(where:{!$0.resolved}){reason="Detalhe insuficiente na bola. Confira contato e linha."}
         else if !floorKnown{reason="Contato com o piso não comprovado. Confira a superfície e a marca."}
         else if sparse{reason="Quadros ausentes ou espaçados. Posição estimada; revise."}

@@ -112,7 +112,8 @@ final class LocalTrainingStore {
     private var probeTrace=[[String:Any]](),probeInitialThermal=0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
-    private(set) var contactAnimationTimes=[Int:TimeInterval]()
+    private var contactClock=VisionContactClock()
+    var contactAnimationTimes:[Int:TimeInterval]{contactClock.arrivals}
     private var settingsRevision=0
     private var opening=false,overlayStartID=0
     var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
@@ -268,7 +269,9 @@ final class LocalTrainingStore {
         guard acceptedContacts.insert(contactKey).inserted else{return}
         hit.id=(session.events.map{$0.id}.max() ?? 0)+1;hit.evidenceOffset=f.evidenceOffset ?? hit.cameraOffset
         let arrival=ProcessInfo.processInfo.systemUptime
-        contactAnimationTimes=contactAnimationTimes.filter{arrival-$0.value<0.48};contactAnimationTimes[hit.id]=arrival
+        // Marker lifetime and the 480 ms pulse share an origin, not a lifetime.
+        // Keep arrival times until the session is reset (bounded to 2,000 events).
+        contactClock.record(hit.id,at:arrival)
         session.events.append(hit)
         store.save(settings:nil,key:key,session:session,evidence:f.evidence.map{(hit.id,$0)}){[weak self] message in
             if let message{self?.savingError=true;self?.pause();self?.error=message}
@@ -348,7 +351,7 @@ final class LocalTrainingStore {
         settingsRevision+=1
         pause();store.clearAreas();config=config.withoutSessionArea;confirmed=false;confirmArea=false
         // Remove the previous result/area immediately; new frames use the cleared settings.
-        frame=nil;frozen=nil;acceptedContacts.removeAll();contactAnimationTimes.removeAll();camera.update(config)
+        frame=nil;frozen=nil;acceptedContacts.removeAll();contactClock.reset();camera.update(config)
         overlayStartID=0;session=LocalTrainingSession(key:key)
         store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message}
         history=store.history();status="Nova sessão · marque o chão ou a parede; áreas anteriores descartadas"

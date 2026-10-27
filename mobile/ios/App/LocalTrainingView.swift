@@ -12,7 +12,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     private var activeMarks:[VisionImpact] {
         let now=ProcessInfo.processInfo.systemUptime
         return Array(events.filter{$0.decision != .rejected && $0.surface==config.surface &&
-            (markerDuration==0 || now-(arrivalTimes[$0.id] ?? 0)<Double(markerDuration))}.suffix(24))
+            VisionContactClock.visible(arrival:arrivalTimes[$0.id],now:now,duration:markerDuration)}.suffix(24))
     }
     var events=[VisionImpact](){didSet{
         let previous=Set(oldValue.map{$0.id}),now=ProcessInfo.processInfo.systemUptime

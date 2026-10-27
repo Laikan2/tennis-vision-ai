@@ -729,7 +729,12 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
 
   private fun contact(width: Int, height: Int): LocalImpact? {
     if (settings.surface == ContactSurface.TRACK || path.size < 5) return null
-    val p = (if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()) ?: run {
+    val simple = if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()
+    val robust = if(simple==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
+      ObservedContactFit.find(path,settings.surface) else null
+    val depth = if(simple==null && robust==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
+      DepthContactFit.find(path,width,height) else null
+    val p = (simple ?: robust?.support ?: depth?.support) ?: run {
       contactReason=if(path.any{it.nearHand || it.occluded}) "Mão/oclusão na trajetória · aguardando voo livre" else "Sem retorno coerente observado dos dois lados do contato"
       return null
     }
@@ -748,12 +753,12 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val outgoing=CourtPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
     val sa=hypot(incoming.x,incoming.y);val sb=hypot(outgoing.x,outgoing.y)
     val wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb)<.35
-    if (settings.surface == ContactSurface.FLOOR && !floorTurn) return null
-    if (settings.surface == ContactSurface.WALL && !wallTurn) return null
+    if (settings.surface == ContactSurface.FLOOR && !floorTurn && robust==null && depth==null) return null
+    if (settings.surface == ContactSurface.WALL && !wallTurn && robust==null && depth==null) return null
     // The observed local maximum need not be the instant of contact. Estimate
     // the crossing of the observed incoming/outgoing legs, bounded by b and d.
     // This is two-sided interpolation, never an extrapolation from a lost ball.
-    val fit=if (settings.surface==ContactSurface.FLOOR) {
+    val fit=(robust ?: depth)?.let{ContactFit(it.x,it.y,it.time,it.error)} ?: if (settings.surface==ContactSurface.FLOOR) {
       // A wide window establishes the rebound, but its curved outer legs must
       // not move the mark beyond the observed ball. Localise with the actual
       // samples around the observed maximum when they are continuous.
@@ -767,7 +772,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       settings.surface==ContactSurface.FLOOR && fit==null)) return null
     val contactTime=fit?.time ?: c.time
     val point=CourtPoint((fit?.x ?: c.x)/width,
-      ((fit?.y ?: c.y)+if (settings.surface==ContactSurface.FLOOR) c.radius else 0.0)/height)
+      ((fit?.y ?: c.y)+if (settings.surface==ContactSurface.FLOOR && depth==null) c.radius else 0.0)/height)
     val intervals=evidence.zipWithNext().map { (left,right)->right.time-left.time }.sorted()
     val missingFrame=intervals.last()>intervals[1]*1.55+.001
     val sparse=intervals.last()>.075 || missingFrame
@@ -803,7 +808,9 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     if (evidence.any { !it.resolved } && call != LineCall.UNMARKED) call=LineCall.REVIEW
     // Monocular wall turns cannot distinguish a racket/hand return from contact with the wall.
     if (settings.surface == ContactSurface.WALL && call != LineCall.UNMARKED) call=LineCall.REVIEW
+    if (depth!=null && call!=LineCall.UNMARKED) call=LineCall.REVIEW
     val reason=when {
+      depth!=null -> "Retorno em profundidade observado pelo tamanho da bola. Centro e contato são estimados; confirme a superfície na revisão."
       settings.surface == ContactSurface.WALL -> "Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."
       evidence.any { !it.resolved } -> "Bola pequena demais para uma decisão automática. Confira o contato e a linha."
       !floorKnown && floorDistance==null -> "Marque o limite do piso; trajetória sozinha não comprova chão."
