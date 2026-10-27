@@ -33,5 +33,17 @@ class ContactRobustnessTest {
     }
     assertTrue(failures.joinToString("\n"),failures.isEmpty())
   }
+  @Test fun contactBelowFrameIsNotCountedOrMovedToImageEdge() {
+    val core=LocalAnalysis(LocalSettings(polygon=area,floorLine=listOf(CourtPoint(0.0,.12),CourtPoint(1.0,.12))))
+    val results=(0..24).map { i ->
+      val t=i/60.0;val d=t-.203
+      core.process(pixels(240+240*t,476+(if(d<0)700*d else -500*d)+400*d*d),w,h,t)
+    }
+    assertTrue("Ball must actually be tracked",results.count{it.observed!=null}>=12)
+    assertTrue("Offscreen contact must not create an invisible/clamped mark",results.none{it.impact!=null})
+    assertTrue("Explain the framing failure",results.any{it.message.contains("fora da imagem")})
+    core.reset()
+    assertFalse(core.process(pixels(200.0,200.0),w,h,1.0).message.contains("fora da imagem"))
+  }
 }
 

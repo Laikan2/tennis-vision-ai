@@ -25,6 +25,21 @@ final class ContactRobustnessTests:XCTestCase {
             if let hit=hits.first{XCTAssertLessThan(hypot(hit.point.x*Double(w)-(240+240*contact),hit.point.y*Double(h)-348),10)}
         }}}
     }
+    func testContactBelowFrameIsNotCountedOrMovedToImageEdge() {
+        var s=VisionSettings()
+        s.polygon=[VisionPoint(0.1,0.1),VisionPoint(0.9,0.1),VisionPoint(0.9,0.95),VisionPoint(0.1,0.95)]
+        s.floorLine=[VisionPoint(0,0.12),VisionPoint(1,0.12)]
+        let core=LocalVision(settings:s)
+        let results=(0...24).map { i in
+            let t=Double(i)/60,d=t-0.203
+            return core.process(pixels(240+240*t,476+(d<0 ? 700*d : -500*d)+400*d*d),width:w,height:h,time:t)
+        }
+        XCTAssertGreaterThanOrEqual(results.filter{$0.observed != nil}.count,12)
+        XCTAssertTrue(results.allSatisfy{$0.impact==nil},"No invisible or clamped mark")
+        XCTAssertTrue(results.contains{$0.message.contains("fora da imagem")})
+        core.reset()
+        XCTAssertFalse(core.process(pixels(200,200),width:w,height:h,time:1).message.contains("fora da imagem"))
+    }
     func samples(_ fps:Int=60,hand:Bool=false,occluded:Bool=false,curve:(Double)->(Double,Double))->[VisionBall] {
         (0...Int(Double(fps)*0.31)).map { i in
             let t=Double(i)/Double(fps),p=curve(t)

@@ -512,6 +512,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var unstableUntil = -1.0
   private var serial = 0L
   private var floorBoundaryNoticeUntil = -1.0
+  private var framingNoticeUntil = -1.0
   private var dimensions = 0 to 0
   private var offset=CourtPoint(0.0,0.0)
   val cameraOffset get()=offset
@@ -541,7 +542,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private fun rejectContact(reason:String):LocalImpact? {contactReason=reason;rejectedTurn=true;return null}
   val activeSettings get()=settings.translated(offset)
   fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
-  fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
+  fun reset() { clearTrack(); detector.reset(); scene.reset(); lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; framingNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
   fun process(pixels: IntArray, width: Int, height: Int, time: Double): LocalResult {
     if(width !in 1..8192 || height !in 1..8192 || pixels.size.toLong()!=width.toLong()*height || !time.isFinite())
@@ -679,7 +680,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       val hold=if(canBridgeFloorLoss()) .16 else .10
       if (age > hold) { lost=previous ?: lost;path.clear() }
       return diagnosed(LocalResult(null, prediction?.takeIf { age < .06 }, path.takeLast(16).map { CourtPoint(it.x,it.y) },
-        null,blocked,null,if(scene.needsConfirmation) "Treino ativo · confira a área; impactos suspensos" else if(blocked) "Treino ativo · aguardando imagem estável" else if(candidates.size>1) "Alvos verdes ambíguos · aguardando continuidade" else "Bola não localizada · sem inventar posição",activeSettings,offset,scene.needsConfirmation))
+        null,blocked,null,if(scene.needsConfirmation) "Treino ativo · confira a área; impactos suspensos" else if(blocked) "Treino ativo · aguardando imagem estável" else if(time<framingNoticeUntil) "Possível quicada fora da imagem · recue a câmera; contato não contado" else if(candidates.size>1) "Alvos verdes ambíguos · aguardando continuidade" else "Bola não localizada · sem inventar posição",activeSettings,offset,scene.needsConfirmation))
     }
     if (previous != null && (time-previous.time > .25 || ball.radius/previous.radius !in
       (if(previous.nearHand || previous.occluded) .35..3.5 else .48..2.1))) path.clear()
@@ -694,6 +695,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       when {
         scene.needsConfirmation -> "Treino ativo · confira a área em Marcar área; impactos suspensos"
         blocked -> "Treino ativo · aguardando a imagem estabilizar; impactos suspensos"
+        time<framingNoticeUntil -> "Possível quicada fora da imagem · recue a câmera; contato não contado"
         time<floorBoundaryNoticeUntil -> "Retorno acima do piso marcado · ajuste o limite ou use Toda a imagem é piso"
         ball.occluded -> "Bola parcialmente oculta · sem velocidade ou impacto automático"
         ball.colorUncertain -> "Sinal de cor fraco · acompanhamento incerto · revise o contato"
@@ -773,6 +775,10 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val contactTime=fit?.time ?: c.time
     val point=CourtPoint((fit?.x ?: c.x)/width,
       ((fit?.y ?: c.y)+if (settings.surface==ContactSurface.FLOOR && depth==null) c.radius else 0.0)/height)
+    if(!point.x.isFinite() || !point.y.isFinite() || point.x !in 0.0..1.0 || point.y !in 0.0..1.0) {
+      framingNoticeUntil=lastFrame+1.5
+      return rejectContact("Contato calculado fora da imagem · recue a câmera para mostrar o ponto da quicada")
+    }
     val intervals=evidence.zipWithNext().map { (left,right)->right.time-left.time }.sorted()
     val missingFrame=intervals.last()>intervals[1]*1.55+.001
     val sparse=intervals.last()>.075 || missingFrame
@@ -828,6 +834,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     lastImpact=contactTime
     contactReason=reason
     floorBoundaryNoticeUntil = -1.0
+    framingNoticeUntil = -1.0
     path.removeAll { it.time <= c.time }
     return result
   }

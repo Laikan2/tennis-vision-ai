@@ -403,6 +403,7 @@ public final class LocalVision {
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
     private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
     private var floorBoundaryNoticeUntil = -1.0
+    private var framingNoticeUntil = -1.0
     private var trackSerial=0,usableCandidates=0
     private var debugCandidates=[VisionBall](),contactReason="Aguardando trajetória",rejectedTurn=false
     private func diagnosed(_ result:VisionResult)->VisionResult {
@@ -428,7 +429,7 @@ public final class LocalVision {
         settings.translated(by:offset)
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;offset=VisionPoint(0,0)}
+    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
@@ -522,7 +523,7 @@ public final class LocalVision {
             // still expires after 60 ms and no missing sample is manufactured.
             let hold=canBridgeFloorLoss() ? 0.16:0.10
             if age>hold{lost=previous ?? lost;path=[]}
-            return diagnosed(VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Treino ativo · confira a área; impactos suspensos":blocked ? "Treino ativo · aguardando imagem estável":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation))
+            return diagnosed(VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Treino ativo · confira a área; impactos suspensos":blocked ? "Treino ativo · aguardando imagem estável":time<framingNoticeUntil ? "Possível quicada fora da imagem · recue a câmera; contato não contado":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation))
         }
         if !b.supportsBallColor{b.colorUncertain=true}
         if path.isEmpty{trackSerial+=1}
@@ -532,6 +533,7 @@ public final class LocalVision {
         let message: String
         if scene.needsConfirmation{message="Treino ativo · confira a área em Marcar área; impactos suspensos"}
         else if blocked{message="Treino ativo · aguardando a imagem estabilizar; impactos suspensos"}
+        else if time<framingNoticeUntil{message="Possível quicada fora da imagem · recue a câmera; contato não contado"}
         else if time<floorBoundaryNoticeUntil{message="Retorno acima do piso marcado · ajuste o limite ou use Toda a imagem é piso"}
         else if b.occluded{message="Bola parcialmente oculta · contato suspenso"}
         else if !b.resolved{message="Bola ≈\(Int(b.radius*2)) px · detalhe incerto · revise IN/OUT"}
@@ -591,6 +593,10 @@ public final class LocalVision {
             if radii.max()!/radii.min()!>1.65 || lights.max()!/max(1,lights.min()!)>1.8 || (settings.surface == .floor && fit==nil){return nil}
         }
         let point=VisionPoint((fit?.x ?? c.x)/Double(width),((fit?.y ?? c.y)+(settings.surface == .floor && depth==nil ? c.radius:0))/Double(height))
+        guard point.x.isFinite,point.y.isFinite,(0...1).contains(point.x),(0...1).contains(point.y) else{
+            framingNoticeUntil=lastFrame+1.5
+            return rejectContact("Contato calculado fora da imagem · recue a câmera para mostrar o ponto da quicada")
+        }
         let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
         let missing=sparse ? max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5,max(sa,sb)*intervals.last!*0.5):0
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
@@ -618,7 +624,7 @@ public final class LocalVision {
         else if call == .unmarked{reason="Quicada candidata; marque a área para IN/OUT."}
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
         let incomingSpeed=velocity(path.filter{$0.time<=c.time})
-        serial+=1;lastImpact=t;floorBoundaryNoticeUntil = -1;contactReason=reason;path.removeAll{$0.time<=c.time}
+        serial+=1;lastImpact=t;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;contactReason=reason;path.removeAll{$0.time<=c.time}
         return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}

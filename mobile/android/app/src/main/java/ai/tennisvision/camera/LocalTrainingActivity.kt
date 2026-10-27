@@ -387,7 +387,7 @@ class LocalTrainingActivity: AppCompatActivity() {
       config.surface==ContactSurface.WALL -> "Parede: retorno gera candidato para revisão; uma câmera não comprova o contato em profundidade."
       config.surface==ContactSurface.TRACK -> "Somente rastrear: impactos e IN/OUT desligados."
       config.court==CourtLayout.CUSTOM && !LocalGeometry.validFloorLine(config.floorLine) -> "Chão: toque em Marcar chão e conclua os dois passos, área e limite do piso. Sem a referência, o contato exige revisão."
-      else -> "Chão: aguarda descida e retorno no piso; perto da linha pode exigir revisão."
+      else -> "Chão: filme a queda de lado, com piso e espaço acima visíveis. Retorno visto só pelo tamanho da bola exige revisão."
     }
     findViewById<TextView>(R.id.localAreaSummary).append("\n"+hint+"\nÁreas temporárias · limpas ao fechar o app ou iniciar nova sessão.")
   }
