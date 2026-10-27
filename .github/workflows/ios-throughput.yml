@@ -24,7 +24,8 @@ jobs:
           mkdir -p /tmp/tennis-baseline
           git archive FETCH_HEAD mobile/ios | tar -xf - -C /tmp/tennis-baseline
           cp mobile/ios/Package.swift /tmp/tennis-baseline/mobile/ios/Package.swift
-          cp -R mobile/ios/Performance /tmp/tennis-baseline/mobile/ios/Performance
+          mkdir -p /tmp/tennis-baseline/mobile/ios/Performance
+          cp -R mobile/ios/Performance/. /tmp/tennis-baseline/mobile/ios/Performance/
       - name: Baseline release timings
         working-directory: /tmp/tennis-baseline/mobile/ios
         run: swift run -c release VisionBenchmark /tmp/baseline.json > /tmp/baseline.log
