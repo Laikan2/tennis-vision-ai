@@ -6,6 +6,7 @@ struct LocalCameraFrame {
     var image: CGImage,width: Int,height: Int,time: Double,result: VisionResult,key: String,generation: UUID
     var fps: Double,requestedFPS: Int,conversionMs: Double,analysisMs: Double,startedAt: Double
     var exposureMs: Double,profile: String,lens: String,evidence: CGImage?,evidenceOffset: VisionPoint?
+    var processedFPS:Double=0
 }
 struct LocalLensChoice: Identifiable {var id: String,name: String,device: AVCaptureDevice}
 enum LocalDetail: String,CaseIterable {case fluid,detail,economy
@@ -26,6 +27,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
     private let preview=VisionPreview()
     private var pixelStorage=[UInt32](),running=false,analyzing=false,key="",generation=UUID()
     private var activeProfile=CaptureProfile.standard,rotation=0,lastFrame=0.0,meter=FrameRateMeter(),lastReport=0.0
+    private var analysisMeter=FrameRateMeter()
     private var timer: DispatchSourceTimer?,observers=[NSObjectProtocol]()
     private struct Evidence{var time: Double,image: CGImage,offset: VisionPoint}
     private var evidence=[Evidence]()
@@ -116,7 +118,7 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
         }
     }
     func update(_ settings: VisionSettings){queue.async{[weak self] in self?.core.settings=settings;self?.core.reset();self?.preview.reset();self?.evidence=[]}}
-    func setAnalysis(_ value: Bool){queue.async{[weak self] in self?.analyzing=value;self?.core.clearTrack();self?.preview.reset();self?.evidence=[]}}
+    func setAnalysis(_ value: Bool){queue.async{[weak self] in self?.analyzing=value;self?.core.clearTrack();self?.preview.reset();self?.evidence=[];self?.analysisMeter=FrameRateMeter()}}
     func stop(completion: (() -> Void)?=nil){queue.async{[weak self] in self?.generation=UUID();self?.closeHardware();if let completion{DispatchQueue.main.async(execute:completion)}}}
     private func closeHardware(){
         running=false;analyzing=false;timer?.cancel();timer=nil
@@ -151,7 +153,8 @@ final class LocalCamera: NSObject,AVCaptureVideoDataOutputSampleBufferDelegate {
             guard let provider=CGDataProvider(data:data as CFData),let image=CGImage(width:w,height:h,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:w*4,space:colorSpace,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedFirst.rawValue|CGBitmapInfo.byteOrder32Little.rawValue),provider:provider,decode:nil,shouldInterpolate:true,intent:.defaultIntent) else{return}
             if analyzing{evidence.append(Evidence(time:time,image:image,offset:result.cameraOffset));if evidence.count>6{evidence.removeFirst()}}else{evidence=[]}
             let contact=result.impact.flatMap{hit in evidence.min{abs($0.time-hit.time)<abs($1.time-hit.time)}}
-            deliver(LocalCameraFrame(image:image,width:w,height:h,time:time,result:result,key:key,generation:generation,fps:meter.value(now:started),requestedFPS:activeProfile.fps,conversionMs:(converted-started)*1000,analysisMs:(analyzed-converted)*1000,startedAt:started,exposureMs:device.map{CMTimeGetSeconds($0.exposureDuration)*1000} ?? 0,profile:activeProfile.label,lens:device?.localizedName ?? "Câmera",evidence:contact?.image,evidenceOffset:contact?.offset))
+            if analyzing{analysisMeter.observe(analyzed)}else{analysisMeter=FrameRateMeter()}
+            deliver(LocalCameraFrame(image:image,width:w,height:h,time:time,result:result,key:key,generation:generation,fps:meter.value(now:started),requestedFPS:activeProfile.fps,conversionMs:(converted-started)*1000,analysisMs:(analyzed-converted)*1000,startedAt:started,exposureMs:device.map{CMTimeGetSeconds($0.exposureDuration)*1000} ?? 0,profile:activeProfile.label,lens:device?.localizedName ?? "Câmera",evidence:contact?.image,evidenceOffset:contact?.offset,processedFPS:analysisMeter.value(now:analyzed)))
         }
     }
     private func deliver(_ frame: LocalCameraFrame){

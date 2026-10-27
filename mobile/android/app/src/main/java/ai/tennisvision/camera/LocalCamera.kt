@@ -20,7 +20,7 @@ data class LocalFrame(val pixels: IntArray, val width: Int, val height: Int,
   val captureFps: Double, val requestedFps: Int, val key: String, val contactPixels: IntArray?=null,
   val conversionMs: Double=0.0, val detectorMs: Double=0.0,
   val lensLabel: String="",val profileLabel: String="",val contactOffset: CourtPoint?=null,
-  val exposureMs: Double?=null,val capturedAtRealtime: Boolean=false)
+  val exposureMs: Double?=null,val capturedAtRealtime: Boolean=false,val processedFps:Double=0.0)
 
 data class LocalLens(val id: String,val zoom: Float,val label: String) {
   val token get()="$id@$zoom"
@@ -45,6 +45,8 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
   private val yuv=LocalYuvBuffer()
   private var rotation=0
   private val rateMeter=FrameRateMeter()
+  private val analysisMeter=FrameRateMeter()
+  private var processedRate=0.0
   private var rate=0.0
   private var lastFrameMs=0L
   private var openingMs=0L
@@ -135,11 +137,12 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
               val result=if (scoring) core.process(pixels,w,h,time) else
                 preview.process(pixels,w,h,time,core.activeSettings,core.cameraOffset)
               val analyzed=SystemClock.elapsedRealtimeNanos()
+              if(scoring)analysisMeter.frame(analyzed)?.let{processedRate=it} else {analysisMeter.reset();processedRate=0.0}
               if (scoring) recent.addLast(Evidence(time,pixels,result.cameraOffset)) else recent.clear()
               while (recent.size>6) recent.removeFirst()
               val evidence=result.impact?.let { event -> recent.minByOrNull { abs(it.time-event.time) } }
               if (token==epoch && running) frame(LocalFrame(pixels,w,h,time,result,
-                (analyzed-started)/1e6,rate,fps.upper,key,evidence?.pixels,(converted-started)/1e6,(analyzed-converted)/1e6,lens.label,profile.title,evidence?.offset,exposureMs,realtime))
+                (analyzed-started)/1e6,rate,fps.upper,key,evidence?.pixels,(converted-started)/1e6,(analyzed-converted)/1e6,lens.label,profile.title,evidence?.offset,exposureMs,realtime,processedRate))
             }
           } catch (failure: Exception) {
             if (token==epoch && running) { running=false; error("Falha na captura local: ${failure.message}"); closeHardware() }
@@ -195,6 +198,7 @@ class LocalCamera(context: Context, private val settings: (String) -> LocalSetti
     runCatching { device?.close() }; device=null
     reader?.setOnImageAvailableListener(null,null); runCatching { reader?.close() }; reader=null
     recent.clear();yuv.clear()
+    analysisMeter.reset();processedRate=0.0
   }
 
   companion object {

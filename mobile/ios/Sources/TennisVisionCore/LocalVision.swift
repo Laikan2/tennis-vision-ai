@@ -179,21 +179,21 @@ final class VisionDetector {
         // every pixel and every flood-fill neighbour. The original arrays stay
         // alive for the entire borrow; pointers never escape this call.
         let previousCount=previous.count
-        let detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
+        var detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
         let pixels=pixelBuffer.baseAddress!
-        return previous.withUnsafeBufferPointer { previousBuffer in
+        return previous.withUnsafeBufferPointer { previousBuffer -> ([VisionBall],Bool) in
         let previous=previousBuffer.baseAddress ?? pixels
-        return mask.withUnsafeMutableBufferPointer { maskBuffer in
+        return mask.withUnsafeMutableBufferPointer { maskBuffer -> ([VisionBall],Bool) in
         let mask=maskBuffer.baseAddress!
-        return strong.withUnsafeMutableBufferPointer { strongBuffer in
+        return strong.withUnsafeMutableBufferPointer { strongBuffer -> ([VisionBall],Bool) in
         let strong=strongBuffer.baseAddress!
-        return chroma.withUnsafeMutableBufferPointer { chromaBuffer in
+        return chroma.withUnsafeMutableBufferPointer { chromaBuffer -> ([VisionBall],Bool) in
         let chroma=chromaBuffer.baseAddress!
-        return rawGreen.withUnsafeMutableBufferPointer { rawBuffer in
+        return rawGreen.withUnsafeMutableBufferPointer { rawBuffer -> ([VisionBall],Bool) in
         let rawGreen=rawBuffer.baseAddress!
-        return oldGreen.withUnsafeBufferPointer { oldBuffer in
+        return oldGreen.withUnsafeBufferPointer { oldBuffer -> ([VisionBall],Bool) in
         let oldGreen=oldBuffer.baseAddress!
-        return queue.withUnsafeMutableBufferPointer { queueBuffer in
+        return queue.withUnsafeMutableBufferPointer { queueBuffer -> ([VisionBall],Bool) in
         let queue=queueBuffer.baseAddress!
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
@@ -264,9 +264,10 @@ final class VisionDetector {
             let followed=prior.map{time-$0.time<0.14 && hypot(x-$0.x,y-$0.y)<max(30,$0.radius*6)} ?? false
             if aspect>4.5 && Double(changed)<Double(tail)*0.25 && !followed{continue}
             var skin=0,movingSkin=0,ring=0,closeRing=0,closeGrip=0,surroundChroma=0,surroundCount=0;let reach=max(6,Int(radius*2.4))
-            let needsContrast=radius>=2.5 && aspect<=1.9 && (0.50...0.90).contains(fill) &&
-                Double(chromaSum)/Double(tail)<107 && Double(greenSum)<Double(redSum)*1.05 &&
-                Double(strongCount)>=Double(tail)*0.55 && Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.8
+            let compact:Bool=radius>=2.5 && aspect<=1.9 && (0.50...0.90).contains(fill)
+            let warm:Bool=Double(chromaSum)/Double(tail)<107 && Double(greenSum)<Double(redSum)*1.05
+            let yellow:Bool=Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.8
+            let needsContrast:Bool=compact && warm && yellow && Double(strongCount)>=Double(tail)*0.55
             for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
                 let distance=hypot(Double(px)-x,Double(py)-y)
                 if distance<radius*1.2{continue};ring+=1
@@ -349,22 +350,22 @@ final class VisionDetector {
         found.removeAll{b in b.radius<=12 && clippedFelt.contains{box in
             let margin=max(max(6,b.radius*3),Double(min(box[2]-box[0]+1,box[3]-box[1]+1))*0.35)
             return b.x>=Double(box[0])-margin && b.x<=Double(box[2])+margin && b.y>=Double(box[1])-margin && b.y<=Double(box[3])+margin}}
+        return (found,moving)
+        }}}}}}}}
         // A cluster of similarly sized fragments is texture, not one ball.
         // Keep this bounded on busy backgrounds and keep the raw candidates
         // available to diagnostics rather than turning them into contact evidence.
-        let texture=Array(found.filter{$0.radius<=12 && $0.feltChroma>=45}.prefix(192))
-        for i in found.indices {
-            let b=found[i];if b.radius>12 || b.occluded{continue}
+        let texture=Array(detected.0.filter{$0.radius<=12 && $0.supportsBallColor}.prefix(192))
+        for i in detected.0.indices {
+            let b=detected.0[i];if b.radius>12 || b.occluded{continue}
             let reach=max(24,b.radius*6);var neighbours=0,mass=0.0
             for q in texture {
                 if (q.x==b.x && q.y==b.y) || q.radius>b.radius*2.5 || hypot(q.x-b.x,q.y-b.y)>reach{continue}
                 neighbours+=1;mass+=q.radius*q.radius
                 if neighbours>=3 && mass>=b.radius*b.radius*0.35{break}
             }
-            if neighbours>=3 && mass>=b.radius*b.radius*0.35{found[i].patterned=true}
+            if neighbours>=3 && mass>=b.radius*b.radius*0.35{detected.0[i].patterned=true}
         }
-        return (found,moving)
-        }}}}}}}}
         previous=pixels;swap(&oldGreen,&rawGreen)
         return detected
     }

@@ -259,6 +259,7 @@ class LocalTrainingActivity: AppCompatActivity() {
       frame.exposureMs?.let { diagnostics.add(String.format(Locale.getDefault(),"Exposição recente %.1f ms",it)) }
       ageMs?.takeIf { it in 0.0..10000.0 }?.let { diagnostics.add("captura → UI ≈${it.toInt()} ms") }
       if(diagnostics.isNotEmpty()) metrics.append("\n"+diagnostics.joinToString(" · "))
+      if(analyzing)metrics.append("\n"+String.format(Locale.getDefault(),"%.0f FPS analisados",frame.processedFps))
       if(court.debugOverlay)metrics.append("\n"+currentResult.diagnostics.summary+"\nEscore visual = suporte da silhueta; não é probabilidade calibrada")
       frame.result.observed?.let { ball ->
         metrics.append("\nBola ≈${(ball.radius*2).toInt()} px · "+if(ball.resolved) "observada" else "detalhe insuficiente para decisão automática")

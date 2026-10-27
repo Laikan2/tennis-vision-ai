@@ -465,7 +465,7 @@ class GreenBallDetector {
     // A bright fleck embedded in a cluster of similar fragments is ambiguous
     // visual texture, not a new ball. Bound neighbour work in very busy frames;
     // large resolved balls are retained and two separate balls stay ambiguous.
-    val texture=found.filter { it.radius<=12 && it.feltChroma>=45 }.take(192)
+    val texture=found.filter { it.radius<=12 && it.supportsBallColor }.take(192)
     for(i in found.indices) {
       val b=found[i];if(b.radius>12 || b.occluded)continue
       val reach=max(24.0,b.radius*6);var neighbours=0;var mass=0.0

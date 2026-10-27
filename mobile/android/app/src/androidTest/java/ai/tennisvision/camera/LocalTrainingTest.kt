@@ -385,6 +385,20 @@ class LocalTrainingTest {
         assertEquals(sounds+1,activity.testSoundCount())
         val saved=activity.testSession().events.takeLast(3)
         assertEquals(events.map { it.call },saved.map { it.call })
+        val court=activity.findViewById<LocalCourtView>(R.id.localVideo)
+        court.debugOverlay=true;court.markerDurationSeconds=0
+        fun render(marks:Boolean):Bitmap {
+          court.settings=court.settings.copy(marks=marks)
+          return Bitmap.createBitmap(court.width,court.height,Bitmap.Config.ARGB_8888).also{court.draw(android.graphics.Canvas(it))}
+        }
+        val hidden=render(false);val shown=render(true)
+        val contact=court.pointOnScreen(events.first().point)
+        val reach=(14*context.resources.displayMetrics.density).toInt();var changed=0
+        for(y in (contact.y.toInt()-reach).coerceAtLeast(0)..(contact.y.toInt()+reach).coerceAtMost(court.height-1))
+          for(x in (contact.x.toInt()-reach).coerceAtLeast(0)..(contact.x.toInt()+reach).coerceAtMost(court.width-1))
+            if(hidden.getPixel(x,y)!=shown.getPixel(x,y))changed++
+        assertTrue("The marker must render at the actual normalized contact, not merely increment a counter",changed>12)
+        hidden.recycle();shown.recycle()
       }
       screenshot("02-decoded-fixture-in-out-review")
       var id=""

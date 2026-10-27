@@ -21,7 +21,9 @@ public final class VisionPreview {
             let wasResolved=b.resolved,p=point(VisionPoint(b.x,b.y));b.x=p.x;b.y=p.y;b.radius*=min(sx,sy)
             b.diameterX*=sx;b.diameterY*=sy;b.colorUncertain=b.colorUncertain || !wasResolved;observed=b
         }
+        var diagnostics=detected.diagnostics
+        diagnostics.samples=diagnostics.samples.map{b in var v=b;let p=point(VisionPoint(b.x,b.y));v.x=p.x;v.y=p.y;v.radius*=min(sx,sy);v.diameterX*=sx;v.diameterY*=sy;return v}
         return VisionResult(observed:observed,predicted:detected.predicted.map(point),trail:detected.trail.map(point),
-            message:observed==nil ? "Prévia procurando bola · inicie para contar impactos":"Bola visível · inicie o treino para contar impactos",area:area,cameraOffset:offset)
+            message:observed==nil ? "Prévia procurando bola · inicie para contar impactos":"Bola visível · inicie o treino para contar impactos",area:area,cameraOffset:offset,diagnostics:diagnostics)
     }
 }
