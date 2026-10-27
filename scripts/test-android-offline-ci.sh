@@ -48,6 +48,16 @@ adb shell input keyevent 224
 adb shell wm dismiss-keyguard
 adb shell getprop ro.build.version.release > "$proof/android-version.txt"
 adb shell getprop ro.product.model > "$proof/model.txt"
+# boot_completed can precede the first responsive launcher frame. Settle HOME
+# before installing/running tests and fail explicitly if a system ANR obscures
+# the screen. Never dismiss an app ANR or retry a failing functional scenario.
+adb shell input keyevent KEYCODE_HOME
+sleep 10
+adb shell dumpsys window windows > "$proof/window-preflight.txt"
+if grep -q 'Application Not Responding:' "$proof/window-preflight.txt"; then
+  echo "System ANR covers the emulator before functional validation." >&2
+  exit 1
+fi
 adb logcat -c
 # UTP's connectedAndroidTest task uninstalls its APKs after the suite, deleting
 # screenshots and preventing the separate permission tests from launching.
