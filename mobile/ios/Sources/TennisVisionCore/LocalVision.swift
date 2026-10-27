@@ -154,7 +154,7 @@ final class VisionDetector {
                 let y=i/width,x=i-y*width,old=previousCount==count ? previous[i]:0
                 let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
                 if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
-                    let tile=(y>>3)*cols+(x>>3),cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
+                    let tile=(y>>3)*columns+(x>>3),cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
                     if visionLight(c)<cutoff{selected=false}
                 }
             }
@@ -362,7 +362,7 @@ final class VisionDetector {
         let queue=queueBuffer.baseAddress!
         return Self.segment(pixels:pixels,previous:previous,mask:mask,strong:strong,chroma:chroma,
             rawGreen:rawGreen,oldGreen:oldGreen,queue:queue,width:width,height:height,count:count,
-            previousCount:previousCount,time:time,prior:prior,lightShift:lightShift,columns:columns,
+            previousCount:previousCount,time:time,prior:prior,lightShift:lightShift,columns:cols,
             moving:moving,cutoffs:localCutoffs,weakCutoffs:localWeakCutoffs)
         }}}}}}}}
         // A cluster of similarly sized fragments is texture, not one ball.
