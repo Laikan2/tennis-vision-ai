@@ -14,7 +14,7 @@ final class ContactClockTests:XCTestCase {
     func testReDrawingTheSameEventDoesNotRestartItsLifetime() {
         var clock=VisionContactClock();clock.record(7,at:100);clock.record(7,at:103)
         XCTAssertEqual(clock.arrivals[7],100)
-        clock.reset();XCTAssertTrue(clock.arrivals.isEmpty())
+        clock.reset();XCTAssertTrue(clock.arrivals.isEmpty)
         XCTAssertFalse(VisionContactClock.visible(arrival:nil,now:100,duration:5))
     }
 }

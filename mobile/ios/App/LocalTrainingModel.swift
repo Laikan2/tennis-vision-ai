@@ -128,7 +128,7 @@ final class LocalTrainingStore {
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
         if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
         if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: use Marcar chão e conclua os dois passos: área e limite do piso. Sem a referência, o contato exige revisão."}
-        return "Chão: aguarda descida e retorno da bola no piso. Perto da linha, a decisão pode exigir revisão."
+        return "Chão: filme a queda de lado, com piso e espaço acima visíveis. Retorno visto só pelo tamanho da bola exige revisão."
     }
     private var cameraProbe: Bool{ProcessInfo.processInfo.arguments.contains("--vision-camera-check")}
     var visibleFrame: LocalCameraFrame?{frozen ?? frame}
