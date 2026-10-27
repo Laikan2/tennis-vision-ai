@@ -33,6 +33,16 @@ class PatternedClothingTest {
       }
     }
   }
+  @Test fun mutedOliveFeltRequiresContrastAgainstItsSurroundings() {
+    for(color in listOf(0xff897a4d.toInt(),0xff726840.toInt(),0xff9b8c59.toInt())) {
+      val neutral=IntArray(w*h){0xff9a9691.toInt()};disk(neutral,160.0,100.0,6.0,color)
+      val b=LocalAnalysis().process(neutral,w,h,0.0).observed
+      assertNotNull("Muted felt must not require saturated colour when its boundary is resolved",b)
+      assertEquals(160.0,b!!.x,2.0)
+      val uniform=IntArray(w*h){color}
+      assertNull("A similarly coloured background is not a ball",LocalAnalysis().process(uniform,w,h,0.0).observed)
+    }
+  }
   @Test fun realBallReacquiresAfterSeparatingFromClutter() {
     val core=LocalAnalysis();var seen=0
     for(i in 0..10) {
@@ -41,5 +51,16 @@ class PatternedClothingTest {
       if(r.observed!=null){assertEquals(x,r.observed!!.x,2.0);seen++}
     }
     assertTrue("Do not pass the negative test by discarding every ball",seen>=8)
+  }
+  @Test fun fingerSplitMutedBallIsVisibleButCannotScore() {
+    val core=LocalAnalysis();var seen=0
+    for((i,y) in listOf(90,100,112,126,142,160,142,126,112).withIndex()) {
+      val p=IntArray(w*h){0xff9a9691.toInt()};disk(p,160.0,y.toDouble(),10.0,0xff897a4d.toInt())
+      for(py in y-12..y+12)for(px in 159..161)p[py*w+px]=0xffbc8b7b.toInt()
+      val r=core.process(p,w,h,i/60.0)
+      r.observed?.let { seen++;assertTrue(it.occluded);assertTrue(it.nearHand) }
+      assertNull(r.impact);assertNull(r.speedKmh)
+    }
+    assertTrue("A carried muted ball must remain visible without a false contact",seen>=8)
   }
 }

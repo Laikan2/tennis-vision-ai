@@ -33,4 +33,22 @@ final class PatternedClothingTests:XCTestCase {
             if let b=r.observed{XCTAssertEqual(b.x,x,accuracy:2);seen+=1}
         };XCTAssertGreaterThanOrEqual(seen,8)
     }
+    func testMutedOliveNeedsContrast() throws {
+        for color in [UInt32(0xff897a4d),0xff726840,0xff9b8c59] {
+            var p=Array(repeating:UInt32(0xff9a9691),count:w*h);disk(&p,160,100,6,color)
+            let b=try XCTUnwrap(LocalVision().process(p,width:w,height:h,time:0).observed)
+            XCTAssertEqual(b.x,160,accuracy:2)
+            XCTAssertNil(LocalVision().process(Array(repeating:color,count:w*h),width:w,height:h,time:0).observed)
+        }
+    }
+    func testFingerSplitMutedBallCannotScore() {
+        let core=LocalVision();var seen=0
+        for (i,y) in [90,100,112,126,142,160,142,126,112].enumerated() {
+            var p=Array(repeating:UInt32(0xff9a9691),count:w*h);disk(&p,160,Double(y),10,0xff897a4d)
+            for py in y-12...y+12{for px in 159...161{p[py*w+px]=0xffbc8b7b}}
+            let r=core.process(p,width:w,height:h,time:Double(i)/60)
+            if let b=r.observed{seen+=1;XCTAssertTrue(b.occluded);XCTAssertTrue(b.nearHand)}
+            XCTAssertNil(r.impact);XCTAssertNil(r.speed)
+        };XCTAssertGreaterThanOrEqual(seen,8)
+    }
 }

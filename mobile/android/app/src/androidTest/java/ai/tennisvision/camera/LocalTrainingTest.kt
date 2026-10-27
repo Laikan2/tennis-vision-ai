@@ -79,7 +79,7 @@ class LocalTrainingTest {
     val folder=File(context.getExternalFilesDir(null),"offline-proof").apply { mkdirs() }
     instrumentation.uiAutomation.takeScreenshot()?.let { bitmap -> File(folder,"$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG,100,it) }; bitmap.recycle() }
   }
-  private fun area(scenario: ActivityScenario<LocalTrainingActivity>) {
+  private fun area(scenario: ActivityScenario<LocalTrainingActivity>,floorTop:Double=.28) {
     tap(scenario,R.id.localArea); tap(scenario,R.id.localRedraw)
     drag(scenario,CourtPoint(.2,.35),CourtPoint(.7,.9))
     scenario.onActivity { assertTrue(it.findViewById<Button>(R.id.localSaveArea).isEnabled) }
@@ -87,7 +87,7 @@ class LocalTrainingTest {
     // The floor wizard advances directly to its boundary step, without saving yet.
     scenario.onActivity { assertEquals(2,it.findViewById<LocalCourtView>(R.id.localVideo).editing) }
     tap(scenario,R.id.localRedraw)
-    drag(scenario,CourtPoint(.05,.28),CourtPoint(.05,.28)); drag(scenario,CourtPoint(.95,.28),CourtPoint(.95,.28))
+    drag(scenario,CourtPoint(.05,floorTop),CourtPoint(.05,floorTop)); drag(scenario,CourtPoint(.95,floorTop),CourtPoint(.95,floorTop))
     tap(scenario,R.id.localSaveArea)
   }
   @Test fun wholeFloorSetupSavesWithVisibleActionsWithoutDrawingALine() {
@@ -150,7 +150,9 @@ class LocalTrainingTest {
   }
   @Test fun decodedVerticalReturnsCreateWallMarksWithoutFalseOutAudio() {
     ActivityScenario.launch(LocalTrainingActivity::class.java).use { scenario ->
-      ready(scenario);area(scenario)
+      // This fixture tests wall returns. Put its floor boundary below those
+      // returns; floor contacts in wall mode must be rejected by the core.
+      ready(scenario);area(scenario,floorTop=.97)
       tap(scenario,R.id.localWall);tap(scenario,R.id.localRedraw)
       drag(scenario,CourtPoint(.1,.1),CourtPoint(.9,.95));tap(scenario,R.id.localSaveArea)
       tap(scenario,R.id.localStart)

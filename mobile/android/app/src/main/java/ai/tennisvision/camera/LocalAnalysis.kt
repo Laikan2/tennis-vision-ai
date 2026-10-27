@@ -342,7 +342,7 @@ class GreenBallDetector {
       var surroundChroma=0L;var surroundCount=0
       val needsContrast=radius>=2.5 && aspect<=1.9 && fill in .50.. .90 &&
         sumChroma.toDouble()/tail<107 && sumGreen<sumRed*1.05 &&
-        strongCount>=tail*.55 && sumGreen>=sumRed*.75 && sumGreen>=sumBlue*1.8
+        strongCount>=tail*.55 && sumGreen>=sumRed*.75 && sumGreen>=sumBlue*1.45
       val reach = max(6, (radius*2.4).toInt())
       for (py in max(0,y.toInt()-reach)..min(height-1,y.toInt()+reach) step 2)
         for (px in max(0,x.toInt()-reach)..min(width-1,x.toInt()+reach) step 2) {
@@ -447,13 +447,27 @@ class GreenBallDetector {
         val a=found[i];val b=found[match];val aa=bounds[i];val bb=bounds[match]
         val total=(masses[i]+masses[match]).toDouble();val weight=masses[i]/total
         val radius=min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1)/2.0
-        joined.add(BallObservation(if(matchSeam)(min(aa[0],bb[0])+max(aa[2],bb[2]))*.5 else a.x*weight+b.x*(1-weight),
+        var combined=BallObservation(if(matchSeam)(min(aa[0],bb[0])+max(aa[2],bb[2]))*.5 else a.x*weight+b.x*(1-weight),
           if(matchSeam)(min(aa[1],bb[1])+max(aa[3],bb[3]))*.5 else a.y*weight+b.y*(1-weight),radius,time,
           min(if(matchSeam).8 else .6,min(a.confidence,b.confidence)),nearHand=!matchSeam || a.nearHand || b.nearHand,luminance=a.luminance*weight+b.luminance*(1-weight),
           motionSupport=max(a.motionSupport,b.motionSupport),occluded=!matchSeam,
           diameterX=(max(aa[2],bb[2])-min(aa[0],bb[0])+1).toDouble(),diameterY=(max(aa[3],bb[3])-min(aa[1],bb[1])+1).toDouble(),
           distinctFelt=matchSeam,feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight),greenDominant=a.greenDominant && b.greenDominant,
-          contrastFelt=a.contrastFelt && b.contrastFelt))
+          contrastFelt=a.contrastFelt && b.contrastFelt)
+        // A finger may split muted felt into fragments too small to establish
+        // contrast separately. Test the reconstructed outline against its ring.
+        // This remains an occluded observation: never speed/contact evidence.
+        if(!matchSeam && !combined.supportsBallColor && combined.feltChroma>=75) {
+          val reach=max(8,ceil(radius*3).toInt());var sum=0L;var n=0
+          for(py in max(0,combined.y.toInt()-reach)..min(height-1,combined.y.toInt()+reach) step 2)
+            for(px in max(0,combined.x.toInt()-reach)..min(width-1,combined.x.toInt()+reach) step 2) {
+              if(hypot(px-combined.x,py-combined.y)<radius*1.8)continue
+              val color=pixels[py*width+px];val r=(color shr 16)and 255;val g=(color shr 8)and 255;val blue=color and 255
+              sum+=max(0,g-blue)*255/max(1,max(r,g));n++
+            }
+          if(n>0 && combined.feltChroma-sum.toDouble()/n>=32)combined=combined.copy(contrastFelt=true)
+        }
+        joined.add(combined)
       }
       found.clear();found.addAll(joined)
     }

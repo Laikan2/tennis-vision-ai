@@ -215,7 +215,7 @@ final class VisionDetector {
             var skin=0,movingSkin=0,ring=0,closeRing=0,closeGrip=0,surroundChroma=0,surroundCount=0;let reach=max(6,Int(radius*2.4))
             let compact:Bool=radius>=2.5 && aspect<=1.9 && (0.50...0.90).contains(fill)
             let warm:Bool=Double(chromaSum)/Double(tail)<107 && Double(greenSum)<Double(redSum)*1.05
-            let yellow:Bool=Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.8
+            let yellow:Bool=Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.45
             let needsContrast:Bool=compact && warm && yellow && Double(strongCount)>=Double(tail)*0.55
             for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
                 let distance=hypot(Double(px)-x,Double(py)-y)
@@ -292,7 +292,19 @@ final class VisionDetector {
                 var c=VisionBall(x:cx,y:cy,radius:Double(min(max(aa[2],bb[2])-min(aa[0],bb[0])+1,max(aa[3],bb[3])-min(aa[1],bb[1])+1))/2,time:time,confidence:min(matchSeam ? 0.8:0.6,min(a.confidence,b.confidence)))
                 c.diameterX=Double(max(aa[2],bb[2])-min(aa[0],bb[0])+1);c.diameterY=Double(max(aa[3],bb[3])-min(aa[1],bb[1])+1)
                 c.nearHand = !matchSeam || a.nearHand || b.nearHand;c.occluded = !matchSeam;c.luminance=a.luminance*weight+b.luminance*(1-weight)
-                c.motionSupport=max(a.motionSupport,b.motionSupport);c.distinctFelt=matchSeam;c.feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight);c.greenDominant=a.greenDominant && b.greenDominant;c.contrastFelt=a.contrastFelt && b.contrastFelt;joined.append(c)
+                c.motionSupport=max(a.motionSupport,b.motionSupport);c.distinctFelt=matchSeam;c.feltChroma=a.feltChroma*weight+b.feltChroma*(1-weight);c.greenDominant=a.greenDominant && b.greenDominant;c.contrastFelt=a.contrastFelt && b.contrastFelt
+                // Re-evaluate local contrast for muted felt split by a finger.
+                // The joined observation stays occluded and cannot count contact.
+                if !matchSeam && !c.supportsBallColor && c.feltChroma>=75 {
+                    let reach=max(8,Int(ceil(c.radius*3)));var sum=0,n=0
+                    for py in stride(from:max(0,Int(c.y)-reach),through:min(height-1,Int(c.y)+reach),by:2){for px in stride(from:max(0,Int(c.x)-reach),through:min(width-1,Int(c.x)+reach),by:2){
+                        if hypot(Double(px)-c.x,Double(py)-c.y)<c.radius*1.8{continue}
+                        let color=pixels[py*width+px],red=Int((color>>16)&255),green=Int((color>>8)&255),blue=Int(color&255)
+                        sum+=max(0,green-blue)*255/max(1,max(red,green));n+=1
+                    }}
+                    if n>0 && c.feltChroma-Double(sum)/Double(n)>=32{c.contrastFelt=true}
+                }
+                joined.append(c)
             }
             found=joined
         }
