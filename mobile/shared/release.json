@@ -1,6 +1,6 @@
 {
-  "version": "0.6.18",
-  "baseline": "texture-aware-tracking-and-contact-diagnostics-0.6.18",
+  "version": "0.6.19",
+  "baseline": "observed-contact-fitting-and-marker-lifetime-0.6.19",
   "platforms": [
     "android",
     "ios"
@@ -78,7 +78,10 @@
     "floor-wall-boundary-separation",
     "live-track-id-and-contact-diagnostics",
     "surface-coloured-impact-pulse",
-    "configurable-marker-duration"
+    "configurable-marker-duration",
+    "multi-frame-contact-change-point-fit",
+    "depth-return-review-candidate",
+    "independent-marker-arrival-lifetime"
   ],
   "installation": {
     "android": "apk-confirmation",

@@ -1,0 +1,10 @@
+{
+  "source": "synthetic H264 MP4 decoded by Android MediaCodec; no lens ground-truth claim",
+  "frames": 191,
+  "calls": "IN, OUT, REVIEW",
+  "p50AnalysisMs": 6.162719,
+  "p95AnalysisMs": 18.242633,
+  "outAudioEnqueued": 1,
+  "note": "SoundPool accepted playback; human audibility on a physical phone not verified",
+  "android": "15"
+}

@@ -1,0 +1,123 @@
+TENNIS VISION MOBILE 0.6.19 — CONTATOS E MARCAS
+27/10/2026
+Código dos aplicativos: 440520c57e3090e5fc0d4fa7f7e3e4bebff7fdbf.
+Base: 0.6.18, 429cd0965e145753937559bb5c35e423b7ff71db.
+
+OBSERVAÇÕES NO IPHONE ANTES DA ATUALIZAÇÃO
+
+iPhone 15 Pro, iOS 27.2, Tennis Vision 0.6.18/build 19.
+A leitura do histórico foi feita por USB sem editar os dados do usuário.
+
+- A primeira sequência com três quicadas informadas pelo usuário produziu
+  zero novos eventos. A câmera estava olhando de cima. O tamanho da bola
+  mudava muito, mas o retorno vertical na imagem não atendia ao detector.
+- A sequência seguinte, com parede e piso visíveis, produziu 11 eventos:
+  dois IN e nove REVISAR. O usuário esclareceu que foram três soltadas,
+  deixando a bola quicar várias vezes. Portanto três não é o número de
+  contatos reais dessa sequência. Não foi calculado recall nem quantidade
+  de duplicatas sem uma contagem independente de todos os quiques.
+- Três desses 11 pontos tinham coordenada normalizada y acima de 1
+  (1,108; 1,121; 1,037). Estavam fora do quadro exibido. Isso explica
+  parte dos círculos ausentes apesar de haver registro no histórico.
+- O enquadramento e a câmera se moveram, e a linha marcada não estava
+  consistentemente sobre o rodapé. Há incerteza adicional de localização.
+- No intervalo observado sem bola, o histórico não ganhou eventos.
+  A primeira imagem ainda mostrava treino pausado; não se atribui toda
+  a duração amostrada ao treino ativo.
+
+As imagens de depuração são amostras da tela a aproximadamente 2–3 FPS,
+não vídeo bruto em alta velocidade. Não permitem localizar cada instante
+físico de contato com precisão. Nenhuma imagem privada foi publicada.
+
+CORREÇÕES
+
+1. Ajuste temporal em vários pontos realmente observados. Um retorno
+   abrupto deve explicar a trajetória melhor que um arco contínuo.
+   Mão, oclusão, lacunas longas e silhueta incerta não ganham contato
+   automático por essa nova rota. O trabalho tem limites de pontos e
+   hipóteses, inclusive em captura de alta frequência.
+2. Retorno em profundidade a partir de posição/tamanho coerentes, com
+   evidência de aproximação e afastamento. É candidato para REVISAR:
+   a câmera única não identifica por si só a superfície física.
+3. Relógio das marcas do iPhone separado do pulso breve de animação.
+   Chegar um novo contato não expira as marcas anteriores antes do
+   intervalo selecionado.
+4. Rejeição de contato calculado fora do enquadramento; não limitar
+   artificialmente a posição à borda. Aviso visível para recuar a câmera,
+   sem incrementar contagem nem tocar OUT para esse ponto invisível.
+5. Janela de histórico ampliada de 320 para 420 ms: nove observações
+   a 20 FPS analisados ocupam 400 ms. O teste desse caso falhou antes
+   e passou depois; mantém o limite de 40 pontos e 25 hipóteses. Isso
+   não aumenta FPS, nem recupera contatos sem ambos os lados observados.
+6. Instrução de enquadramento no modo chão, também em tela cheia.
+
+TESTES LOCAIS
+
+Android/JDK 17 em Windows: 301 testes, 298 aprovados, três ignorados,
+zero falhas/erros, após a correção da janela para 20 FPS. Os três ignorados são avaliações opcionais que dependem
+de arquivos privados. APK Release com R8 e APKs audit compilaram.
+Pacote, fonte AltStore e publicação conjunta: 23 testes Python aprovados.
+
+Grade de trajetórias sintéticas com tempo/posição conhecidos:
+0.6.18 = 16/18 casos com uma marca correta.
+0.6.19 = 18/18; erro do contato abaixo de 10 pixels em 640×480.
+Emulador Android 15 final, execução 40598981827: nove testes de uso e
+dois de permissão aprovados, sem rede. Um vídeo H.264 sintético com
+191 quadros foi decodificado por MediaCodec: IN, OUT e REVISAR chegaram
+à interface, marca desenhada, histórico e um OUT enfileirado para áudio.
+Mediana/p95 de análise nesse emulador em 320×240: 6,16/18,24 ms.
+Não foi verificada audibilidade em Android físico.
+
+Os dois casos recuperados têm ruído de 3 px, retorno de 200 px/s,
+e amostragem de 60/120 FPS. Não equivalem a quicadas de câmera real.
+
+Regressões incluem: trajetória contínua sem contato, bola carregada,
+arco suave, desaparecimento antes do retorno, ruído parado, oclusões,
+retorno oblíquo de parede, profundidade, ponto fora do quadro,
+expiração de marcas, retomada de rastreamento e entradas inválidas.
+
+CI NATIVO, DESEMPENHO E VALIDAÇÃO APÓS INSTALAÇÃO
+
+Comparação Release nativa em macOS contra 0.6.18, com duas ordens de
+execução: saídas idênticas nos doze cenários comuns; AddressSanitizer
+aprovado. Razões antes/depois de 0,892–1,264 na primeira passagem e
+0,887–1,119 na repetição. Há cenários mais lentos: não se afirma ganho
+geral de desempenho. Em 1080p, medianas finais de 14,4–25,1 ms; p95
+máximo de 35,3 ms. Isso não mede câmera→tela nem FPS no iPhone.
+Essas cenas comuns não exercitam todas as novas rotas de contato.
+iOS: 164 testes Swift aprovados; builds de aparelho e simulador aprovados,
+60 quadros H.264 recebidos/decodificados, abertura do simulador e captura
+de tela conferidas (versão 0.6.19, câmera indisponível no simulador).
+A tentativa de instalar pelo iLoader terminou com dispositivo não encontrado.
+A lista USB estava vazia; o aparelho ainda não foi validado com a 0.6.19.
+Repetição física após reconexão permanece pendente.
+
+REPLAY PRIVADO COMPLEMENTAR
+
+Nos mesmos 900 quadros de tela comprimida, iniciando no trecho estável,
+0.6.18 e 0.6.19 tiveram 476 observações, nenhum bloqueio de câmera e
+zero contatos. Não houve melhora demonstrada nesse replay. A imagem
+contém rastros/rótulos anteriores e não substitui o vídeo bruto da lente.
+
+LIMITES
+
+Nenhum novo modelo neural foi treinado. O detector usa evidência visual
+e temporal de cor/forma/movimento. Não foi demonstrada precisão em
+partida, bola a 200 km/h, contato de parede comprovado, ou velocidade 3D.
+A velocidade exibida continua uma estimativa lateral, não medida por radar.
+O teste físico de 0.6.18 mostrou falha real no ângulo de cima; a correção
+não deve ser anunciada como resolução completa antes de repetir no aparelho.
+Uma marca REVISAR é hipótese de contato, não IN/OUT confirmado.
+
+EVIDÊNCIAS E DISTRIBUIÇÃO
+
+PR: https://github.com/Laikan2/tennis-vision-ai/pull/14
+iOS: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40598982489
+Android: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40598981827
+Desempenho/ASAN: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40599005591
+
+APK 0.6.19/code 32 e IPA 0.6.19/build 20 preparados. Android mantém
+o certificado anterior e iOS mantém a identidade base do aplicativo; a
+instalação pessoal usa a conta existente. Os 71 eventos das duas sessões
+foram copiados para backup local antes da tentativa, sem exclusão de dados.
+Não foi possível conferir preservação pós-instalação porque ela não ocorreu.

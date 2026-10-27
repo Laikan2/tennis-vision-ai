@@ -12,7 +12,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
     private var activeMarks:[VisionImpact] {
         let now=ProcessInfo.processInfo.systemUptime
         return Array(events.filter{$0.decision != .rejected && $0.surface==config.surface &&
-            (markerDuration==0 || now-(arrivalTimes[$0.id] ?? 0)<Double(markerDuration))}.suffix(24))
+            VisionContactClock.visible(arrival:arrivalTimes[$0.id],now:now,duration:markerDuration)}.suffix(24))
     }
     var events=[VisionImpact](){didSet{
         let previous=Set(oldValue.map{$0.id}),now=ProcessInfo.processInfo.systemUptime
@@ -425,7 +425,10 @@ struct LocalTrainingView: View {
             HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}.padding(.horizontal,20)
             LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).frame(maxWidth:.infinity,maxHeight:.infinity)
             Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
-            if model.editing==0{countingIndicator;areaRecovery;lastContactSummary}
+            if model.editing==0{
+                countingIndicator;areaRecovery;lastContactSummary
+                Text(model.surfaceHint).font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,16)
+            }
             Text(model.status).font(.footnote).foregroundStyle(model.needsAreaCheck ? Color.orange:Palette.muted).padding(.horizontal,16)
             if model.editing>0{
                 Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
