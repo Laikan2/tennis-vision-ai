@@ -215,7 +215,7 @@ final class VisionDetector {
             var skin=0,movingSkin=0,ring=0,closeRing=0,closeGrip=0,surroundChroma=0,surroundCount=0;let reach=max(6,Int(radius*2.4))
             let compact:Bool=radius>=2.5 && aspect<=1.9 && (0.50...0.90).contains(fill)
             let warm:Bool=Double(chromaSum)/Double(tail)<107 && Double(greenSum)<Double(redSum)*1.05
-            let yellow:Bool=Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.45
+            let yellow:Bool=Double(greenSum)>=Double(redSum)*0.75 && Double(greenSum)>=Double(blueSum)*1.8
             let needsContrast:Bool=compact && warm && yellow && Double(strongCount)>=Double(tail)*0.55
             for py in stride(from:max(0,Int(y)-reach),through:min(height-1,Int(y)+reach),by:2){for px in stride(from:max(0,Int(x)-reach),through:min(width-1,Int(x)+reach),by:2){
                 let distance=hypot(Double(px)-x,Double(py)-y)

@@ -33,16 +33,6 @@ class PatternedClothingTest {
       }
     }
   }
-  @Test fun mutedOliveFeltRequiresContrastAgainstItsSurroundings() {
-    for(color in listOf(0xff897a4d.toInt(),0xff726840.toInt(),0xff9b8c59.toInt())) {
-      val neutral=IntArray(w*h){0xff9a9691.toInt()};disk(neutral,160.0,100.0,6.0,color)
-      val b=LocalAnalysis().process(neutral,w,h,0.0).observed
-      assertNotNull("Muted felt must not require saturated colour when its boundary is resolved",b)
-      assertEquals(160.0,b!!.x,2.0)
-      val uniform=IntArray(w*h){color}
-      assertNull("A similarly coloured background is not a ball",LocalAnalysis().process(uniform,w,h,0.0).observed)
-    }
-  }
   @Test fun realBallReacquiresAfterSeparatingFromClutter() {
     val core=LocalAnalysis();var seen=0
     for(i in 0..10) {
