@@ -39,7 +39,7 @@ def publish(args):
     android=json.loads((ROOT/f'mobile/releases/android-v{version}.json').read_text(encoding='utf-8'))
     metadata=validate(args.ipa,apk,android,contract)
     run=json.loads(gh('run','view',args.run,'--repo','Laikan2/tennis-vision-ai','--json','status,conclusion,headSha,jobs'))
-    required=['Core regression tests','Build for physical iPhone without signing','Build for simulator','Package IPA for personal signing on Windows','Receiver integration']
+    required=['Core regression tests','Build for physical iPhone without signing','Build for simulator','Package IPA for personal signing on Windows','Receiver integration','Simulator launch and screenshot']
     steps={s['name']:s['conclusion'] for j in run['jobs'] for s in j['steps']}
     if run['status']!='completed' or run['conclusion']!='success' or any(steps.get(s)!='success' for s in required):
         raise ValueError('A successful native build, tests and decoded-video integration are required')
