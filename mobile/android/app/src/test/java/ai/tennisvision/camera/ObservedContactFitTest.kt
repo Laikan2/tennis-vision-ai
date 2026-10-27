@@ -21,6 +21,16 @@ class ObservedContactFitTest {
       300+(if(d<0)650*d else -300*d)+sin(t*150)*1.5 to 230+100*d+400*d*d},ContactSurface.WALL)
     assertNotNull(f);assertEquals(300.0,f!!.x,4.0);assertEquals(230.0,f.y,4.0)
   }
+  @Test fun twentyAnalyzedFramesPerSecondStillSupportAnObservedReturn() {
+    val p=(0..8).map { i ->
+      val t=i/20.0;val d=t-.17
+      BallObservation(240+240*t,300+(if(d<0)700*d else -200*d)+400*d*d+sin(i*2.4)*1.5,
+        8.0,t,.9,greenDominant=true)
+    }
+    val f=ObservedContactFit.find(p,ContactSurface.FLOOR)
+    assertNotNull("20 analyzed FPS must not be excluded by the history window",f)
+    assertEquals(.17,f!!.time,.02);assertEquals(300.0,f.y,5.0)
+  }
   @Test fun smoothFlightAndRoundTurnsCannotBecomeImpacts() {
     val curves=listOf<(Double)->Pair<Double,Double>>(
       {t->200+300*t to 220+700*t*t},

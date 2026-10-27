@@ -5,7 +5,9 @@ enum ObservedContactFit {
     struct Fit {var x:Double,y:Double,time:Double,error:Double,support:[VisionBall]}
     static func find(_ history:[VisionBall],surface:VisionSurface)->Fit? {
         guard let end=history.last?.time else{return nil}
-        let clean=Array(history.reversed().prefix{end-$0.time<=0.32 && $0.resolved && $0.supportsBallColor && !$0.nearHand && !$0.blurred}.reversed())
+        // Nine real samples at 20 analyzed FPS need 400 ms of history.
+        // The number of fit points and hypotheses remains bounded below.
+        let clean=Array(history.reversed().prefix{end-$0.time<=0.42 && $0.resolved && $0.supportsBallColor && !$0.nearHand && !$0.blurred}.reversed())
         guard clean.count>=9,let first=clean.first,let last=clean.last,last.time-first.time>=0.07 else{return nil}
         guard !zip(clean,clean.dropFirst()).contains(where:{$0.1.time-$0.0.time<=0 || $0.1.time-$0.0.time>0.075}) else{return nil}
         let radii=clean.map{$0.radius}.sorted(),radius=radii[radii.count/2]

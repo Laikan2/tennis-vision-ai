@@ -4,7 +4,7 @@ import Foundation
 enum DepthContactFit {
     static func find(_ history:[VisionBall],width:Int,height:Int)->ObservedContactFit.Fit? {
         guard let end=history.last?.time else{return nil}
-        var p=Array(history.reversed().prefix{end-$0.time<=0.32 && $0.resolved && $0.supportsBallColor && !$0.nearHand && !$0.blurred && $0.radius>=8}.reversed())
+        var p=Array(history.reversed().prefix{end-$0.time<=0.42 && $0.resolved && $0.supportsBallColor && !$0.nearHand && !$0.blurred && $0.radius>=8}.reversed())
         guard p.count>=9,let peak=p.indices.min(by:{p[$0].radius<p[$1].radius}),peak>=3,peak<=p.count-4 else{return nil}
         let minimum=p[peak].radius
         var start=peak,stop=peak

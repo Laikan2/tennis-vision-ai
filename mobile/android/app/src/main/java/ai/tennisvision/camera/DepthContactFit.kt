@@ -6,7 +6,7 @@ import kotlin.math.*
 internal object DepthContactFit {
   fun find(history:List<BallObservation>,width:Int,height:Int):ObservedContactFit.Fit? {
     val end=history.lastOrNull()?.time ?: return null
-    var p=history.takeLastWhile{end-it.time<=.32 && it.resolved && it.supportsBallColor &&
+    var p=history.takeLastWhile{end-it.time<=.42 && it.resolved && it.supportsBallColor &&
       !it.nearHand && !it.blurred && it.radius>=8}
     if(p.size<9)return null
     val peak=p.indices.minByOrNull{p[it].radius}!!

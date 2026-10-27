@@ -9,7 +9,9 @@ internal object ObservedContactFit {
   fun find(history:List<BallObservation>,surface:ContactSurface):Fit? {
     val end=history.lastOrNull()?.time ?: return null
     // A hand, uncertain silhouette or long gap breaks free-flight support.
-    val clean=history.takeLastWhile { end-it.time<=.32 && it.resolved && it.supportsBallColor && !it.nearHand && !it.blurred }
+    // Nine real samples at 20 analyzed FPS need 400 ms of history.
+    // The number of fit points and hypotheses remains bounded below.
+    val clean=history.takeLastWhile { end-it.time<=.42 && it.resolved && it.supportsBallColor && !it.nearHand && !it.blurred }
     if(clean.size<9 || clean.last().time-clean.first().time<.07)return null
     if(clean.zipWithNext().any{(a,b)->b.time-a.time<=0 || b.time-a.time>.075})return null
     val radius=clean.map{it.radius}.sorted()[clean.size/2]

@@ -59,6 +59,17 @@ final class ContactRobustnessTests:XCTestCase {
         let f=ObservedContactFit.find(p,surface:.wall);XCTAssertNotNil(f)
         if let f{XCTAssertEqual(f.x,300,accuracy:4);XCTAssertEqual(f.y,230,accuracy:4)}
     }
+    func testTwentyAnalyzedFramesPerSecondStillSupportObservedReturn() {
+        let points=(0...8).map { i in
+            let t=Double(i)/20,d=t-0.17
+            var b=VisionBall(x:240+240*t,y:300+(d<0 ? 700*d : -200*d)+400*d*d+sin(Double(i)*2.4)*1.5,
+                radius:8,time:t,confidence:0.9)
+            b.greenDominant=true;return b
+        }
+        let f=ObservedContactFit.find(points,surface:.floor)
+        XCTAssertNotNil(f,"20 analyzed FPS must not be excluded by the history window")
+        if let f{XCTAssertEqual(f.time,0.17,accuracy:0.02);XCTAssertEqual(f.y,300,accuracy:5)}
+    }
     func testSmoothFlightRoundTurnsStaticJitterAndHeldBallCannotScore() {
         let curves:[(Double)->(Double,Double)]=[
             {t in (200+300*t,220+700*t*t)},
