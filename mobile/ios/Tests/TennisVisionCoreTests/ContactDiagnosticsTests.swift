@@ -20,7 +20,7 @@ final class ContactDiagnosticsTests:XCTestCase {
         }
     }
     func testFastBallRetainsIdentityAndWallCandidate() throws {
-        var s=VisionSettings();s.surface = .wall;s.polygon=polygon
+        var s=VisionSettings();s.surface = .wall;s.polygon=polygon;s.floorLine=VisionFloorBoundaryDraft.wholeImage
         let core=LocalVision(settings:s);var hits=[VisionImpact](),ids=Set<Int>(),seen=0
         for (i,x) in [100,220,340,460,580,460,340,220,100].enumerated(){
             let r=core.process(frame(Double(x),180,4),width:w,height:h,time:Double(i)/60)

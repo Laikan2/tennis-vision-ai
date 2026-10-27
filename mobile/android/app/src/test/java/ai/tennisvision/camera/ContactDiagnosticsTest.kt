@@ -22,7 +22,8 @@ class ContactDiagnosticsTest {
     }
   }
   @Test fun fastObservedBallKeepsIdentityAndMakesOnlyOneWallCandidate() {
-    val core=LocalAnalysis(LocalSettings(surface=ContactSurface.WALL,polygon=region))
+    // A prior whole-image floor preset must not suppress later wall returns.
+    val core=LocalAnalysis(LocalSettings(surface=ContactSurface.WALL,polygon=region,floorLine=wholeImageFloorLine()))
     val ids=mutableSetOf<Long?>();val hits=mutableListOf<LocalImpact>();var observed=0
     listOf(100,220,340,460,580,460,340,220,100).forEachIndexed{i,x->
       val r=core.process(frame(x.toDouble(),180.0,4.0),w,h,i/60.0)

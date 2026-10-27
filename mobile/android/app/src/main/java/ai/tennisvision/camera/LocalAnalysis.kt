@@ -773,7 +773,9 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val region=activeSettings
     // The floor boundary separates physical planes; the IN target polygon
     // must not suppress real contacts outside the target.
-    if(settings.surface==ContactSurface.WALL) {
+    // "Whole image is floor" is a convenience setting, not a measured wall
+    // boundary. It must not disable every later wall contact after switching.
+    if(settings.surface==ContactSurface.WALL && settings.floorLine!=wholeImageFloorLine()) {
       val distance=LocalGeometry.floorDistancePx(point,region.floorLine,width,height)
       if(distance!=null && distance>uncertainty+c.radius)
         return rejectContact("Retorno sobre o piso no modo parede · selecione Chão")

@@ -592,7 +592,9 @@ public final class LocalVision {
         let missing=sparse ? max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5,max(sa,sb)*intervals.last!*0.5):0
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
         let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing+localization),area=activeSettings
-        if settings.surface == .wall,let distance=VisionGeometry.floorDistance(point,area.floorLine,width,height),distance>uncertainty+c.radius{
+        // The whole-image floor preset is not a measured physical separator.
+        if settings.surface == .wall,settings.floorLine != VisionFloorBoundaryDraft.wholeImage,
+           let distance=VisionGeometry.floorDistance(point,area.floorLine,width,height),distance>uncertainty+c.radius{
             return rejectContact("Retorno sobre o piso no modo parede · selecione Chão")
         }
         let floorDistance=settings.surface == .floor && settings.court == .custom ? VisionGeometry.floorDistance(point,area.floorLine,width,height):nil
