@@ -137,64 +137,13 @@ final class VisionDetector {
     private var dimensions=(0,0)
     var alignment=VisionAlignment()
     func reset(){previous=[]}
-    func detect(_ pixels: [UInt32],width: Int,height: Int,time: Double,prior: VisionBall?,landmarks: [VisionPoint]) -> ([VisionBall],Bool) {
-        let count=width*height
-        if dimensions.0 != width || dimensions.1 != height {
-            dimensions=(width,height);mask=Array(repeating:0,count:count);strong=mask;chroma=mask;oldGreen=mask;rawGreen=mask
-            queue=Array(repeating:0,count:count);previous=[]
-        }
-        var moving=false,lightShift=0
-        if previous.count==count {
-            var samples=[Int]();for y in stride(from:8,to:height,by:16){for x in stride(from:8,to:width,by:16){samples.append(visionLight(pixels[y*width+x])-visionLight(previous[y*width+x]))}}
-            samples.sort();lightShift=samples.isEmpty ? 0:samples[samples.count/2]
-            var changed=0,border=0,borderChanged=0,counts=Array(repeating:0,count:4),changes=Array(repeating:0,count:4)
-            for y in stride(from:8,to:height,by:16){for x in stride(from:8,to:width,by:16){
-                let i=y*width+x,q=(x>=width/2 ? 1:0)+(y>=height/2 ? 2:0),edge=x<width*15/100 || x>width*85/100 || y<height*15/100 || y>height*85/100
-                counts[q]+=1;if edge{border+=1}
-                if abs(visionLight(pixels[i])-visionLight(previous[i])-lightShift)>24 {changed+=1;changes[q]+=1;if edge{borderChanged+=1}}
-            }}
-            alignment=VisionAlignment.estimate(pixels,previous,width:width,height:height,lightShift:lightShift,landmarks:landmarks)
-            moving=Double(changed)>Double(samples.count)*0.28 && Double(borderChanged)>Double(border)*0.30 && (0..<4).filter{Double(changes[$0])>Double(counts[$0])*0.30}.count>=3 && !alignment.reliable
-        } else{alignment=VisionAlignment()}
-        let cols=(width+7)/8,rows=(height+7)/8
-        // Samples 64px away can still be inside a close tennis ball. Resolve
-        // its wider surroundings before treating its own felt as a background.
-        let outerReach=max(64,min(width,height)/3)
-        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
-        if cutoffs.count != cols*rows {cutoffs=Array(repeating:-1,count:cols*rows);weakCutoffs=cutoffs}
-        for gy in 0..<rows {for gx in 0..<cols {
-            let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
-            for reach in contrastReaches {
-                var sum=0,greens=0,weakSum=0,weakCount=0
-                let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
-                for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
-                if greens>=2{lowest=min(lowest,sum/greens)};if weakCount>=2{weakLowest=min(weakLowest,weakSum/weakCount)}
-                if reach==outerReach{outer=greens>=2;weakOuter=weakCount>=2}
-            }
-            cutoffs[gy*cols+gx]=outer && lowest != Int.max ? lowest+12:-1
-            weakCutoffs[gy*cols+gx]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
-        }}
-        // Borrow each buffer once for this synchronous frame. Repeated writes to
-        // stored Swift Arrays otherwise repeat uniqueness/exclusivity work for
-        // every pixel and every flood-fill neighbour. The original arrays stay
-        // alive for the entire borrow; pointers never escape this call.
-        let previousCount=previous.count
-        var detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
-        let pixels=pixelBuffer.baseAddress!
-        return previous.withUnsafeBufferPointer { previousBuffer -> ([VisionBall],Bool) in
-        let previous=previousBuffer.baseAddress ?? pixels
-        return mask.withUnsafeMutableBufferPointer { maskBuffer -> ([VisionBall],Bool) in
-        let mask=maskBuffer.baseAddress!
-        return strong.withUnsafeMutableBufferPointer { strongBuffer -> ([VisionBall],Bool) in
-        let strong=strongBuffer.baseAddress!
-        return chroma.withUnsafeMutableBufferPointer { chromaBuffer -> ([VisionBall],Bool) in
-        let chroma=chromaBuffer.baseAddress!
-        return rawGreen.withUnsafeMutableBufferPointer { rawBuffer -> ([VisionBall],Bool) in
-        let rawGreen=rawBuffer.baseAddress!
-        return oldGreen.withUnsafeBufferPointer { oldBuffer -> ([VisionBall],Bool) in
-        let oldGreen=oldBuffer.baseAddress!
-        return queue.withUnsafeMutableBufferPointer { queueBuffer -> ([VisionBall],Bool) in
-        let queue=queueBuffer.baseAddress!
+    // Keep pointer ownership in detect(); this synchronous pure kernel cannot
+    // retain a buffer. A separate function also bounds Swift type-checking work.
+    private static func segment(pixels:UnsafePointer<UInt32>,previous:UnsafePointer<UInt32>,
+        mask:UnsafeMutablePointer<UInt8>,strong:UnsafeMutablePointer<UInt8>,chroma:UnsafeMutablePointer<UInt8>,
+        rawGreen:UnsafeMutablePointer<UInt8>,oldGreen:UnsafePointer<UInt8>,queue:UnsafeMutablePointer<Int>,
+        width:Int,height:Int,count:Int,previousCount:Int,time:Double,prior:VisionBall?,lightShift:Int,columns:Int,
+        moving:Bool,cutoffs:[Int],weakCutoffs:[Int])->([VisionBall],Bool) {
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
@@ -351,6 +300,70 @@ final class VisionDetector {
             let margin=max(max(6,b.radius*3),Double(min(box[2]-box[0]+1,box[3]-box[1]+1))*0.35)
             return b.x>=Double(box[0])-margin && b.x<=Double(box[2])+margin && b.y>=Double(box[1])-margin && b.y<=Double(box[3])+margin}}
         return (found,moving)
+    }
+    func detect(_ pixels: [UInt32],width: Int,height: Int,time: Double,prior: VisionBall?,landmarks: [VisionPoint]) -> ([VisionBall],Bool) {
+        let count=width*height
+        if dimensions.0 != width || dimensions.1 != height {
+            dimensions=(width,height);mask=Array(repeating:0,count:count);strong=mask;chroma=mask;oldGreen=mask;rawGreen=mask
+            queue=Array(repeating:0,count:count);previous=[]
+        }
+        var moving=false,lightShift=0
+        if previous.count==count {
+            var samples=[Int]();for y in stride(from:8,to:height,by:16){for x in stride(from:8,to:width,by:16){samples.append(visionLight(pixels[y*width+x])-visionLight(previous[y*width+x]))}}
+            samples.sort();lightShift=samples.isEmpty ? 0:samples[samples.count/2]
+            var changed=0,border=0,borderChanged=0,counts=Array(repeating:0,count:4),changes=Array(repeating:0,count:4)
+            for y in stride(from:8,to:height,by:16){for x in stride(from:8,to:width,by:16){
+                let i=y*width+x,q=(x>=width/2 ? 1:0)+(y>=height/2 ? 2:0),edge=x<width*15/100 || x>width*85/100 || y<height*15/100 || y>height*85/100
+                counts[q]+=1;if edge{border+=1}
+                if abs(visionLight(pixels[i])-visionLight(previous[i])-lightShift)>24 {changed+=1;changes[q]+=1;if edge{borderChanged+=1}}
+            }}
+            alignment=VisionAlignment.estimate(pixels,previous,width:width,height:height,lightShift:lightShift,landmarks:landmarks)
+            moving=Double(changed)>Double(samples.count)*0.28 && Double(borderChanged)>Double(border)*0.30 && (0..<4).filter{Double(changes[$0])>Double(counts[$0])*0.30}.count>=3 && !alignment.reliable
+        } else{alignment=VisionAlignment()}
+        let cols=(width+7)/8,rows=(height+7)/8
+        // Samples 64px away can still be inside a close tennis ball. Resolve
+        // its wider surroundings before treating its own felt as a background.
+        let outerReach=max(64,min(width,height)/3)
+        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
+        if cutoffs.count != cols*rows {cutoffs=Array(repeating:-1,count:cols*rows);weakCutoffs=cutoffs}
+        for gy in 0..<rows {for gx in 0..<cols {
+            let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
+            for reach in contrastReaches {
+                var sum=0,greens=0,weakSum=0,weakCount=0
+                let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
+                for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
+                if greens>=2{lowest=min(lowest,sum/greens)};if weakCount>=2{weakLowest=min(weakLowest,weakSum/weakCount)}
+                if reach==outerReach{outer=greens>=2;weakOuter=weakCount>=2}
+            }
+            cutoffs[gy*cols+gx]=outer && lowest != Int.max ? lowest+12:-1
+            weakCutoffs[gy*cols+gx]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
+        }}
+        // Borrow each buffer once for this synchronous frame. Repeated writes to
+        // stored Swift Arrays otherwise repeat uniqueness/exclusivity work for
+        // every pixel and every flood-fill neighbour. The original arrays stay
+        // alive for the entire borrow; pointers never escape this call.
+        let previousCount=previous.count
+        let localCutoffs=cutoffs,localWeakCutoffs=weakCutoffs
+        var detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
+        let pixels=pixelBuffer.baseAddress!
+        return previous.withUnsafeBufferPointer { previousBuffer -> ([VisionBall],Bool) in
+        let previous=previousBuffer.baseAddress ?? pixels
+        return mask.withUnsafeMutableBufferPointer { maskBuffer -> ([VisionBall],Bool) in
+        let mask=maskBuffer.baseAddress!
+        return strong.withUnsafeMutableBufferPointer { strongBuffer -> ([VisionBall],Bool) in
+        let strong=strongBuffer.baseAddress!
+        return chroma.withUnsafeMutableBufferPointer { chromaBuffer -> ([VisionBall],Bool) in
+        let chroma=chromaBuffer.baseAddress!
+        return rawGreen.withUnsafeMutableBufferPointer { rawBuffer -> ([VisionBall],Bool) in
+        let rawGreen=rawBuffer.baseAddress!
+        return oldGreen.withUnsafeBufferPointer { oldBuffer -> ([VisionBall],Bool) in
+        let oldGreen=oldBuffer.baseAddress!
+        return queue.withUnsafeMutableBufferPointer { queueBuffer -> ([VisionBall],Bool) in
+        let queue=queueBuffer.baseAddress!
+        return Self.segment(pixels:pixels,previous:previous,mask:mask,strong:strong,chroma:chroma,
+            rawGreen:rawGreen,oldGreen:oldGreen,queue:queue,width:width,height:height,count:count,
+            previousCount:previousCount,time:time,prior:prior,lightShift:lightShift,columns:columns,
+            moving:moving,cutoffs:localCutoffs,weakCutoffs:localWeakCutoffs)
         }}}}}}}}
         // A cluster of similarly sized fragments is texture, not one ball.
         // Keep this bounded on busy backgrounds and keep the raw candidates
