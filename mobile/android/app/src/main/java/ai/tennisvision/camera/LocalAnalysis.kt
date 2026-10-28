@@ -262,6 +262,8 @@ class GreenBallDetector {
     val lazy=greenSamples*4<max(1,samples)
     if(!lazy)for(tile in contrastCutoffs.indices)ensureContrast(tile)
     val searchRadius=prior?.let { max(14.0,it.radius*3) } ?: 0.0
+    // Keep the original dense-court pixel kernel; defer only sparse frames.
+    if(lazy) {
     for (i in pixels.indices) {
       val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
       // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
@@ -285,12 +287,43 @@ class GreenBallDetector {
         // subtraction alone erased it together with the green court.
         if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
           val tile=(y shr 3)*columns+(x shr 3)
-          if(lazy)ensureContrast(tile)
+          ensureContrast(tile)
           val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
           if(luminance(c)<cutoff) selected=false
         }
       }
       mask[i] = if (selected) 1 else 0
+    }
+    } else {
+    for (i in pixels.indices) {
+      val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
+      chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
+      // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
+      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+      strongGreen[i]=if(strong) 1 else 0
+      // The edge of a distant ball is mixed with the background by area
+      // sampling and 4:2:0 chroma. Retain that modest yellow-green signal too,
+      // but report a component without enough original colour as uncertain.
+      var selected=strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)
+      rawGreen[i]=if(selected) 1 else 0
+      if (selected) {
+        val old=if(previous.size==pixels.size) previous[i] else 0
+        val wasGreen=previousGreen[i].toInt()==1
+        val y=i/width;val x=i-y*width
+        val tracked=prior!=null && abs(x-prior.x)<=searchRadius && abs(y-prior.y)<=searchRadius &&
+          luminance(c)-lightShift>=prior.luminance*.82
+        // Separate the brighter ball from a stationary green court, instead of
+        // merging both into one giant color component. Departing shadows are excluded.
+        // Local contrast also exposes a stationary ball before a serve. A temporal
+        // subtraction alone erased it together with the green court.
+        if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
+          val tile=(y shr 3)*columns+(x shr 3)
+          val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
+          if(luminance(c)<cutoff) selected=false
+        }
+      }
+      mask[i] = if (selected) 1 else 0
+    }
     }
     val found = ArrayList<BallObservation>()
     val bounds=ArrayList<IntArray>();val masses=ArrayList<Int>()

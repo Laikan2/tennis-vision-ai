@@ -175,6 +175,9 @@ final class VisionDetector {
             else{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,reaches:reaches,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
         }
         let search=prior.map{max(14,$0.radius*3)} ?? 0
+        // Separate loops keep the established dense-court pixel kernel intact.
+        // In particular, its chroma pass need not branch for each green pixel.
+        if lazy {
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
             let red=Int((c>>16)&255),green=Int((c>>8)&255),blue=Int(c&255)
@@ -185,12 +188,29 @@ final class VisionDetector {
                 let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
                 if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
                     let tile=(y>>3)*columns+(x>>3)
-                    if lazy && cutoffs[tile] == -2{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,reaches:reaches,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
+                    if cutoffs[tile] == -2{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,reaches:reaches,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
                     let cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
                     if visionLight(c)<cutoff{selected=false}
                 }
             }
             mask[i]=selected ? 1:0
+        }
+        } else {
+        for i in 0..<count {
+            let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
+            let red=Int((c>>16)&255),green=Int((c>>8)&255),blue=Int(c&255)
+            chroma[i]=UInt8(max(0,green-blue)*255/max(1,max(red,green)))
+            var selected=s || weakGreen(c);rawGreen[i]=selected ? 1:0
+            if selected {
+                let y=i/width,x=i-y*width,old=previousCount==count ? previous[i]:0
+                let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
+                if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
+                    let tile=(y>>3)*columns+(x>>3),cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
+                    if visionLight(c)<cutoff{selected=false}
+                }
+            }
+            mask[i]=selected ? 1:0
+        }
         }
         var found=[VisionBall](),bounds=[[Int]](),masses=[Int](),clippedFelt=[[Int]]()
         // Every accepted component needs a strong felt pixel. Seed from those
