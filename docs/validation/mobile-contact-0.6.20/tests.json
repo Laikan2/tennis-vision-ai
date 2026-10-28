@@ -1,0 +1,14 @@
+{
+  "androidJvm": {
+    "tests": 307,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 3
+  },
+  "swiftTests": 170,
+  "pythonPackagingTests": 23,
+  "iosSourceCommit": "2a85b1e31fbebbe1bc83e113a036eca97b7ee168",
+  "androidSourceCommit": "4ad51b19884106ed09e5038e052d3dfde84aafec",
+  "physicalPhoneAvailable": false,
+  "iosCodeIdenticalAtAndroidCommit": true
+}
