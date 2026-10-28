@@ -1,6 +1,6 @@
 {
-  "version": "0.6.19",
-  "baseline": "observed-contact-fitting-and-marker-lifetime-0.6.19",
+  "version": "0.6.20",
+  "baseline": "bounded-contact-cadence-and-lazy-full-resolution-0.6.20",
   "platforms": [
     "android",
     "ios"
@@ -81,7 +81,10 @@
     "configurable-marker-duration",
     "multi-frame-contact-change-point-fit",
     "depth-return-review-candidate",
-    "independent-marker-arrival-lifetime"
+    "independent-marker-arrival-lifetime",
+    "spatially-bounded-delivery-jitter",
+    "incoming-leg-speed-before-contact",
+    "lazy-full-resolution-background-contrast"
   ],
   "installation": {
     "android": "apk-confirmation",

@@ -173,6 +173,129 @@ class GreenBallDetector {
     return if(n>0 && ball.feltChroma-sum.toDouble()/n>=32)ball.copy(contrastFelt=true) else ball
   }
 
+  // Keep pixel preparation separate from component traversal. This bounded
+  // method avoids a giant detector bytecode body that the runtime may leave
+  // unoptimized, while retaining exactly the same masks and scan order.
+  private fun prepareMask(pixels:IntArray,width:Int,height:Int,prior:BallObservation?,lightShift:Int) {
+    fun luminance(c:Int)=(((c shr 16)and 255)+2*((c shr 8)and 255)+(c and 255))/4
+    val columns=(width+7)/8;val rows=(height+7)/8
+    if(contrastCutoffs.size!=columns*rows) {
+      contrastCutoffs=IntArray(columns*rows);weakContrastCutoffs=IntArray(columns*rows)
+    }
+    // Estimate the green background once per 8×8 tile. Re-reading eight
+    // neighbors for every green pixel made a full green court unnecessarily slow.
+    contrastCutoffs.fill(-2)
+    fun ensureContrast(tile:Int) {
+      if(contrastCutoffs[tile]!=-2)return
+      val gx=tile%columns;val gy=tile/columns
+      val x=min(width-1,gx*8+4);val y=min(height-1,gy*8+4)
+      var lowest=Int.MAX_VALUE;var outerGreen=false
+      var weakLowest=Int.MAX_VALUE;var outerWeak=false
+      for(reach in contrastReaches) {
+        var sum=0;var greens=0
+        var weakSum=0;var weakGreens=0
+        fun sample(index: Int) {
+          val c=pixels[index];val r=(c shr 16) and 255;val g=(c shr 8) and 255;val b=c and 255
+          val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+          val light=(r+2*g+b)/4
+          if(strong) { greens++;sum+=light }
+          if(strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)) {
+            weakGreens++;weakSum+=light
+          }
+        }
+        sample(y*width+max(0,x-reach));sample(y*width+min(width-1,x+reach))
+        sample(max(0,y-reach)*width+x);sample(min(height-1,y+reach)*width+x)
+        if(greens>=2) lowest=min(lowest,sum/greens)
+        if(reach==contrastReaches.last()) outerGreen=greens>=2
+        if(weakGreens>=2)weakLowest=min(weakLowest,weakSum/weakGreens)
+        if(reach==contrastReaches.last())outerWeak=weakGreens>=2
+      }
+      // A hand or a resolved ball can fill the nearer samples. Only enforce a
+      // green-background cutoff when the wider surroundings support it too.
+      // The outer ring scales with resolution: a close ball wider than 128px
+      // must not be erased by samples that are still inside its own silhouette.
+      contrastCutoffs[gy*columns+gx]=if(!outerGreen || lowest==Int.MAX_VALUE) -1 else lowest+12
+      // A desaturated green court can match only the expansion colour. Do not
+      // connect its entire surface to the strong ball. Keep this cutoff separate
+      // so newly recognised backgrounds cannot erase original strong evidence.
+      weakContrastCutoffs[gy*columns+gx]=if(!outerWeak || weakLowest==Int.MAX_VALUE) -1 else weakLowest+12
+    }
+    // Dense colour backgrounds keep one eager tile pass. Sparse frames defer
+    // each tile until needed; both paths preserve all original pixel evidence.
+    var greenSamples=0;var samples=0
+    for(y in 4 until height step 32)for(x in 4 until width step 32) {
+      val c=pixels[y*width+x];val r=(c shr 16)and 255;val g=(c shr 8)and 255;val b=c and 255;samples++
+      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+      if(strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16))greenSamples++
+    }
+    val lazy=greenSamples*4<max(1,samples)
+    if(!lazy)for(tile in contrastCutoffs.indices)ensureContrast(tile)
+    val searchRadius=prior?.let { max(14.0,it.radius*3) } ?: 0.0
+    // Keep the original dense-court pixel kernel; defer only sparse frames.
+    if(lazy) {
+    for (i in pixels.indices) {
+      val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
+      // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
+      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+      strongGreen[i]=if(strong) 1 else 0
+      // The edge of a distant ball is mixed with the background by area
+      // sampling and 4:2:0 chroma. Retain that modest yellow-green signal too,
+      // but report a component without enough original colour as uncertain.
+      var selected=strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)
+      rawGreen[i]=if(selected) 1 else 0
+      if (selected) {
+        chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
+        val old=if(previous.size==pixels.size) previous[i] else 0
+        val wasGreen=previousGreen[i].toInt()==1
+        val y=i/width;val x=i-y*width
+        val tracked=prior!=null && abs(x-prior.x)<=searchRadius && abs(y-prior.y)<=searchRadius &&
+          luminance(c)-lightShift>=prior.luminance*.82
+        // Separate the brighter ball from a stationary green court, instead of
+        // merging both into one giant color component. Departing shadows are excluded.
+        // Local contrast also exposes a stationary ball before a serve. A temporal
+        // subtraction alone erased it together with the green court.
+        if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
+          val tile=(y shr 3)*columns+(x shr 3)
+          ensureContrast(tile)
+          val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
+          if(luminance(c)<cutoff) selected=false
+        }
+      }
+      mask[i] = if (selected) 1 else 0
+    }
+    } else {
+    for (i in pixels.indices) {
+      val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
+      chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
+      // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
+      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+      strongGreen[i]=if(strong) 1 else 0
+      // The edge of a distant ball is mixed with the background by area
+      // sampling and 4:2:0 chroma. Retain that modest yellow-green signal too,
+      // but report a component without enough original colour as uncertain.
+      var selected=strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)
+      rawGreen[i]=if(selected) 1 else 0
+      if (selected) {
+        val old=if(previous.size==pixels.size) previous[i] else 0
+        val wasGreen=previousGreen[i].toInt()==1
+        val y=i/width;val x=i-y*width
+        val tracked=prior!=null && abs(x-prior.x)<=searchRadius && abs(y-prior.y)<=searchRadius &&
+          luminance(c)-lightShift>=prior.luminance*.82
+        // Separate the brighter ball from a stationary green court, instead of
+        // merging both into one giant color component. Departing shadows are excluded.
+        // Local contrast also exposes a stationary ball before a serve. A temporal
+        // subtraction alone erased it together with the green court.
+        if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
+          val tile=(y shr 3)*columns+(x shr 3)
+          val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
+          if(luminance(c)<cutoff) selected=false
+        }
+      }
+      mask[i] = if (selected) 1 else 0
+    }
+    }
+  }
+
   fun detect(pixels: IntArray, width: Int, height: Int, time: Double,
     prior: BallObservation?,landmarks: List<CourtPoint> = emptyList()): Pair<List<BallObservation>, Boolean> {
     require(width > 0 && height > 0 && pixels.size == width * height)
@@ -209,75 +332,7 @@ class GreenBallDetector {
       moving = changed > samples.size * .28 && borderChanges>border*.30 &&
         (0..3).count { changes[it]>counts[it]*.30 }>=3 && !alignment.reliable
     } else alignment=FrameAlignment()
-    val columns=(width+7)/8;val rows=(height+7)/8
-    if(contrastCutoffs.size!=columns*rows) {
-      contrastCutoffs=IntArray(columns*rows);weakContrastCutoffs=IntArray(columns*rows)
-    }
-    // Estimate the green background once per 8×8 tile. Re-reading eight
-    // neighbors for every green pixel made a full green court unnecessarily slow.
-    for(gy in 0 until rows) for(gx in 0 until columns) {
-      val x=min(width-1,gx*8+4);val y=min(height-1,gy*8+4)
-      var lowest=Int.MAX_VALUE;var outerGreen=false
-      var weakLowest=Int.MAX_VALUE;var outerWeak=false
-      for(reach in contrastReaches) {
-        var sum=0;var greens=0
-        var weakSum=0;var weakGreens=0
-        fun sample(index: Int) {
-          val c=pixels[index];val r=(c shr 16) and 255;val g=(c shr 8) and 255;val b=c and 255
-          val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
-          val light=(r+2*g+b)/4
-          if(strong) { greens++;sum+=light }
-          if(strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)) {
-            weakGreens++;weakSum+=light
-          }
-        }
-        sample(y*width+max(0,x-reach));sample(y*width+min(width-1,x+reach))
-        sample(max(0,y-reach)*width+x);sample(min(height-1,y+reach)*width+x)
-        if(greens>=2) lowest=min(lowest,sum/greens)
-        if(reach==contrastReaches.last()) outerGreen=greens>=2
-        if(weakGreens>=2)weakLowest=min(weakLowest,weakSum/weakGreens)
-        if(reach==contrastReaches.last())outerWeak=weakGreens>=2
-      }
-      // A hand or a resolved ball can fill the nearer samples. Only enforce a
-      // green-background cutoff when the wider surroundings support it too.
-      // The outer ring scales with resolution: a close ball wider than 128px
-      // must not be erased by samples that are still inside its own silhouette.
-      contrastCutoffs[gy*columns+gx]=if(!outerGreen || lowest==Int.MAX_VALUE) -1 else lowest+12
-      // A desaturated green court can match only the expansion colour. Do not
-      // connect its entire surface to the strong ball. Keep this cutoff separate
-      // so newly recognised backgrounds cannot erase original strong evidence.
-      weakContrastCutoffs[gy*columns+gx]=if(!outerWeak || weakLowest==Int.MAX_VALUE) -1 else weakLowest+12
-    }
-    val searchRadius=prior?.let { max(14.0,it.radius*3) } ?: 0.0
-    for (i in pixels.indices) {
-      val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
-      chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
-      // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
-      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
-      strongGreen[i]=if(strong) 1 else 0
-      // The edge of a distant ball is mixed with the background by area
-      // sampling and 4:2:0 chroma. Retain that modest yellow-green signal too,
-      // but report a component without enough original colour as uncertain.
-      var selected=strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)
-      rawGreen[i]=if(selected) 1 else 0
-      if (selected) {
-        val old=if(previous.size==pixels.size) previous[i] else 0
-        val wasGreen=previousGreen[i].toInt()==1
-        val y=i/width;val x=i-y*width
-        val tracked=prior!=null && abs(x-prior.x)<=searchRadius && abs(y-prior.y)<=searchRadius &&
-          luminance(c)-lightShift>=prior.luminance*.82
-        // Separate the brighter ball from a stationary green court, instead of
-        // merging both into one giant color component. Departing shadows are excluded.
-        // Local contrast also exposes a stationary ball before a serve. A temporal
-        // subtraction alone erased it together with the green court.
-        if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
-          val tile=(y shr 3)*columns+(x shr 3)
-          val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
-          if(luminance(c)<cutoff) selected=false
-        }
-      }
-      mask[i] = if (selected) 1 else 0
-    }
+    prepareMask(pixels,width,height,prior,lightShift)
     val found = ArrayList<BallObservation>()
     val bounds=ArrayList<IntArray>();val masses=ArrayList<Int>()
     val clippedFelt=ArrayList<IntArray>()
@@ -706,28 +761,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       },activeSettings,offset,scene.needsConfirmation))
   }
 
-  private fun speed(points: List<BallObservation>): Double? {
-    if(points.size<3)return null
-    val b=points.last();if(b.blurred || b.nearHand || !b.resolved)return null
-    var start=points.lastIndex
-    // Four samples span only 12.5 ms at 240 FPS. Select a short observed
-    // time interval instead of a fixed count, without crossing a tracking gap.
-    while(start>0) {
-      val prior=points[start-1];val gap=points[start].time-prior.time
-      if(prior.blurred || prior.nearHand || !prior.resolved || gap !in .000001.. .075 || b.time-prior.time>.22)break
-      start--
-      if(points.size-start>=3 && b.time-points[start].time>=.02)break
-    }
-    val supported=points.subList(start,points.size)
-    if(supported.size<3)return null
-    val a=supported.first();val dt=b.time-a.time
-    if (dt !in .015.. .22) return null
-    val radius=supported.map { it.radius }.sorted()[supported.size/2]
-    if (radius < 3 || supported.maxOf { it.radius } / supported.minOf { it.radius } > 1.35) return null
-    // Apparent lateral speed from the 67 mm ball diameter, NOT a calibrated 3-D/radar measurement.
-    val kmh = hypot(b.x-a.x,b.y-a.y)/dt * .067/(radius*2)*3.6
-    return kmh.takeIf { it.isFinite() && it in .8..250.0 }
-  }
+  private fun speed(points:List<BallObservation>)=ObservedBallSpeed.current(points)
 
   private fun contact(width: Int, height: Int): LocalImpact? {
     if (settings.surface == ContactSurface.TRACK || path.size < 5) return null
@@ -780,10 +814,16 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       return rejectContact("Contato calculado fora da imagem · recue a câmera para mostrar o ponto da quicada")
     }
     val intervals=evidence.zipWithNext().map { (left,right)->right.time-left.time }.sorted()
-    val missingFrame=intervals.last()>intervals[1]*1.55+.001
-    val sparse=intervals.last()>.075 || missingFrame
+    val irregular=intervals.last()>intervals[1]*1.55+.001
+    // A clean fitted floor return with less than 0.65 radii of motion during
+    // the longest interval is spatially bounded, even with delivery jitter.
+    // Keep the added uncertainty and never bypass long gaps or uncertain balls.
+    val boundedTiming=settings.surface==ContactSurface.FLOOR && depth==null && fit!=null &&
+      fit.error<=max(2.0,c.radius*.35) && max(sa,sb)*intervals.last()<=c.radius*.65 &&
+      evidence.all{it.resolved && !it.nearHand && !it.blurred}
+    val sparse=intervals.last()>.075 || irregular && !boundedTiming
     val localization=if(settings.surface==ContactSurface.FLOOR)floorLocalizationNoise(evidence,c.time) else 0.0
-    val missing=if(sparse) max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5,
+    val missing=if(irregular || sparse) max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5,
       max(sa,sb)*intervals.last()*.5) else 0.0
     val uncertainty=max(2.0,c.radius*.3 + (if (c.blurred) c.radius*.6 else 0.0) +
       (fit?.error ?: 0.0) + localization + missing)
@@ -829,7 +869,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       courtKnown -> "Mudança de trajetória compatível com quicada na quadra marcada; contato estimado."
       else -> "Descida e subida observadas no piso; contato estimado entre quadros."
     }
-    val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(path.filter{it.time<=c.time}),uncertainty,reason,settings.surface,
+    val result=LocalImpact(++serial,contactTime,point,c.radius,call,ObservedBallSpeed.incoming(path,contactTime),uncertainty,reason,settings.surface,
       cameraOffset=offset,evidenceOffset=offset)
     lastImpact=contactTime
     contactReason=reason

@@ -492,7 +492,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   private fun review(event: LocalImpact) {
     pauseAnalysis()
     val column=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(20,8,20,8) }
-    val text=TextView(this).apply { text="${court.callLabel(event.decision)} · ${event.reason}\n${event.speedKmh?.let { "≈${it.toInt()} km/h lateral" } ?: "Velocidade indisponível"}"; setTextColor(ContextCompat.getColor(context,R.color.tv_text)) }
+    val text=TextView(this).apply { text="${court.callLabel(event.decision)} · ${event.reason}\n${event.speedKmh?.let { "≈"+String.format(Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h lateral · antes do contato" } ?: "Sem trajetória e tamanho nítidos suficientes para estimar a velocidade antes do contato. Mais luz e uma bola maior na imagem ajudam."}"; setTextColor(ContextCompat.getColor(context,R.color.tv_text)) }
     column.addView(text)
     val image=ImageView(this).apply { adjustViewBounds=true; maxHeight=(190*resources.displayMetrics.density).toInt(); contentDescription="Quadro observado mais próximo do contato estimado" }
     column.addView(image)

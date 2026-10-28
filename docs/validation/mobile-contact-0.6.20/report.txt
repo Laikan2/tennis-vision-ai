@@ -1,0 +1,30 @@
+Tennis Vision mobile 0.6.20 — validação em 27/10/2026
+
+Correções verificadas
+Uma quicada lenta conhecida com intervalos alternados de 16,7/33,3 ms produzia REVISAR na versão 0.6.19. O teste falhou antes da correção. Agora os controles claramente dentro e fora produzem IN e OUT, e o controle próximo à linha continua em REVISAR. A tolerância considera deslocamento, ajuste da trajetória, nitidez e margem de erro; não ignora contatos rápidos ocultos ou lacunas longas.
+
+A velocidade do contato usa somente a trajetória anterior ao instante ajustado. Um borrão visível breve pode aproveitar uma sequência nítida até 50 ms anterior, sem atravessar mão, oclusão ou cor indefinida. Testes cobrem os casos permitidos e os recusados. Valores baixos conservam decimais na revisão. Continua sendo uma estimativa lateral pela bola de 67 mm, não velocidade 3D/radar.
+
+Desempenho
+Comparação Release Swift contra a 0.6.19, no mesmo runner macOS, com 12 cenas sintéticas em 720p horizontal/vertical e 1080p. Duas rodadas com ordem invertida; 24 quadros cronometrados por cena em cada rodada. Todos os resultados por quadro foram idênticos nesses controles.
+Piso 1080p: mediana 16,65 → 8,59 ms; repetição 20,65 → 10,51 ms (48–49% menos tempo de análise).
+Quadra verde 1080p: 24,78 → 21,15 ms; repetição 33,38 → 30,56 ms (8–15% menos tempo). Os JSONs anexos contêm todas as cenas, incluindo percentis 95. Tempos variam com a carga do runner.
+A imagem mantém a resolução; cálculos de fundo são feitos conforme necessário e cenas verdes densas preservam o processamento anterior por pixel. No Android a preparação da máscara foi separada do detector para evitar uma função excessivamente grande. Não inferimos FPS de câmera desses tempos.
+
+Testes e pacotes
+JVM Android: 304 passaram, 3 opcionais com entrada privada não fornecida foram pulados; nenhum erro/falha.
+Swift: 170 testes passaram. Validação adicional de memória com AddressSanitizer passou.
+23 testes Python de empacotamento/publicação passaram.
+Android: emulador Android 15/API35. Fluxos de permissões, retomada, configuração, uso sem rede e persistência verificados pelo workflow abaixo. A sequência H.264 sintética decodificada teve 191 quadros e controles IN, OUT e REVISAR, incluindo marcas na tela e uma chamada OUT enfileirada. Isso não prova audibilidade nem precisão da lente de um celular real.
+iOS: compilação para dispositivo e simulador, abertura no simulador e decodificação de 60 quadros H.264 recebidos. O simulador não fornece prova de detecção pela câmera física.
+APK Android 0.6.20/code33 validado com o certificado de atualização anterior; IPA 0.6.20/build21 destinada à assinatura pessoal. Contrato de recursos igual nas duas plataformas. Nenhum dado pessoal de treino foi incluído nas provas públicas.
+
+Limites e pendências
+Nenhum iPhone/Android ficou disponível por USB nesta execução. A versão nova não foi instalada nem medida em aparelho físico. Captura real, exposição, aquecimento, FPS de ponta a ponta, batidas na parede e precisão numa partida continuam dependentes de testes físicos com resultados conhecidos.
+Parede e retornos em profundidade continuam em REVISAR. Próximo à linha ou sem trajetória suficiente, o app preserva a incerteza. Não foi demonstrada precisão de VAR profissional ou detecção garantida de saques a 200 km/h.
+
+Fontes verificáveis
+iOS e teste de vídeo: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40607705905
+Desempenho e memória: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40607706285
+Android emulador: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40608426773
+iOS: 2a85b1e31fbebbe1bc83e113a036eca97b7ee168; Android: 4ad51b19884106ed09e5038e052d3dfde84aafec. Os arquivos iOS/contrato são idênticos entre esses commits; a última alteração foi a separação do processamento Android.

@@ -456,7 +456,8 @@ struct LocalTrainingView: View {
                     Circle().stroke(Color(event.decision.color),lineWidth:3).frame(width:26,height:26).position(x:CGFloat(p.x)*g.size.width,y:CGFloat(p.y)*g.size.height)
                 }
             }.clipShape(RoundedRectangle(cornerRadius:16))}else{Text("Evidência do quadro indisponível").foregroundStyle(.secondary)}
-            Text(event.speed.map{"≈\(Int($0)) km/h lateral"} ?? "Velocidade indisponível").font(.headline)
+            Text(event.speed.map{"≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h lateral"} ?? "Velocidade indisponível").font(.headline)
+            Text(event.speed == nil ? "Sem trajetória e tamanho nítidos suficientes antes do contato para uma estimativa confiável. Mais luz e uma bola maior na imagem ajudam." : "Estimativa do movimento lateral imediatamente antes do contato, usando o diâmetro aparente da bola. Não mede a velocidade em profundidade.").font(.footnote).foregroundStyle(.secondary)
             Text("A imagem é o quadro observado mais próximo do contato estimado. A decisão original é preservada no registro.").font(.footnote).foregroundStyle(.secondary)
             Button("Confirmar IN"){model.revise(.inside)}.buttonStyle(.borderedProminent)
             Button("Confirmar OUT"){model.revise(.outside)}.buttonStyle(.bordered)
