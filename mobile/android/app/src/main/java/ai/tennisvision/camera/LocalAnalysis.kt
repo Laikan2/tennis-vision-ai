@@ -173,42 +173,11 @@ class GreenBallDetector {
     return if(n>0 && ball.feltChroma-sum.toDouble()/n>=32)ball.copy(contrastFelt=true) else ball
   }
 
-  fun detect(pixels: IntArray, width: Int, height: Int, time: Double,
-    prior: BallObservation?,landmarks: List<CourtPoint> = emptyList()): Pair<List<BallObservation>, Boolean> {
-    require(width > 0 && height > 0 && pixels.size == width * height)
-    if (mask.size != pixels.size || width != lastWidth || height != lastHeight) {
-      mask = ByteArray(pixels.size); queue = IntArray(pixels.size); previous = IntArray(0)
-      previousGreen=ByteArray(pixels.size);rawGreen=ByteArray(pixels.size);strongGreen=ByteArray(pixels.size);chroma=ByteArray(pixels.size)
-      lastWidth = width; lastHeight = height
-      val outerReach=max(64,min(width,height)/3)
-      contrastReaches=if(outerReach==64)intArrayOf(24,64)else intArrayOf(24,64,outerReach)
-    }
-    fun luminance(c: Int): Int = (((c shr 16) and 255) + 2 * ((c shr 8) and 255) + (c and 255)) / 4
-    var moving = false
-    var lightShift = 0
-    if (previous.size == pixels.size) {
-      val samples = ArrayList<Int>()
-      for (y in 8 until height step 16) for (x in 8 until width step 16) {
-        val i = y * width + x; samples.add(luminance(pixels[i])-luminance(previous[i]))
-      }
-      samples.sort()
-      lightShift = samples.getOrElse(samples.size/2) { 0 }
-      var changed = 0
-      val counts=IntArray(4);val changes=IntArray(4);var border=0;var borderChanges=0
-      for (y in 8 until height step 16) for (x in 8 until width step 16) {
-        val i = y * width + x
-        val q=(if(x>=width/2) 1 else 0)+(if(y>=height/2) 2 else 0)
-        val edge=x<width*.15 || x>width*.85 || y<height*.15 || y>height*.85
-        counts[q]++;if(edge) border++
-        if (abs(luminance(pixels[i])-luminance(previous[i])-lightShift) > 24) {
-          changed++;changes[q]++;if(edge) borderChanges++
-        }
-      }
-      alignment=CameraAlignment.estimate(pixels,previous,width,height,lightShift,landmarks)
-      // A moving player is not a moving camera when the background still agrees.
-      moving = changed > samples.size * .28 && borderChanges>border*.30 &&
-        (0..3).count { changes[it]>counts[it]*.30 }>=3 && !alignment.reliable
-    } else alignment=FrameAlignment()
+  // Keep pixel preparation separate from component traversal. This bounded
+  // method avoids a giant detector bytecode body that the runtime may leave
+  // unoptimized, while retaining exactly the same masks and scan order.
+  private fun prepareMask(pixels:IntArray,width:Int,height:Int,prior:BallObservation?,lightShift:Int) {
+    fun luminance(c:Int)=(((c shr 16)and 255)+2*((c shr 8)and 255)+(c and 255))/4
     val columns=(width+7)/8;val rows=(height+7)/8
     if(contrastCutoffs.size!=columns*rows) {
       contrastCutoffs=IntArray(columns*rows);weakContrastCutoffs=IntArray(columns*rows)
@@ -325,6 +294,45 @@ class GreenBallDetector {
       mask[i] = if (selected) 1 else 0
     }
     }
+  }
+
+  fun detect(pixels: IntArray, width: Int, height: Int, time: Double,
+    prior: BallObservation?,landmarks: List<CourtPoint> = emptyList()): Pair<List<BallObservation>, Boolean> {
+    require(width > 0 && height > 0 && pixels.size == width * height)
+    if (mask.size != pixels.size || width != lastWidth || height != lastHeight) {
+      mask = ByteArray(pixels.size); queue = IntArray(pixels.size); previous = IntArray(0)
+      previousGreen=ByteArray(pixels.size);rawGreen=ByteArray(pixels.size);strongGreen=ByteArray(pixels.size);chroma=ByteArray(pixels.size)
+      lastWidth = width; lastHeight = height
+      val outerReach=max(64,min(width,height)/3)
+      contrastReaches=if(outerReach==64)intArrayOf(24,64)else intArrayOf(24,64,outerReach)
+    }
+    fun luminance(c: Int): Int = (((c shr 16) and 255) + 2 * ((c shr 8) and 255) + (c and 255)) / 4
+    var moving = false
+    var lightShift = 0
+    if (previous.size == pixels.size) {
+      val samples = ArrayList<Int>()
+      for (y in 8 until height step 16) for (x in 8 until width step 16) {
+        val i = y * width + x; samples.add(luminance(pixels[i])-luminance(previous[i]))
+      }
+      samples.sort()
+      lightShift = samples.getOrElse(samples.size/2) { 0 }
+      var changed = 0
+      val counts=IntArray(4);val changes=IntArray(4);var border=0;var borderChanges=0
+      for (y in 8 until height step 16) for (x in 8 until width step 16) {
+        val i = y * width + x
+        val q=(if(x>=width/2) 1 else 0)+(if(y>=height/2) 2 else 0)
+        val edge=x<width*.15 || x>width*.85 || y<height*.15 || y>height*.85
+        counts[q]++;if(edge) border++
+        if (abs(luminance(pixels[i])-luminance(previous[i])-lightShift) > 24) {
+          changed++;changes[q]++;if(edge) borderChanges++
+        }
+      }
+      alignment=CameraAlignment.estimate(pixels,previous,width,height,lightShift,landmarks)
+      // A moving player is not a moving camera when the background still agrees.
+      moving = changed > samples.size * .28 && borderChanges>border*.30 &&
+        (0..3).count { changes[it]>counts[it]*.30 }>=3 && !alignment.reliable
+    } else alignment=FrameAlignment()
+    prepareMask(pixels,width,height,prior,lightShift)
     val found = ArrayList<BallObservation>()
     val bounds=ArrayList<IntArray>();val masses=ArrayList<Int>()
     val clippedFelt=ArrayList<IntArray>()
