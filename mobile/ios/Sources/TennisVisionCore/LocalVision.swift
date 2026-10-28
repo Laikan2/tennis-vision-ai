@@ -137,12 +137,11 @@ final class VisionDetector {
     private var dimensions=(0,0)
     var alignment=VisionAlignment()
     func reset(){previous=[]}
-    private static func contrast(tile:Int,pixels:UnsafePointer<UInt32>,width:Int,height:Int,columns:Int,
-        outerReach:Int,cutoffs:UnsafeMutablePointer<Int>,weakCutoffs:UnsafeMutablePointer<Int>) {
-        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
+    @inline(__always) private static func contrast(tile:Int,pixels:UnsafePointer<UInt32>,width:Int,height:Int,columns:Int,
+        outerReach:Int,reaches:[Int],cutoffs:UnsafeMutablePointer<Int>,weakCutoffs:UnsafeMutablePointer<Int>) {
         let gx=tile%columns,gy=tile/columns
             let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
-            for reach in contrastReaches {
+            for reach in reaches {
                 var sum=0,greens=0,weakSum=0,weakCount=0
                 let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
                 for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
@@ -161,7 +160,20 @@ final class VisionDetector {
         moving:Bool,outerReach:Int,cutoffs:UnsafeMutablePointer<Int>,weakCutoffs:UnsafeMutablePointer<Int>)->([VisionBall],Bool) {
         // Lazy contrast leaves every selected pixel at its original resolution.
         // No ROI crop/downsampling and no change to colour or shape thresholds.
-        for tile in 0..<(columns*((height+7)/8)){cutoffs[tile] = -2}
+        // Reuse the ring list instead of allocating it for every green tile.
+        // A dense green court uses the regular eager pass; sparse backgrounds
+        // avoid work on tiles that contain no usable colour. Sampling changes
+        // scheduling only: both paths use exactly the same thresholds.
+        let reaches=outerReach==64 ? [24,64]:[24,64,outerReach]
+        var greenSamples=0,samples=0
+        for y in stride(from:4,to:height,by:32){for x in stride(from:4,to:width,by:32){
+            let c=pixels[y*width+x];samples+=1;if strongGreen(c) || weakGreen(c){greenSamples+=1}
+        }}
+        let lazy=greenSamples*4<max(1,samples)
+        for tile in 0..<(columns*((height+7)/8)){
+            if lazy{cutoffs[tile] = -2}
+            else{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,reaches:reaches,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
+        }
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
@@ -173,7 +185,7 @@ final class VisionDetector {
                 let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
                 if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
                     let tile=(y>>3)*columns+(x>>3)
-                    if cutoffs[tile] == -2{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
+                    if lazy && cutoffs[tile] == -2{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,reaches:reaches,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
                     let cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
                     if visionLight(c)<cutoff{selected=false}
                 }

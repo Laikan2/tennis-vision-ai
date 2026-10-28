@@ -251,6 +251,16 @@ class GreenBallDetector {
       // so newly recognised backgrounds cannot erase original strong evidence.
       weakContrastCutoffs[gy*columns+gx]=if(!outerWeak || weakLowest==Int.MAX_VALUE) -1 else weakLowest+12
     }
+    // Dense colour backgrounds keep one eager tile pass. Sparse frames defer
+    // each tile until needed; both paths preserve all original pixel evidence.
+    var greenSamples=0;var samples=0
+    for(y in 4 until height step 32)for(x in 4 until width step 32) {
+      val c=pixels[y*width+x];val r=(c shr 16)and 255;val g=(c shr 8)and 255;val b=c and 255;samples++
+      val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
+      if(strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16))greenSamples++
+    }
+    val lazy=greenSamples*4<max(1,samples)
+    if(!lazy)for(tile in contrastCutoffs.indices)ensureContrast(tile)
     val searchRadius=prior?.let { max(14.0,it.radius*3) } ?: 0.0
     for (i in pixels.indices) {
       val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
@@ -275,7 +285,7 @@ class GreenBallDetector {
         // subtraction alone erased it together with the green court.
         if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
           val tile=(y shr 3)*columns+(x shr 3)
-          ensureContrast(tile)
+          if(lazy)ensureContrast(tile)
           val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
           if(luminance(c)<cutoff) selected=false
         }
