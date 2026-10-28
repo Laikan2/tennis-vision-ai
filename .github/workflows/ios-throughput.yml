@@ -18,9 +18,9 @@ jobs:
       - name: Prepare unchanged baseline and common benchmark
         run: |
           set -euo pipefail
-          # Compare with the actual 0.6.18 source before this change, not the
+          # Compare with the actual 0.6.19 source before this change, not the
           # older 0.6.10 array implementation (which inflates the speedup).
-          git fetch --depth 1 origin 429cd0965e145753937559bb5c35e423b7ff71db
+          git fetch --depth 1 origin 6052f0bf179150294bc86744c4143551bcf70f6a
           mkdir -p /tmp/tennis-baseline
           git archive FETCH_HEAD mobile/ios | tar -xf - -C /tmp/tennis-baseline
           cp mobile/ios/Package.swift /tmp/tennis-baseline/mobile/ios/Package.swift

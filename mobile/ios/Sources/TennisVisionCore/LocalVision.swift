@@ -137,24 +137,44 @@ final class VisionDetector {
     private var dimensions=(0,0)
     var alignment=VisionAlignment()
     func reset(){previous=[]}
+    private static func contrast(tile:Int,pixels:UnsafePointer<UInt32>,width:Int,height:Int,columns:Int,
+        outerReach:Int,cutoffs:UnsafeMutablePointer<Int>,weakCutoffs:UnsafeMutablePointer<Int>) {
+        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
+        let gx=tile%columns,gy=tile/columns
+            let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
+            for reach in contrastReaches {
+                var sum=0,greens=0,weakSum=0,weakCount=0
+                let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
+                for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
+                if greens>=2{lowest=min(lowest,sum/greens)};if weakCount>=2{weakLowest=min(weakLowest,weakSum/weakCount)}
+                if reach==outerReach{outer=greens>=2;weakOuter=weakCount>=2}
+            }
+            cutoffs[tile]=outer && lowest != Int.max ? lowest+12:-1
+            weakCutoffs[tile]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
+    }
     // Keep pointer ownership in detect(); this synchronous pure kernel cannot
     // retain a buffer. A separate function also bounds Swift type-checking work.
     private static func segment(pixels:UnsafePointer<UInt32>,previous:UnsafePointer<UInt32>,
         mask:UnsafeMutablePointer<UInt8>,strong:UnsafeMutablePointer<UInt8>,chroma:UnsafeMutablePointer<UInt8>,
         rawGreen:UnsafeMutablePointer<UInt8>,oldGreen:UnsafePointer<UInt8>,queue:UnsafeMutablePointer<Int>,
         width:Int,height:Int,count:Int,previousCount:Int,time:Double,prior:VisionBall?,lightShift:Int,columns:Int,
-        moving:Bool,cutoffs:[Int],weakCutoffs:[Int])->([VisionBall],Bool) {
+        moving:Bool,outerReach:Int,cutoffs:UnsafeMutablePointer<Int>,weakCutoffs:UnsafeMutablePointer<Int>)->([VisionBall],Bool) {
+        // Lazy contrast leaves every selected pixel at its original resolution.
+        // No ROI crop/downsampling and no change to colour or shape thresholds.
+        for tile in 0..<(columns*((height+7)/8)){cutoffs[tile] = -2}
         let search=prior.map{max(14,$0.radius*3)} ?? 0
         for i in 0..<count {
             let c=pixels[i],s=strongGreen(c);strong[i]=s ? 1:0
             let red=Int((c>>16)&255),green=Int((c>>8)&255),blue=Int(c&255)
-            chroma[i]=UInt8(max(0,green-blue)*255/max(1,max(red,green)))
             var selected=s || weakGreen(c);rawGreen[i]=selected ? 1:0
             if selected {
+                chroma[i]=UInt8(max(0,green-blue)*255/max(1,max(red,green)))
                 let y=i/width,x=i-y*width,old=previousCount==count ? previous[i]:0
                 let tracked=prior.map{abs(Double(x)-$0.x)<=search && abs(Double(y)-$0.y)<=search && Double(visionLight(c)-lightShift)>=$0.luminance*0.82} ?? false
                 if !tracked && (previousCount==0 || oldGreen[i]==1 && visionLight(c)-visionLight(old)-lightShift<=8) {
-                    let tile=(y>>3)*columns+(x>>3),cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
+                    let tile=(y>>3)*columns+(x>>3)
+                    if cutoffs[tile] == -2{contrast(tile:tile,pixels:pixels,width:width,height:height,columns:columns,outerReach:outerReach,cutoffs:cutoffs,weakCutoffs:weakCutoffs)}
+                    let cutoff=s ? cutoffs[tile]:max(cutoffs[tile],weakCutoffs[tile])
                     if visionLight(c)<cutoff{selected=false}
                 }
             }
@@ -336,26 +356,12 @@ final class VisionDetector {
         // Samples 64px away can still be inside a close tennis ball. Resolve
         // its wider surroundings before treating its own felt as a background.
         let outerReach=max(64,min(width,height)/3)
-        let contrastReaches=outerReach==64 ? [24,64]:[24,64,outerReach]
         if cutoffs.count != cols*rows {cutoffs=Array(repeating:-1,count:cols*rows);weakCutoffs=cutoffs}
-        for gy in 0..<rows {for gx in 0..<cols {
-            let x=min(width-1,gx*8+4),y=min(height-1,gy*8+4);var lowest=Int.max,weakLowest=Int.max,outer=false,weakOuter=false
-            for reach in contrastReaches {
-                var sum=0,greens=0,weakSum=0,weakCount=0
-                let indices=[y*width+max(0,x-reach),y*width+min(width-1,x+reach),max(0,y-reach)*width+x,min(height-1,y+reach)*width+x]
-                for i in indices {let c=pixels[i],s=strongGreen(c),l=visionLight(c);if s{greens+=1;sum+=l};if s || weakGreen(c){weakCount+=1;weakSum+=l}}
-                if greens>=2{lowest=min(lowest,sum/greens)};if weakCount>=2{weakLowest=min(weakLowest,weakSum/weakCount)}
-                if reach==outerReach{outer=greens>=2;weakOuter=weakCount>=2}
-            }
-            cutoffs[gy*cols+gx]=outer && lowest != Int.max ? lowest+12:-1
-            weakCutoffs[gy*cols+gx]=weakOuter && weakLowest != Int.max ? weakLowest+12:-1
-        }}
         // Borrow each buffer once for this synchronous frame. Repeated writes to
         // stored Swift Arrays otherwise repeat uniqueness/exclusivity work for
         // every pixel and every flood-fill neighbour. The original arrays stay
         // alive for the entire borrow; pointers never escape this call.
         let previousCount=previous.count
-        let localCutoffs=cutoffs,localWeakCutoffs=weakCutoffs
         var detected=pixels.withUnsafeBufferPointer { pixelBuffer -> ([VisionBall],Bool) in
         let pixels=pixelBuffer.baseAddress!
         return previous.withUnsafeBufferPointer { previousBuffer -> ([VisionBall],Bool) in
@@ -372,11 +378,13 @@ final class VisionDetector {
         let oldGreen=oldBuffer.baseAddress!
         return queue.withUnsafeMutableBufferPointer { queueBuffer -> ([VisionBall],Bool) in
         let queue=queueBuffer.baseAddress!
+        return cutoffs.withUnsafeMutableBufferPointer { cutoffBuffer in
+        return weakCutoffs.withUnsafeMutableBufferPointer { weakBuffer in
         return Self.segment(pixels:pixels,previous:previous,mask:mask,strong:strong,chroma:chroma,
             rawGreen:rawGreen,oldGreen:oldGreen,queue:queue,width:width,height:height,count:count,
             previousCount:previousCount,time:time,prior:prior,lightShift:lightShift,columns:cols,
-            moving:moving,cutoffs:localCutoffs,weakCutoffs:localWeakCutoffs)
-        }}}}}}}}
+            moving:moving,outerReach:outerReach,cutoffs:cutoffBuffer.baseAddress!,weakCutoffs:weakBuffer.baseAddress!)
+        }}}}}}}}}}
         // A cluster of similarly sized fragments is texture, not one ball.
         // Keep this bounded on busy backgrounds and keep the raw candidates
         // available to diagnostics rather than turning them into contact evidence.
@@ -542,23 +550,7 @@ public final class LocalVision {
         else{message="Bola observada"}
         return diagnosed(VisionResult(observed:b,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},impact:impact,movingCamera:blocked,speed:speed,message:message,area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation))
     }
-    private func velocity(_ p: [VisionBall]) -> Double? {
-        guard p.count>=3,let b=p.last,!b.blurred,!b.nearHand,b.resolved else{return nil}
-        var start=p.count-1
-        // A time-supported interval also works at 240 FPS, where four samples
-        // cover only 12.5 ms. Never cross missing, hidden or hand-held evidence.
-        while start>0 {
-            let prior=p[start-1],gap=p[start].time-prior.time
-            if prior.blurred || prior.nearHand || !prior.resolved || !(0.000001...0.075).contains(gap) || b.time-prior.time>0.22{break}
-            start-=1
-            if p.count-start>=3 && b.time-p[start].time>=0.02{break}
-        }
-        let supported=Array(p[start...]);guard supported.count>=3,let a=supported.first else{return nil}
-        let dt=b.time-a.time,rs=supported.map{$0.radius}.sorted(),r=rs[rs.count/2]
-        guard (0.015...0.22).contains(dt),r>=3,rs.last!/rs.first!<=1.35 else{return nil}
-        let speed=hypot(b.x-a.x,b.y-a.y)/dt*0.067/(r*2)*3.6
-        return speed.isFinite && (0.8...250).contains(speed) ? speed:nil
-    }
+    private func velocity(_ p:[VisionBall])->Double? { ObservedBallSpeed.current(p) }
     private func contact() -> VisionImpact? {
         guard settings.surface != .track,path.count>=5 else{return nil}
         let simple=settings.surface == .floor ? floorEvidence():wallEvidence()
@@ -597,8 +589,17 @@ public final class LocalVision {
             framingNoticeUntil=lastFrame+1.5
             return rejectContact("Contato calculado fora da imagem · recue a câmera para mostrar o ponto da quicada")
         }
-        let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted(),sparse=intervals.last!>0.075 || intervals.last!>intervals[1]*1.55+0.001
-        let missing=sparse ? max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5,max(sa,sb)*intervals.last!*0.5):0
+        let intervals=zip(evidence,evidence.dropFirst()).map{$0.1.time-$0.0.time}.sorted()
+        let irregular=intervals.last!>intervals[1]*1.55+0.001
+        // Jitter in delivery is not necessarily a hidden fast impact. A fitted,
+        // clean floor return can remain usable when the entire longest interval
+        // moves less than 0.65 ball radii. Retain its positional uncertainty;
+        // line calls, long gaps and small/fast balls still require review.
+        let boundedTiming=settings.surface == .floor && depth==nil && fit != nil &&
+            fit!.error<=max(2,c.radius*0.35) && max(sa,sb)*intervals.last!<=c.radius*0.65 &&
+            evidence.allSatisfy{$0.resolved && !$0.nearHand && !$0.blurred}
+        let sparse=intervals.last!>0.075 || irregular && !boundedTiming
+        let missing=(irregular || sparse) ? max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*0.5,max(sa,sb)*intervals.last!*0.5):0
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
         let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing+localization),area=activeSettings
         // The whole-image floor preset is not a measured physical separator.
@@ -623,7 +624,7 @@ public final class LocalVision {
         else if call == .review{reason="A incerteza alcança a linha. Revise o contato."}
         else if call == .unmarked{reason="Quicada candidata; marque a área para IN/OUT."}
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
-        let incomingSpeed=velocity(path.filter{$0.time<=c.time})
+        let incomingSpeed=ObservedBallSpeed.incoming(path,contactTime:t)
         serial+=1;lastImpact=t;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;contactReason=reason;path.removeAll{$0.time<=c.time}
         return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
     }

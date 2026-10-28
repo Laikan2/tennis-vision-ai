@@ -215,7 +215,10 @@ class GreenBallDetector {
     }
     // Estimate the green background once per 8×8 tile. Re-reading eight
     // neighbors for every green pixel made a full green court unnecessarily slow.
-    for(gy in 0 until rows) for(gx in 0 until columns) {
+    contrastCutoffs.fill(-2)
+    fun ensureContrast(tile:Int) {
+      if(contrastCutoffs[tile]!=-2)return
+      val gx=tile%columns;val gy=tile/columns
       val x=min(width-1,gx*8+4);val y=min(height-1,gy*8+4)
       var lowest=Int.MAX_VALUE;var outerGreen=false
       var weakLowest=Int.MAX_VALUE;var outerWeak=false
@@ -251,7 +254,6 @@ class GreenBallDetector {
     val searchRadius=prior?.let { max(14.0,it.radius*3) } ?: 0.0
     for (i in pixels.indices) {
       val c = pixels[i]; val r = (c shr 16) and 255; val g = (c shr 8) and 255; val b = c and 255
-      chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
       // Yellow-green, including dim felt. Neutral glare and pure saturated green are rejected.
       val strong=g>=45 && r>g*.42 && ((g>=r*.86 && g>b*1.32 && g-b>18) || (g>=r*.70 && g<=r*.90 && g>b*2.4 && g-b>=40))
       strongGreen[i]=if(strong) 1 else 0
@@ -261,6 +263,7 @@ class GreenBallDetector {
       var selected=strong || (g>=45 && r>g*.55 && g>=r*.92 && g>b*1.14 && g-b>16)
       rawGreen[i]=if(selected) 1 else 0
       if (selected) {
+        chroma[i]=((g-b).coerceAtLeast(0)*255/max(1,max(r,g))).toByte()
         val old=if(previous.size==pixels.size) previous[i] else 0
         val wasGreen=previousGreen[i].toInt()==1
         val y=i/width;val x=i-y*width
@@ -272,6 +275,7 @@ class GreenBallDetector {
         // subtraction alone erased it together with the green court.
         if (!tracked && (previous.isEmpty() || wasGreen && luminance(c)-luminance(old)-lightShift<=8)) {
           val tile=(y shr 3)*columns+(x shr 3)
+          ensureContrast(tile)
           val cutoff=if(strong) contrastCutoffs[tile] else max(contrastCutoffs[tile],weakContrastCutoffs[tile])
           if(luminance(c)<cutoff) selected=false
         }
@@ -706,28 +710,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       },activeSettings,offset,scene.needsConfirmation))
   }
 
-  private fun speed(points: List<BallObservation>): Double? {
-    if(points.size<3)return null
-    val b=points.last();if(b.blurred || b.nearHand || !b.resolved)return null
-    var start=points.lastIndex
-    // Four samples span only 12.5 ms at 240 FPS. Select a short observed
-    // time interval instead of a fixed count, without crossing a tracking gap.
-    while(start>0) {
-      val prior=points[start-1];val gap=points[start].time-prior.time
-      if(prior.blurred || prior.nearHand || !prior.resolved || gap !in .000001.. .075 || b.time-prior.time>.22)break
-      start--
-      if(points.size-start>=3 && b.time-points[start].time>=.02)break
-    }
-    val supported=points.subList(start,points.size)
-    if(supported.size<3)return null
-    val a=supported.first();val dt=b.time-a.time
-    if (dt !in .015.. .22) return null
-    val radius=supported.map { it.radius }.sorted()[supported.size/2]
-    if (radius < 3 || supported.maxOf { it.radius } / supported.minOf { it.radius } > 1.35) return null
-    // Apparent lateral speed from the 67 mm ball diameter, NOT a calibrated 3-D/radar measurement.
-    val kmh = hypot(b.x-a.x,b.y-a.y)/dt * .067/(radius*2)*3.6
-    return kmh.takeIf { it.isFinite() && it in .8..250.0 }
-  }
+  private fun speed(points:List<BallObservation>)=ObservedBallSpeed.current(points)
 
   private fun contact(width: Int, height: Int): LocalImpact? {
     if (settings.surface == ContactSurface.TRACK || path.size < 5) return null
@@ -780,10 +763,16 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       return rejectContact("Contato calculado fora da imagem · recue a câmera para mostrar o ponto da quicada")
     }
     val intervals=evidence.zipWithNext().map { (left,right)->right.time-left.time }.sorted()
-    val missingFrame=intervals.last()>intervals[1]*1.55+.001
-    val sparse=intervals.last()>.075 || missingFrame
+    val irregular=intervals.last()>intervals[1]*1.55+.001
+    // A clean fitted floor return with less than 0.65 radii of motion during
+    // the longest interval is spatially bounded, even with delivery jitter.
+    // Keep the added uncertainty and never bypass long gaps or uncertain balls.
+    val boundedTiming=settings.surface==ContactSurface.FLOOR && depth==null && fit!=null &&
+      fit.error<=max(2.0,c.radius*.35) && max(sa,sb)*intervals.last()<=c.radius*.65 &&
+      evidence.all{it.resolved && !it.nearHand && !it.blurred}
+    val sparse=intervals.last()>.075 || irregular && !boundedTiming
     val localization=if(settings.surface==ContactSurface.FLOOR)floorLocalizationNoise(evidence,c.time) else 0.0
-    val missing=if(sparse) max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5,
+    val missing=if(irregular || sparse) max(max(hypot(c.x-b.x,c.y-b.y),hypot(d.x-c.x,d.y-c.y))*.5,
       max(sa,sb)*intervals.last()*.5) else 0.0
     val uncertainty=max(2.0,c.radius*.3 + (if (c.blurred) c.radius*.6 else 0.0) +
       (fit?.error ?: 0.0) + localization + missing)
@@ -829,7 +818,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       courtKnown -> "Mudança de trajetória compatível com quicada na quadra marcada; contato estimado."
       else -> "Descida e subida observadas no piso; contato estimado entre quadros."
     }
-    val result=LocalImpact(++serial,contactTime,point,c.radius,call,speed(path.filter{it.time<=c.time}),uncertainty,reason,settings.surface,
+    val result=LocalImpact(++serial,contactTime,point,c.radius,call,ObservedBallSpeed.incoming(path,contactTime),uncertainty,reason,settings.surface,
       cameraOffset=offset,evidenceOffset=offset)
     lastImpact=contactTime
     contactReason=reason
