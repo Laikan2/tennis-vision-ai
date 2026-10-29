@@ -442,8 +442,9 @@ public final class LocalVision {
     public var settings: VisionSettings
     private let detector=VisionDetector()
     private let scene=VisionSceneReference()
+    private let clutter=BallClutter(),reacquisition=BallReacquisition()
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
-    private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
+    private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?
     private var wasMotionBlocked=false,cameraRevision=0
     private var floorBoundaryNoticeUntil = -1.0
     private var framingNoticeUntil = -1.0
@@ -471,16 +472,15 @@ public final class LocalVision {
     public var activeSettings: VisionSettings {
         settings.translated(by:offset)
     }
-    public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();scene.reset();wasMotionBlocked=false;cameraRevision=0;lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
+    public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;reacquisition.reset();lastImpact = -10}
+    public func reset(){clearTrack();detector.reset();scene.reset();clutter.reset();wasMotionBlocked=false;cameraRevision=0;lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
         guard time>lastFrame else{return VisionResult(message:"Timestamp repetido · quadro descartado")}
         if lastFrame>=0 && time-lastFrame>0.25{path=[]};lastFrame=time
         contactReason=settings.surface == .track ? "Contagem desligada · somente rastrear":"Aguardando descida/aproximação e retorno observados";rejectedTurn=false
-        let (components,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
-        debugCandidates=components
+        let (rawComponents,cameraMoved)=detector.detect(pixels,width:w,height:h,time:time,prior:path.last,landmarks:activeSettings.polygon)
         let motion=detector.alignment
         var sceneChanged=cameraMoved || motion.large
         if motion.reliable && (motion.dx != 0 || motion.dy != 0) {
@@ -495,6 +495,8 @@ public final class LocalVision {
         // A return straddling camera motion cannot be treated as a bounce.
         if wasMotionBlocked && !blocked{clearTrack()}
         wasMotionBlocked=blocked
+        if sceneChanged{clutter.reset()}
+        let components=clutter.filter(rawComponents,time:time);debugCandidates=components
         // Warm wood can pass the broad yellow mask. Motion alone does not turn
         // those low-chroma components into a tennis ball. A weak observation
         // may bridge a short gap only near an already colour-supported track.
@@ -515,15 +517,14 @@ public final class LocalVision {
         // The resolved silhouette owns an old tiny printed/highlight island.
         // Reset the old trajectory before accepting that ownership change.
         if let fragment=previous,fragment.radius<=6,candidates.filter({b in b.resolved && b.distinctFelt && b.radius>=max(16,fragment.radius*4) && hypot(b.x-fragment.x,b.y-fragment.y)<=b.radius*1.15}).count==1 {
-            path=[];previous=nil;lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil
+            path=[];previous=nil;lost=nil;acquisition=nil;tiny=nil;reacquisition.reset()
         }
         let still=previous.flatMap{b in !b.nearHand && !b.occluded && path.suffix(4).allSatisfy{hypot($0.x-b.x,$0.y-b.y)<max(2,b.radius*0.5)} ? b:nil}
-        let alternatives=candidates.filter{b in b.motionSupport>=0.25 && !b.nearHand && (still.map{hypot(b.x-$0.x,b.y-$0.y)>max(12,$0.radius*3)} ?? true)}
-        let alternative=alternatives.count==1 ? alternatives[0]:nil,pending=motionAcquisition;motionAcquisition=alternative
         let backgroundStill=still.map{s in candidates.contains{$0.motionSupport<0.20 && hypot($0.x-s.x,$0.y-s.y)<max(3,s.radius)}} ?? false
-        var confirmed=false
-        if backgroundStill,let a=alternative,let p=pending{confirmed=(0.001...0.10).contains(time-p.time) && (0.45...2.2).contains(a.radius/p.radius) && (2...Double(w)*0.23).contains(hypot(a.x-p.x,a.y-p.y))}
-        if confirmed{path=[];previous=nil;lost=nil;acquisition=nil;tiny=pending}
+        let recovered=reacquisition.choose(candidates,still:still,backgroundStill:backgroundStill,width:w)
+        let confirmed=recovered != nil
+        let clutterOwned=previous.map{p in !p.resolved && components.contains{$0.patterned && hypot($0.x-p.x,$0.y-p.y)<max(4,p.radius*2)}} ?? false
+        if confirmed || clutterOwned{path=[];previous=nil;lost=nil;acquisition=nil;tiny=nil}
         let prior2=path.count>=2 ? path[path.count-2]:nil
         var prediction=previous.map{VisionPoint($0.x,$0.y)}
         if let p=previous,let q=prior2,p.time>q.time{let f=min(2,max(0,(time-p.time)/(p.time-q.time)));prediction=VisionPoint(p.x+(p.x-q.x)*f,p.y+(p.y-q.y)*f)}
@@ -537,6 +538,7 @@ public final class LocalVision {
             if acquiring.count>1{let moving=acquiring.filter{$0.motionSupport>=0.25};if !moving.isEmpty{acquiring=moving}}
             if acquiring.contains(where:{$0.radius>=max(16,Double(min(w,h))*0.08) && $0.confidence>=0.60}){acquiring=acquiring.filter{$0.radius>=4}}
         }
+        if let recovered{acquiring=[recovered]}
         var ranked=[(VisionBall,Double)]()
         for b in acquiring {
             guard let p=previous else{ranked.append((b,-b.confidence*b.radius));continue}
@@ -594,8 +596,14 @@ public final class LocalVision {
         guard settings.surface != .track,path.count>=5 else{return nil}
         let simple=settings.surface == .floor ? floorEvidence():wallEvidence()
         let robust=simple==nil && (settings.surface == .wall || floorReferenceKnown()) ? ObservedContactFit.find(path,surface:settings.surface):nil
-        let depth=simple==nil && robust==nil && (settings.surface == .wall || floorReferenceKnown()) ? DepthContactFit.find(path,width:width,height:height):nil
-        guard let p=simple ?? robust?.support ?? depth?.support else{
+        let perspective=simple==nil && robust==nil && settings.surface == .floor && floorReferenceKnown() ? PerspectiveFloorFit.find(path,width:width,height:height):nil
+        let depth=simple==nil && robust==nil && perspective==nil && (settings.surface == .wall || floorReferenceKnown()) ? DepthContactFit.find(path,width:width,height:height):nil
+        // A premature depth candidate consumes the track before a visible
+        // transverse rebound matures. Wait only a bounded post-contact window.
+        if let depth,settings.surface == .floor,let end=path.last,end.time-depth.time<0.12{
+            return rejectContact("Confirmando retorno no piso · aguardando trajetória após o contato")
+        }
+        guard let p=simple ?? robust?.support ?? perspective?.support ?? depth?.support else{
             contactReason=path.contains{$0.nearHand || $0.occluded} ? "Mão/oclusão na trajetória · aguardando voo livre":"Sem retorno coerente observado dos dois lados do contato";return nil
         }
         let a=p[0],b=p[1],c=p[2],d=p[3],e=p[4],evidence=path.filter{$0.time>=p[0].time && $0.time<=p[4].time}
@@ -610,11 +618,11 @@ public final class LocalVision {
         let outgoing=VisionPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
         let sa=hypot(incoming.x,incoming.y),sb=hypot(outgoing.x,outgoing.y)
         let wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb) < 0.35
-        if robust==nil && depth==nil && (settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn){return nil}
+        if robust==nil && perspective==nil && depth==nil && (settings.surface == .floor && !floorTurn || settings.surface == .wall && !wallTurn){return nil}
         // Outer curved legs establish a slow rebound, but locate its mark
         // using continuous samples at the observed peak whenever available.
         let local=e.time-a.time>0.200001 ? localFloorPeak(evidence):nil
-        let fit=(robust ?? depth).map{Fit(x:$0.x,y:$0.y,time:$0.time,error:$0.error)} ?? (settings.surface == .floor ? (local.flatMap{floorContact($0)} ?? floorContact(p)):wallContact(p))
+        let fit=(robust ?? perspective ?? depth).map{Fit(x:$0.x,y:$0.y,time:$0.time,error:$0.error)} ?? (settings.surface == .floor ? (local.flatMap{floorContact($0)} ?? floorContact(p)):wallContact(p))
         if settings.surface == .wall && fit==nil{return nil}
         let t=fit?.time ?? c.time
         // Tiny colour fragments are common on textured walls and compression edges.

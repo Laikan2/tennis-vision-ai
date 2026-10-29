@@ -22,6 +22,29 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class LocalCourtLayoutTest {
+  @Test fun finishingClearsLiveMarksAndQueuedContactsButKeepsHistoryAndArea() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture());shadowOf(Looper.getMainLooper()).idle()
+    fun set(name:String,value:Any){LocalTrainingActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)}
+    val config=LocalSettings(polygon=area,floorLine=wholeImageFloorLine())
+    val hit=LocalImpact(1,1.0,CourtPoint(.5,.8),5.0,LineCall.IN,8.0,2.0,"Observed",ContactSurface.FLOOR)
+    val saved=LocalSession(events=listOf(hit));set("config",config);set("session",saved);set("sessionLoaded",true);set("analyzing",true)
+    val court=activity.findViewById<LocalCourtView>(R.id.localVideo);court.settings=config;court.events=listOf(hit)
+    activity.receiveFrame(fixture().copy(result=fixture().result.copy(impact=hit.copy(id=2,time=2.0))))
+    activity.findViewById<Button>(R.id.localFinish).performClick()
+    val disk=LocalTrainingActivity::class.java.getDeclaredField("disk").apply{isAccessible=true}.get(activity) as java.util.concurrent.ExecutorService
+    disk.submit{}.get(5,java.util.concurrent.TimeUnit.SECONDS)
+    shadowOf(Looper.getMainLooper()).idle()
+    assertTrue(court.events.isEmpty());assertTrue(activity.testSession().events.isEmpty())
+    assertNotEquals(saved.id,activity.testSession().id);assertEquals(config,activity.testConfig())
+    assertEquals("Aguardando novo treino",activity.findViewById<TextView>(R.id.localDecision).text.toString())
+    draw(activity,"finished-training-no-marks",1920,864)
+    assertEquals(listOf(hit),LocalSessionStore(activity).load(saved.id)!!.events)
+    assertTrue(LocalSessionStore(activity).current().events.isEmpty())
+    assertEquals(0,activity.testSoundCount())
+    controller.pause().stop().destroy()
+  }
   @Test fun changingLiveStatusAndAreaWarningDoesNotResizeOrMoveTheCamera() {
     val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
     val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()

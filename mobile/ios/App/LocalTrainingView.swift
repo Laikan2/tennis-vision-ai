@@ -284,8 +284,11 @@ struct LocalTrainingView: View {
             }.padding(20).frame(maxWidth:900).frame(maxWidth:.infinity)
         }.background(Palette.background).preferredColorScheme(.dark).tint(Palette.lime)
         .safeAreaInset(edge:.bottom){
+            HStack{
             Button{model.ready ? model.begin():model.prepare()}label:{Label(model.active ? "Pausar treino":model.ready ? "Iniciar treino":"Reabrir câmera",systemImage:model.active ? "pause.fill":"play.fill").font(.headline).frame(maxWidth:.infinity).padding(.vertical,17)}
                 .buttonStyle(.borderedProminent).tint(Palette.lime).foregroundStyle(Palette.background).disabled(model.denied || model.editing>0 || model.testing).padding(16).background(Palette.background).accessibilityIdentifier("local.start")
+            Button{model.finishTraining()}label:{Image(systemName:"stop.fill").padding(12)}.buttonStyle(.bordered).accessibilityLabel("Encerrar treino").accessibilityIdentifier("local.finish").disabled(model.editing>0 || !model.active && model.session.events.isEmpty).padding(.trailing,16)
+            }
         }
         .task{
             model.prepare()
@@ -312,7 +315,7 @@ struct LocalTrainingView: View {
         .sheet(isPresented:$framing,onDismiss:{if showCaptureAfterFraming{showCaptureAfterFraming=false;settings=true}}){framingView}
         .sheet(isPresented:$updates){updatesView}
         .fullScreenCover(isPresented:$fullScreen){fullScreenView}
-        .sheet(item:Binding(get:{fullScreen ? nil:model.reviewing},set:{model.reviewing=$0})){event in reviewView(event)}
+        .sheet(item:Binding(get:{fullScreen || history ? nil:model.reviewing},set:{model.reviewing=$0})){event in reviewView(event)}
         .sheet(isPresented:Binding(get:{model.diagnosticReport != nil},set:{if !$0{model.diagnosticReport=nil;model.prepare()}})){diagnosticView}
     }
     private func stat(_ name: String,_ value: Int,_ color: Color) -> some View{VStack(alignment:.leading,spacing:8){Text(name).font(.caption.weight(.semibold)).foregroundStyle(color);Text("\(value)").font(.system(size:30,weight:.medium,design:.rounded)).monospacedDigit()}.frame(maxWidth:.infinity,alignment:.leading).padding(16).background(Palette.panel,in:RoundedRectangle(cornerRadius:16))}
@@ -391,8 +394,8 @@ struct LocalTrainingView: View {
     private var historyView: some View{
         NavigationStack{List{
             if model.history.isEmpty{Text("As sessões salvas aparecerão aqui.")}
-            ForEach(model.history){session in VStack(alignment:.leading,spacing:6){Text(session.started,style:.date).font(.headline);Text("\(session.events.filter{$0.decision == .inside}.count) IN · \(session.events.filter{$0.decision == .outside}.count) OUT · \(session.events.count) registros").font(.subheadline);Text(session.id).font(.caption.monospaced()).foregroundStyle(.secondary)}}
-        }.navigationTitle("Histórico no iPhone").toolbar{Button("Fechar"){history=false}}.preferredColorScheme(.dark)}
+            ForEach(model.history){session in DisclosureGroup{ForEach(session.events.reversed()){hit in Button{model.review(hit,in:session)}label:{Text("#\(hit.id) · \(hit.decision.label) · "+(hit.speed.map{String(format:"≈%.1f km/h",$0)} ?? "sem velocidade"))}}}label:{VStack(alignment:.leading,spacing:6){Text(session.started,style:.date).font(.headline);Text("\(session.events.filter{$0.decision == .inside}.count) IN · \(session.events.filter{$0.decision == .outside}.count) OUT · \(session.events.count) registros").font(.subheadline);Text(session.id).font(.caption.monospaced()).foregroundStyle(.secondary)}}}
+        }.navigationTitle("Histórico no iPhone").toolbar{Button("Fechar"){history=false}}.sheet(item:$model.reviewing){event in reviewView(event)}.preferredColorScheme(.dark)}
     }
     private var framingView: some View{
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:20){
@@ -488,6 +491,7 @@ struct LocalTrainingView: View {
                     Button("Área livre"){model.edit(1,court:.custom)};Button("Limite do piso"){model.edit(2)}
                 }.buttonStyle(.bordered).disabled(!model.ready)
                 Button(model.active ? "Pausar treino":"Iniciar treino"){model.begin()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.ready)
+                Button{model.finishTraining()}label:{Image(systemName:"stop.fill")}.buttonStyle(.bordered).accessibilityLabel("Encerrar treino").accessibilityIdentifier("local.finish").disabled(!model.active && model.session.events.isEmpty)
             }
         }
     }

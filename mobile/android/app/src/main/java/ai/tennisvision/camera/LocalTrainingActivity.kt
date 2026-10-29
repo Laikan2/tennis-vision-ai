@@ -51,6 +51,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   private var mustMarkArea=false
   private var cameraRotation=-1
   private var analyzing=false
+  private var finishing=false
   private var permissionPending=false
   @Volatile private var foreground=false
   @Volatile private var closed=false
@@ -122,6 +123,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     inVoice=getSharedPreferences("standalone-settings-v1",0).getBoolean("sound-in",false)
     sound=LineVoicePlayer(this).also { it.onStatus={ message -> audioStatus=message } }
     start.setOnClickListener { toggleAnalysis() }
+    findViewById<Button>(R.id.localFinish).setOnClickListener { finishTraining() }
     findViewById<Button>(R.id.localArea).setOnClickListener { edit(1,surface=ContactSurface.FLOOR,home=true) }
     findViewById<Button>(R.id.localWall).setOnClickListener { edit(1,surface=ContactSurface.WALL,home=true) }
     findViewById<Button>(R.id.localFloor).setOnClickListener { edit(2) }
@@ -195,7 +197,7 @@ class LocalTrainingActivity: AppCompatActivity() {
   private fun toggleAnalysis() {
     if (!allowed()) { requestPermission(); return }
     if (!camera.running) { openCamera(); return }
-    if (!frameReady || court.editing!=0 || !sessionLoaded) return
+    if (!frameReady || court.editing!=0 || !sessionLoaded || finishing) return
     if (analyzing) { pauseAnalysis(); return }
     if(config.surface!=ContactSurface.TRACK && LocalGeometry.projectedPolygon(config.polygon) && !areaConfirmed) {
       val mode=if(config.court==CourtLayout.CUSTOM) 1 else 3
@@ -218,7 +220,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     status.text=if (config.surface==ContactSurface.TRACK) "Rastreamento ativo · sem contar impactos" else "Treino ativo · aguardando bola"
   }
   private fun pauseAnalysis() {
-    analyzing=false; camera.analyze=false; camera.reset(); court.clearTracking()
+    analyzing=false; uiEpoch++; pending.set(null); camera.analyze=false; camera.reset(); court.clearTracking()
     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     if (frameReady) { start.text="Iniciar treino"; status.text="Treino pausado · dados salvos no celular" }
     updates.activityState(court.editing==0)
@@ -403,7 +405,25 @@ class LocalTrainingActivity: AppCompatActivity() {
     if(resume && foreground)toggleAnalysis()
   }
   private fun surfaceName()=when(config.surface) { ContactSurface.FLOOR->"Chão";ContactSurface.WALL->"Parede";ContactSurface.TRACK->"Somente rastrear" }
+  internal fun finishTraining() {
+    if(court.editing!=0 || !sessionLoaded || autoSaveError || finishing)return
+    pauseAnalysis();sound.stop();finishing=true
+    val completed=session;val next=LocalSession()
+    status.text="Salvando e encerrando treino…"
+    disk.execute{
+      val error=runCatching{store.save(completed,makeCurrent=false);store.save(next)}.exceptionOrNull()
+      main.post{
+        if(closed)return@post
+        finishing=false
+        if(error!=null){autoSaveError=true;showError("Não encerrou o treino: ${error.message}. Os contatos foram mantidos.");return@post}
+        session=next;court.events=emptyList();court.clearTracking();renderStats()
+        findViewById<TextView>(R.id.localDecision).text="Aguardando novo treino"
+        status.text="Treino encerrado · marcas limpas; contatos no Histórico"
+      }
+    }
+  }
   internal fun beginNewSession() {
+    if(finishing)return
     pauseAnalysis();saveSession();store.clearAreas();config=store.settings(cameraKey)
     areaConfirmed=false;mustMarkArea=false;uiEpoch++;pending.set(null)
     court.settings=config;court.resetReference();camera.update(config)
@@ -487,22 +507,22 @@ class LocalTrainingActivity: AppCompatActivity() {
         .setItems(sessions.map { java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT,java.text.DateFormat.SHORT).format(java.util.Date(it.started))+" · ${it.events.size} registros" }.toTypedArray()) { _,index ->
           val old=sessions[index]
           AlertDialog.Builder(this).setTitle("Sessão salva").setMessage("${old.events.count { it.decision==LineCall.IN }} IN · ${old.events.count { it.decision==LineCall.OUT }} OUT\n${old.events.count { it.decision in listOf(LineCall.REVIEW,LineCall.UNMARKED) }} para revisar\nIdentificador: ${old.id}")
-            .setPositiveButton("Fechar",null).show()
+            .setPositiveButton("Ver contatos") { _,_->AlertDialog.Builder(this).setTitle("Contatos salvos").setItems(old.events.map{"#${it.id} · ${court.callLabel(it.decision)}"}.toTypedArray()){_,i->review(old.events[i],old)}.setNegativeButton("Fechar",null).show() }.setNegativeButton("Fechar",null).show()
         }.setNegativeButton("Fechar",null).show()
     } }
   }
-  private fun review(event: LocalImpact) {
+  private fun review(event: LocalImpact,source:LocalSession=session) {
     pauseAnalysis()
     val column=LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(20,8,20,8) }
     val text=TextView(this).apply { text="${court.callLabel(event.decision)} · ${event.reason}\n${event.speedKmh?.let { "≈"+String.format(Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h lateral · antes do contato" } ?: "Sem trajetória e tamanho nítidos suficientes para estimar a velocidade antes do contato. Mais luz e uma bola maior na imagem ajudam."}"; setTextColor(ContextCompat.getColor(context,R.color.tv_text)) }
     column.addView(text)
     val image=ImageView(this).apply { adjustViewBounds=true; maxHeight=(190*resources.displayMetrics.density).toInt(); contentDescription="Quadro observado mais próximo do contato estimado" }
     column.addView(image)
-    val evidence=File(filesDir,"local-evidence/${session.id}/${event.id}.jpg")
+    val evidence=File(filesDir,"local-evidence/${source.id}/${event.id}.jpg")
     val dialog=AlertDialog.Builder(this).setTitle("Revisar contato #${event.id}").setView(column)
-      .setPositiveButton("Confirmar IN") { _,_ -> revise(event.id,LineCall.IN) }
-      .setNegativeButton("Confirmar OUT") { _,_ -> revise(event.id,LineCall.OUT) }
-      .setNeutralButton("Não foi impacto") { _,_ -> revise(event.id,LineCall.REJECTED) }.create()
+      .setPositiveButton("Confirmar IN") { _,_ -> revise(event.id,LineCall.IN,source) }
+      .setNegativeButton("Confirmar OUT") { _,_ -> revise(event.id,LineCall.OUT,source) }
+      .setNeutralButton("Não foi impacto") { _,_ -> revise(event.id,LineCall.REJECTED,source) }.create()
     var thumbnail: Bitmap?=null
     disk.execute {
       val bitmap=BitmapFactory.decodeFile(evidence.path,BitmapFactory.Options().apply { inSampleSize=2; inMutable=true })
@@ -517,8 +537,13 @@ class LocalTrainingActivity: AppCompatActivity() {
     }
     dialog.setOnDismissListener { image.setImageDrawable(null); thumbnail?.recycle() }; dialog.show()
   }
-  private fun revise(id: Long,call: LineCall) {
-    session=session.copy(events=session.events.map { if (it.id==id) it.copy(reviewed=call) else it })
+  private fun revise(id: Long,call: LineCall,source:LocalSession=session) {
+    val revised=source.copy(events=source.events.map { if(it.id==id)it.copy(reviewed=call)else it })
+    if(source.id!=session.id){
+      disk.execute{runCatching{store.save(revised,makeCurrent=false)}.onFailure{error->main.post{if(!closed)showError("Não salvou revisão: ${error.message}")}}}
+      return
+    }
+    session=revised
     // Editing history must not restore marks from a previous lens/area reference.
     court.events=court.events.mapNotNull { live -> session.events.firstOrNull { it.id==live.id } }
     saveSession();renderStats();court.invalidate()

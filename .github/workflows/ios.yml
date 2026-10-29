@@ -24,7 +24,9 @@ jobs:
         run: python3 mobile/ios/project.py
       - name: Core regression tests
         working-directory: mobile/ios
-        run: swift test --parallel
+        # Exercise the optimized core used in the shipped app. Debug image
+        # loops were dominating validation time; XCTest assertions remain active.
+        run: swift test -c release --parallel
       - name: Build for physical iPhone without signing
         run: xcodebuild -project mobile/ios/TennisVisionCamera.xcodeproj -scheme TennisVisionCamera -configuration Release -destination 'generic/platform=iOS' -derivedDataPath mobile/ios/DerivedData/device CODE_SIGNING_ALLOWED=NO build | tee /tmp/ios-device-build.log
       - name: Build for simulator
@@ -48,7 +50,10 @@ jobs:
           /tmp/ios-ffmpeg/bin/pip install imageio-ffmpeg==0.6.0
           FFMPEG=$(/tmp/ios-ffmpeg/bin/python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')
           cd mobile/ios
-          swift run TransportSmoke > /tmp/ios-transport.log 2>&1 &
+          # Compile before starting the receiver-readiness deadline. The core
+          # suite now builds Release, so a cold Debug build can exceed 10 s.
+          swift build -c release --product TransportSmoke
+          swift run --skip-build -c release TransportSmoke > /tmp/ios-transport.log 2>&1 &
           SMOKE_PID=$!
           trap 'kill "$SMOKE_PID" "$RECEIVER_PID" 2>/dev/null || true' EXIT
           for attempt in $(seq 1 50); do

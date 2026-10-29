@@ -1,0 +1,7 @@
+{
+  "tests": 321,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 3,
+  "scope": "Local JVM tests including Robolectric and optional private still background; not physical-camera validation."
+}
