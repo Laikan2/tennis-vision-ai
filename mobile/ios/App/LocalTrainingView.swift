@@ -39,6 +39,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         let size=CGSize(width:CGFloat(frame.width)*scale,height:CGFloat(frame.height)*scale)
         return CGRect(x:(bounds.width-size.width)/2,y:(bounds.height-size.height)/2,width:size.width,height:size.height)
     }
+    func measuredImageFrame()->CGRect{convert(imageRect,to:window)}
     override init(frame: CGRect){super.init(frame:frame);backgroundColor = .black;isMultipleTouchEnabled=false;accessibilityLabel="Imagem do treino; selecione e ajuste os cantos no modo de área";pan.delegate=self;addGestureRecognizer(pan);addGestureRecognizer(tap);tap.require(toFail:pan)}
     required init?(coder: NSCoder){fatalError("init(coder:) has not been implemented")}
     override func didMoveToSuperview(){super.didMoveToSuperview();attachScrollGesture()}
@@ -126,7 +127,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
         }
         for event in visibleMarks.suffix(3).reversed(){
             let c=screen(VisionGeometry.impactPoint(event,offset:result?.cameraOffset ?? VisionPoint(0,0)))
-            label("#\(event.id) "+event.decision.label+(event.speed.map{" · ≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h"} ?? ""),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
+            label("#\(event.id) "+event.decision.label+(event.speed.map{" · ≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h"} ?? " · velocidade —"),at:CGPoint(x:c.x+11,y:c.y-16),color:event.decision.color,anchor:c)
         }
         guard let result,ProcessInfo.processInfo.systemUptime-f.startedAt<0.5 else{return}
         if debugOverlay {
@@ -148,7 +149,7 @@ final class LocalCourtSurface: UIView,UIGestureRecognizerDelegate {
                 let box=UIBezierPath(rect:CGRect(x:p.x-rx,y:p.y-ry,width:rx*2,height:ry*2));box.lineWidth=1;box.stroke()
                 label("ID \(result.diagnostics.trackId.map(String.init) ?? "—") · visual \(Int(ball.confidence*100))%",at:CGPoint(x:p.x+rx+5,y:p.y+22),color:color)
             }
-            let text=ball.nearHand ? "BOLA · PRÓXIMA À MÃO":ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈\(Int($0)) km/h lateral"} ?? "BOLA"
+            let text=ball.nearHand ? "BOLA · PRÓXIMA À MÃO":ball.occluded ? "BOLA PARCIAL":!ball.resolved ? "BOLA INCERTA":result.speed.map{"BOLA · ≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h lateral"} ?? "BOLA"
             label(text,at:CGPoint(x:p.x+rx+5,y:p.y),color:color)
         }
         if let p=result.predicted{label("PREVISÃO",at:screen(VisionPoint(p.x/Double(f.width),p.y/Double(f.height))),color:.systemOrange)}
@@ -277,7 +278,7 @@ struct LocalTrainingView: View {
                 HStack(spacing:10){stat("IN",model.insideCount,Palette.lime);stat("OUT",model.outsideCount,.red);stat("REVISAR",model.reviewCount,.orange)}
                 HStack{Text("Acerto nas decisões válidas").foregroundStyle(Palette.muted);Spacer();Text(model.accuracy).font(.title3.monospacedDigit().weight(.semibold))}.font(.footnote)
                 Text("\(model.totalContacts) contatos estimados · toque numa marca para revisar").font(.footnote).foregroundStyle(Palette.muted)
-                if let last=model.session.events.last{Button{model.review(last)}label:{HStack{VStack(alignment:.leading,spacing:5){Text("Último contato · \(last.decision.label)").font(.headline);Text(last.reason).font(.footnote).foregroundStyle(Palette.muted);Text(last.speed.map{"≈\(Int($0)) km/h lateral"} ?? "Velocidade indisponível").font(.footnote).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right")}.padding(18)}.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:18)).accessibilityIdentifier("local.review")}
+                if let last=model.session.events.last{Button{model.review(last)}label:{HStack{VStack(alignment:.leading,spacing:5){Text("Último contato · \(last.decision.label)").font(.headline);Text(last.reason).font(.footnote).foregroundStyle(Palette.muted);Text(last.speed.map{"≈"+String(format:$0<10 ? "%.1f":"%.0f",$0)+" km/h lateral"} ?? "Velocidade indisponível").font(.footnote).foregroundStyle(Palette.muted)};Spacer();Image(systemName:"arrow.up.right")}.padding(18)}.buttonStyle(.plain).background(Palette.panel,in:RoundedRectangle(cornerRadius:18)).accessibilityIdentifier("local.review")}
                 if !VisionGeometry.valid(model.config.polygon){Text("A busca cobre a imagem inteira. Marque quatro cantos para classificar a área IN/OUT. A área sozinha não comprova contato com o chão.").font(.footnote).foregroundStyle(Palette.muted)}
                 Text("Cor fraca, bola minúscula, oclusão e contato próximo à linha exigem revisão. Velocidade é lateral e estimada; não é radar.").font(.footnote).foregroundStyle(Palette.muted)
             }.padding(20).frame(maxWidth:900).frame(maxWidth:.infinity)
@@ -286,7 +287,13 @@ struct LocalTrainingView: View {
             Button{model.ready ? model.begin():model.prepare()}label:{Label(model.active ? "Pausar treino":model.ready ? "Iniciar treino":"Reabrir câmera",systemImage:model.active ? "pause.fill":"play.fill").font(.headline).frame(maxWidth:.infinity).padding(.vertical,17)}
                 .buttonStyle(.borderedProminent).tint(Palette.lime).foregroundStyle(Palette.background).disabled(model.denied || model.editing>0 || model.testing).padding(16).background(Palette.background).accessibilityIdentifier("local.start")
         }
-        .task{model.prepare();await model.checkUpdate()}
+        .task{
+            model.prepare()
+            #if targetEnvironment(simulator)
+            if LocalLayoutAudit.enabled{fullScreen=true;return}
+            #endif
+            await model.checkUpdate()
+        }
         .onChange(of:model.editing){_,value in if value>0{fullScreen=true}}
         .onChange(of:phase){_,phase in if phase == .active{model.prepare()}else if phase == .background{model.suspend()}}
         .confirmationDialog("Área da superfície",isPresented:$areaMenu,titleVisibility:.visible){
@@ -315,7 +322,7 @@ struct LocalTrainingView: View {
     }
     @ViewBuilder private var areaRecovery:some View{
         if model.needsAreaCheck{
-            Button("Área coincide · retomar impactos"){model.confirmCurrentArea()}
+            Button("Área coincide · habilitar IN/OUT"){model.confirmCurrentArea()}
                 .buttonStyle(.bordered).tint(.orange).accessibilityIdentifier("local.area.confirm")
         }
     }
@@ -330,9 +337,9 @@ struct LocalTrainingView: View {
         }else{Text("Nenhuma nova marca nesta área").font(.caption).foregroundStyle(Palette.muted)}
     }
     private var countingIndicator: some View{
-        let suspended=model.active && (model.needsAreaCheck || model.visibleResult?.movingCamera==true)
+        let suspended=model.active && model.visibleResult?.movingCamera==true
         let tracking=model.config.surface == .track
-        let title = !model.active ? "CONTAGEM PAUSADA":suspended ? "IMPACTOS SUSPENSOS":tracking ? "SOMENTE RASTREAR":"CONTAGEM DE IMPACTOS ATIVA"
+        let title = !model.active ? "CONTAGEM PAUSADA":suspended ? "IMPACTOS SUSPENSOS":tracking ? "SOMENTE RASTREAR":model.needsAreaCheck ? "IMPACTOS ATIVOS · ÁREA A CONFERIR":"CONTAGEM DE IMPACTOS ATIVA"
         return Text(title).font(.caption.weight(.bold))
             .foregroundStyle(suspended ? Color.orange:model.active && !tracking ? Palette.lime:Palette.muted)
             .padding(.horizontal,12).padding(.vertical,8)
@@ -421,32 +428,68 @@ struct LocalTrainingView: View {
         }.navigationTitle("Atualizações").toolbar{Button("Fechar"){updates=false}}.task{await model.checkUpdate()}.preferredColorScheme(.dark).tint(Palette.lime)}
     }
     private var fullScreenView: some View{
-        VStack(spacing:12){
-            HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}.padding(.horizontal,20)
-            LocalCourtCanvas(model:model).aspectRatio(ratio,contentMode:.fit).frame(maxWidth:.infinity,maxHeight:.infinity)
-            Text(model.surfaceTitle).font(.caption.weight(.bold)).foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
-            if model.editing==0{
-                countingIndicator;areaRecovery;lastContactSummary
-                Text(model.surfaceHint).font(.caption).foregroundStyle(Palette.muted).padding(.horizontal,16)
-            }
-            Text(model.status).font(.footnote).foregroundStyle(model.needsAreaCheck ? Color.orange:Palette.muted).padding(.horizontal,16)
-            if model.editing>0{
-                Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
-                if model.editing==2{wholeFloorButton}
-                HStack{Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea);Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea);Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)}
-            }else{
-                HStack{
-                    Menu("Marcar área"){
-                        Button("Marcar chão"){model.editHome(.floor)};Button("Marcar parede"){model.editHome(.wall)}
-                        Button("Quadra inteira"){model.edit(3,court:.full)};Button("Meia quadra"){model.edit(3,court:.half)};Button("Área livre"){model.edit(1,court:.custom)};Button("Limite do piso"){model.edit(2)}
-                    }.buttonStyle(.bordered).disabled(!model.ready)
-                    Button(model.active ? "Pausar treino":"Iniciar treino"){model.begin()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.ready)
+        // Reserve image space from the viewport, never from changing labels.
+        // Detection status used to resize the camera by >20% while filming.
+        GeometryReader{geometry in
+            let landscape=geometry.size.width>geometry.size.height
+            VStack(spacing:12){
+                HStack{Text(model.editing>0 ? "Ajustar área":"Tennis Vision").font(.headline);Spacer();Button("Fechar"){fullScreen=false}}
+                    .padding(.horizontal,20).frame(height:32)
+                if landscape{
+                    HStack(spacing:12){
+                        LocalCourtCanvas(model:model).frame(maxWidth:.infinity,maxHeight:.infinity)
+                        ScrollView{fullScreenInformation}.frame(width:min(340,geometry.size.width*0.42))
+                    }.frame(maxHeight:.infinity)
+                }else{
+                    LocalCourtCanvas(model:model)
+                        .frame(width:geometry.size.width,height:max(100,(geometry.size.height-140)*0.72))
+                    ScrollView{fullScreenInformation}.frame(maxWidth:.infinity,maxHeight:.infinity)
                 }
-            }
-        }.padding(.vertical,12).background(Palette.background).tint(Palette.lime).preferredColorScheme(.dark)
+                fullScreenActions.frame(height:48).padding(.horizontal,12)
+            }.padding(.vertical,12)
+        }.background(Palette.background).tint(Palette.lime).preferredColorScheme(.dark)
+        .onAppear{
+            #if targetEnvironment(simulator)
+            LocalLayoutAudit.run(model)
+            #endif
+        }
         .sheet(item:$model.reviewing){event in reviewView(event)}
         .alert("Confira a área desta sessão",isPresented:$model.confirmArea){Button("Coincide · iniciar"){model.begin(confirmed:true)};Button("Ajustar cantos"){model.edit(3)};Button("Cancelar",role:.cancel){}}message:{Text("Os cantos ainda coincidem com a superfície marcada? Ajuste se moveu o iPhone.")}
         .alert("Atenção",isPresented:Binding(get:{model.error != nil},set:{if !$0{model.error=nil}})){Button("Entendi"){model.error=nil}}message:{Text(model.error ?? "")}
+    }
+    private var fullScreenInformation:some View{
+        VStack(spacing:10){
+            Text(model.surfaceTitle).font(.caption.weight(.bold))
+                .foregroundStyle(model.config.surface == .wall ? Color.purple:Color.cyan)
+            if model.editing>0{
+                Text(model.editorHint).font(.footnote).foregroundStyle(Palette.muted)
+                if model.editing==2{wholeFloorButton}
+            }else{
+                countingIndicator
+                areaRecovery
+                lastContactSummary
+                Text(model.status).font(.footnote).foregroundStyle(model.needsAreaCheck ? Color.orange:Palette.muted)
+                if !model.needsAreaCheck{Text(model.surfaceHint).font(.caption).foregroundStyle(Palette.muted)}
+            }
+        }.padding(.horizontal,16).padding(.bottom,8)
+    }
+    @ViewBuilder private var fullScreenActions:some View{
+        if model.editing>0{
+            HStack{
+                Button(model.saveAreaTitle){model.saveArea()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.canSaveArea)
+                Button("Recomeçar"){model.redraw()}.buttonStyle(.bordered).disabled(model.savingArea)
+                Button("Cancelar"){model.cancelEdit()}.buttonStyle(.bordered).disabled(model.savingArea)
+            }
+        }else{
+            HStack{
+                Menu("Marcar área"){
+                    Button("Marcar chão"){model.editHome(.floor)};Button("Marcar parede"){model.editHome(.wall)}
+                    Button("Quadra inteira"){model.edit(3,court:.full)};Button("Meia quadra"){model.edit(3,court:.half)}
+                    Button("Área livre"){model.edit(1,court:.custom)};Button("Limite do piso"){model.edit(2)}
+                }.buttonStyle(.bordered).disabled(!model.ready)
+                Button(model.active ? "Pausar treino":"Iniciar treino"){model.begin()}.buttonStyle(.borderedProminent).foregroundStyle(Palette.background).disabled(!model.ready)
+            }
+        }
     }
     private func reviewView(_ event: VisionImpact) -> some View{
         NavigationStack{ScrollView{VStack(alignment:.leading,spacing:18){

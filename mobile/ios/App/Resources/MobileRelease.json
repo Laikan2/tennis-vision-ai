@@ -1,6 +1,6 @@
 {
-  "version": "0.6.20",
-  "baseline": "bounded-contact-cadence-and-lazy-full-resolution-0.6.20",
+  "version": "0.6.21",
+  "baseline": "settled-contact-recovery-and-fixed-camera-viewport-0.6.21",
   "platforms": [
     "android",
     "ios"
@@ -84,7 +84,11 @@
     "independent-marker-arrival-lifetime",
     "spatially-bounded-delivery-jitter",
     "incoming-leg-speed-before-contact",
-    "lazy-full-resolution-background-contrast"
+    "lazy-full-resolution-background-contrast",
+    "contact-candidates-independent-of-stale-in-out-area",
+    "camera-settle-history-boundary",
+    "fixed-live-camera-viewport",
+    "explicit-unavailable-contact-speed"
   ],
   "installation": {
     "android": "apk-confirmation",
