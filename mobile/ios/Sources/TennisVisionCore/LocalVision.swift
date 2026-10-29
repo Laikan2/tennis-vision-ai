@@ -28,6 +28,7 @@ public struct VisionImpact: Codable, Identifiable, Sendable {
     public var id: Int,time: Double,point: VisionPoint,radius: Double,call: VisionCall
     public var speed: Double?,uncertainty: Double,reason: String,surface: VisionSurface
     public var reviewed: VisionCall?
+    public var cameraRevision:Int?
     public var cameraOffset=VisionPoint(0,0),evidenceOffset=VisionPoint(0,0)
     public var decision: VisionCall { reviewed ?? call }
 }
@@ -36,6 +37,7 @@ public struct VisionResult: Sendable {
     public var movingCamera=false,speed: Double?,message="Bola não localizada"
     public var area=VisionSettings(),cameraOffset=VisionPoint(0,0)
     public var areaNeedsConfirmation=false
+    public var cameraRevision=0
     public var diagnostics=VisionTrackingDiagnostics()
 }
 public enum VisionGeometry {
@@ -442,13 +444,13 @@ public final class LocalVision {
     private let scene=VisionSceneReference()
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
     private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
-    private var wasMotionBlocked=false
+    private var wasMotionBlocked=false,cameraRevision=0
     private var floorBoundaryNoticeUntil = -1.0
     private var framingNoticeUntil = -1.0
     private var trackSerial=0,usableCandidates=0
     private var debugCandidates=[VisionBall](),contactReason="Aguardando trajetória",rejectedTurn=false
     private func diagnosed(_ result:VisionResult)->VisionResult {
-        var r=result
+        var r=result;r.cameraRevision=cameraRevision
         let state:String
         if r.movingCamera{state="CÂMERA INSTÁVEL"}
         else if let hit=r.impact{state=hit.evidence.rawValue}
@@ -470,7 +472,7 @@ public final class LocalVision {
         settings.translated(by:offset)
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();scene.reset();wasMotionBlocked=false;lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
+    public func reset(){clearTrack();detector.reset();scene.reset();wasMotionBlocked=false;cameraRevision=0;lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
@@ -487,6 +489,7 @@ public final class LocalVision {
             else{unstableUntil=time+0.25;clearTrack();sceneChanged=true}
         }
         if cameraMoved || motion.large{unstableUntil=time+0.25;clearTrack()}
+        if sceneChanged && !wasMotionBlocked{cameraRevision+=1}
         scene.update(pixels,width:w,height:h,time:time,changed:sceneChanged,compensated:motion.reliable && !sceneChanged && (motion.dx != 0 || motion.dy != 0))
         let blocked=time<unstableUntil || scene.contactsBlocked
         // A return straddling camera motion cannot be treated as a bounce.
@@ -664,7 +667,7 @@ public final class LocalVision {
         else{reason="Descida e retorno compatíveis com quicada; contato estimado."}
         let incomingSpeed=ObservedBallSpeed.incoming(path,contactTime:t)
         serial+=1;lastImpact=t;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;contactReason=reason;path.removeAll{$0.time<=c.time}
-        return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraOffset:offset,evidenceOffset:offset)
+        return VisionImpact(id:serial,time:t,point:point,radius:c.radius,call:call,speed:incomingSpeed,uncertainty:uncertainty,reason:reason,surface:settings.surface,cameraRevision:cameraRevision,cameraOffset:offset,evidenceOffset:offset)
     }
     private struct Fit {var x: Double,y: Double,time: Double,error: Double}
     private func floorReferenceKnown()->Bool {

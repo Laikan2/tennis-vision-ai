@@ -34,14 +34,14 @@ data class LocalImpact(val id: Long, val time: Double, val point: CourtPoint,
   val uncertainty: Double, val reason: String, val surface: ContactSurface,
   val reviewed: LineCall? = null,
   val cameraOffset: CourtPoint=CourtPoint(0.0,0.0),
-  val evidenceOffset: CourtPoint=CourtPoint(0.0,0.0)) {
+  val evidenceOffset: CourtPoint=CourtPoint(0.0,0.0),val cameraRevision:Int?=null) {
   val decision get() = reviewed ?: call
 }
 data class LocalResult(val observed: BallObservation?, val predicted: CourtPoint?,
   val trail: List<CourtPoint>, val impact: LocalImpact?, val movingCamera: Boolean,
   val speedKmh: Double?, val message: String,
   val activeArea: LocalSettings?=null, val cameraOffset: CourtPoint=CourtPoint(0.0,0.0),
-  val areaNeedsConfirmation:Boolean=false, val diagnostics:TrackingDiagnostics=TrackingDiagnostics())
+  val areaNeedsConfirmation:Boolean=false, val diagnostics:TrackingDiagnostics=TrackingDiagnostics(),val cameraRevision:Int=0)
 
 object LocalGeometry {
   fun impactPoint(event: LocalImpact,offset: CourtPoint)=CourtPoint(
@@ -567,6 +567,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var unstableUntil = -1.0
   private var serial = 0L
   private var wasMotionBlocked=false
+  private var cameraRevision=0
   private var floorBoundaryNoticeUntil = -1.0
   private var framingNoticeUntil = -1.0
   private var dimensions = 0 to 0
@@ -592,13 +593,13 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       lost!=null -> "RASTREAMENTO PERDIDO"
       else -> "BUSCANDO"
     }
-    return r.copy(diagnostics=TrackingDiagnostics(trackSerial.takeIf{path.isNotEmpty()},state,
+    return r.copy(cameraRevision=cameraRevision,diagnostics=TrackingDiagnostics(trackSerial.takeIf{path.isNotEmpty()},state,
       debugCandidates.size,usableCandidates,debugCandidates.count{it.patterned},contactReason,debugCandidates.take(12)))
   }
   private fun rejectContact(reason:String):LocalImpact? {contactReason=reason;rejectedTurn=true;return null}
   val activeSettings get()=settings.translated(offset)
   fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
-  fun reset() { clearTrack(); detector.reset(); scene.reset(); wasMotionBlocked=false; lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; framingNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
+  fun reset() { clearTrack(); detector.reset(); scene.reset(); wasMotionBlocked=false;cameraRevision=0; lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; framingNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
   fun process(pixels: IntArray, width: Int, height: Int, time: Double): LocalResult {
     if(width !in 1..8192 || height !in 1..8192 || pixels.size.toLong()!=width.toLong()*height || !time.isFinite())
@@ -622,6 +623,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       } else { unstableUntil=time+.25; clearTrack();sceneChanged=true }
     }
     if (cameraMoved || motion.large) { unstableUntil = time+.25; clearTrack() }
+    if(sceneChanged && !wasMotionBlocked)cameraRevision++
     scene.update(pixels,width,height,time,sceneChanged,motion.reliable && !sceneChanged && (motion.dx!=0 || motion.dy!=0))
     val blocked=time<unstableUntil || scene.contactsBlocked
     if(wasMotionBlocked && !blocked)clearTrack()
@@ -875,7 +877,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       else -> "Descida e subida observadas no piso; contato estimado entre quadros."
     }
     val result=LocalImpact(++serial,contactTime,point,c.radius,call,ObservedBallSpeed.incoming(path,contactTime),uncertainty,reason,settings.surface,
-      cameraOffset=offset,evidenceOffset=offset)
+      cameraOffset=offset,evidenceOffset=offset,cameraRevision=cameraRevision)
     lastImpact=contactTime
     contactReason=reason
     floorBoundaryNoticeUntil = -1.0

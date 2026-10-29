@@ -4,7 +4,16 @@ import XCTest
 final class ContactRecoveryTests:XCTestCase {
     let w=320,h=240
     var area:[VisionPoint]{[VisionPoint(0.1,0.1),VisionPoint(0.9,0.1),VisionPoint(0.9,0.95),VisionPoint(0.1,0.95)]}
-    func room()->[UInt32]{(0..<w*h).map{i in let v=UInt32(60+(i%w/40+i/w/30)%3*45);return 0xff000000 | (v<<16) | (v<<8) | v}}
+    func room()->[UInt32]{
+        var pixels=[UInt32]();pixels.reserveCapacity(w*h)
+        for y in 0..<h{for x in 0..<w{
+            let cell=(x/40+y/30)%3
+            let v=UInt32(60+cell*45)
+            let color=UInt32(0xff000000) | (v<<16) | (v<<8) | v
+            pixels.append(color)
+        }}
+        return pixels
+    }
     func image(x:Int=160,y:Int=120,ball:Bool=false)->[UInt32]{
         (0..<w*h).map{i in ball && hypot(Double(i%w-x),Double(i/w-y))<=6 ? 0xffc7eb4d:0xff587082}
     }

@@ -59,6 +59,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
   private fun activeMarks():List<LocalImpact> {
     val now=android.os.SystemClock.elapsedRealtime()
     return events.filter { it.decision!=LineCall.REJECTED && it.surface==settings.surface &&
+      (it.cameraRevision==null || it.cameraRevision==result?.cameraRevision) &&
       (markerDurationSeconds==0 || now-(arrivals[it.id] ?: 0L)<markerDurationSeconds*1000L) }.takeLast(24)
   }
   val visibleSettings get()=result?.referencedTo(settings)?.activeArea ?: settings

@@ -54,7 +54,8 @@ class LocalSessionStore(context: Context) {
         e.getString("reason"),ContactSurface.valueOf(e.getString("surface")),
         e.optString("reviewed").takeIf { it.isNotEmpty() && it != "null" }?.let { LineCall.valueOf(it) },
         CourtPoint(e.optDouble("camera_dx",0.0),e.optDouble("camera_dy",0.0)),
-        CourtPoint(e.optDouble("evidence_dx",0.0),e.optDouble("evidence_dy",0.0)))
+        CourtPoint(e.optDouble("evidence_dx",0.0),e.optDouble("evidence_dy",0.0)),
+        if(e.isNull("camera_revision")) null else e.getInt("camera_revision"))
     })
   }.getOrElse { warning="Não foi possível ler uma sessão. O arquivo original foi preservado."; null }
 
@@ -65,7 +66,7 @@ class LocalSessionStore(context: Context) {
         .put("call",e.call.name).put("reviewed",e.reviewed?.name ?: JSONObject.NULL).put("speed",e.speedKmh ?: JSONObject.NULL)
         .put("uncertainty",e.uncertainty).put("reason",e.reason).put("surface",e.surface.name)
         .put("camera_dx",e.cameraOffset.x).put("camera_dy",e.cameraOffset.y)
-        .put("evidence_dx",e.evidenceOffset.x).put("evidence_dy",e.evidenceOffset.y))
+        .put("evidence_dx",e.evidenceOffset.x).put("evidence_dy",e.evidenceOffset.y).put("camera_revision",e.cameraRevision ?: JSONObject.NULL))
     } }).toString(2)
 
   @Synchronized fun save(session: LocalSession) {

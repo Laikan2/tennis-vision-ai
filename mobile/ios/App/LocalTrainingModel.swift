@@ -116,7 +116,7 @@ final class LocalTrainingStore {
     var contactAnimationTimes:[Int:TimeInterval]{contactClock.arrivals}
     private var settingsRevision=0
     private var opening=false,overlayStartID=0
-    var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface}}
+    var visibleEvents:[VisionImpact]{session.events.filter{$0.id>overlayStartID && $0.surface==config.surface && ($0.cameraRevision==nil || $0.cameraRevision==frame?.result.cameraRevision)}}
     var needsAreaCheck:Bool{visibleResult?.areaNeedsConfirmation == true}
     var lastVisibleContact:VisionImpact?{visibleEvents.last(where:{$0.decision != .rejected})}
     var surfaceTitle:String{
@@ -255,8 +255,8 @@ final class LocalTrainingStore {
         if active && editing==0 {
             // Old marks must not reappear at new physical positions after moving.
             // Keep them in history; only current-view contacts remain overlaid.
-            if frame.result.movingCamera{overlayStartID=session.events.map{$0.id}.max() ?? 0}
             for f in events where f.generation==frame.generation && f.key==key{accept(f)}
+            if frame.result.movingCamera{overlayStartID=session.events.map{$0.id}.max() ?? 0}
             if needsAreaCheck && !frame.result.movingCamera{status=surfaceHint}
         }
         let now=ProcessInfo.processInfo.systemUptime
@@ -282,7 +282,7 @@ final class LocalTrainingStore {
         store.save(settings:nil,key:key,session:session,evidence:f.evidence.map{(hit.id,$0)}){[weak self] message in
             if let message{self?.savingError=true;self?.pause();self?.error=message}
         }
-        if let voice=LineVoicePolicy.voice(for:hit.decision,outEnabled:config.sound,inEnabled:inVoice){lineVoice.play(voice)}
+        if f.result.cameraRevision==frame?.result.cameraRevision,frame?.result.movingCamera != true,let voice=LineVoicePolicy.voice(for:hit.decision,outEnabled:config.sound,inEnabled:inVoice){lineVoice.play(voice)}
     }
     func playOut(){lineVoice.play(.outside,test:true)}
     func playIn(){lineVoice.play(.inside,test:true)}
