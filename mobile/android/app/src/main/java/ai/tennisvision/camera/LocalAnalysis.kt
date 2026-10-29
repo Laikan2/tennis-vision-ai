@@ -561,6 +561,8 @@ class GreenBallDetector {
 class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private val detector = GreenBallDetector()
   private val scene=SceneReference()
+  private val clutter=BallClutter()
+  private val reacquisition=BallReacquisition()
   private val path = ArrayList<BallObservation>()
   private var lastFrame = -1.0
   private var lastImpact = -10.0
@@ -576,7 +578,6 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   private var lost: BallObservation?=null
   private var acquisition: BallObservation?=null
   private var tinyAcquisition: BallObservation?=null
-  private var motionAcquisition: BallObservation?=null
   private var trackSerial=0L
   private var contactReason="Aguardando trajetória"
   private var debugCandidates=emptyList<BallObservation>()
@@ -598,8 +599,8 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
   }
   private fun rejectContact(reason:String):LocalImpact? {contactReason=reason;rejectedTurn=true;return null}
   val activeSettings get()=settings.translated(offset)
-  fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; motionAcquisition=null; lastImpact=-10.0 }
-  fun reset() { clearTrack(); detector.reset(); scene.reset(); wasMotionBlocked=false;cameraRevision=0; lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; framingNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
+  fun clearTrack() { path.clear(); lost=null; acquisition=null; tinyAcquisition=null; reacquisition.reset(); lastImpact=-10.0 }
+  fun reset() { clearTrack(); detector.reset(); scene.reset(); clutter.reset(); wasMotionBlocked=false;cameraRevision=0; lastFrame = -1.0; unstableUntil = -1.0; floorBoundaryNoticeUntil = -1.0; framingNoticeUntil = -1.0; offset=CourtPoint(0.0,0.0) }
 
   fun process(pixels: IntArray, width: Int, height: Int, time: Double): LocalResult {
     if(width !in 1..8192 || height !in 1..8192 || pixels.size.toLong()!=width.toLong()*height || !time.isFinite())
@@ -610,8 +611,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     lastFrame = time
     contactReason=if(settings.surface==ContactSurface.TRACK) "Contagem desligada · somente rastrear" else "Aguardando descida/aproximação e retorno observados"
     rejectedTurn=false
-    val (components, cameraMoved) = detector.detect(pixels,width,height,time,path.lastOrNull(),activeSettings.polygon)
-    debugCandidates=components
+    val (rawComponents, cameraMoved) = detector.detect(pixels,width,height,time,path.lastOrNull(),activeSettings.polygon)
     val motion=detector.alignment
     var sceneChanged=cameraMoved || motion.large
     if(motion.reliable && (motion.dx!=0 || motion.dy!=0)) {
@@ -628,6 +628,8 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val blocked=time<unstableUntil || scene.contactsBlocked
     if(wasMotionBlocked && !blocked)clearTrack()
     wasMotionBlocked=blocked
+    if(sceneChanged)clutter.reset()
+    val components=clutter.filter(rawComponents,time);debugCandidates=components
     // Warm wood passes the broad yellow mask too. A moving weak component
     // cannot acquire a ball; allow only a brief, spatially gated continuation
     // of a trajectory that already has independent colour support.
@@ -648,24 +650,20 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val fragment=previous?.takeIf{it.radius<=6}
     if(fragment!=null && candidates.count{b->b.resolved && b.distinctFelt &&
         b.radius>=max(16.0,fragment.radius*4) && hypot(b.x-fragment.x,b.y-fragment.y)<=b.radius*1.15}==1) {
-      path.clear();previous=null;lost=null;acquisition=null;tinyAcquisition=null;motionAcquisition=null
+      path.clear();previous=null;lost=null;acquisition=null;tinyAcquisition=null;reacquisition.reset()
     }
     // An unconfirmed stationary spare ball/logo must not hide a tiny moving
     // ball forever. Require two moving observations of the alternative, plus
     // continued stationary evidence at the old target, before releasing it.
     val still=previous?.takeIf { !it.nearHand && !it.occluded &&
       path.takeLast(4).all { p -> hypot(p.x-it.x,p.y-it.y)<max(2.0,it.radius*.5) } }
-    val alternative=candidates.filter { b -> b.motionSupport>=.25 && !b.nearHand &&
-      (still==null || hypot(b.x-still.x,b.y-still.y)>max(12.0,still.radius*3)) }.singleOrNull()
-    val pendingMotion=motionAcquisition
-    motionAcquisition=alternative
     val backgroundStill=still!=null && candidates.any { it.motionSupport<.20 &&
       hypot(it.x-still.x,it.y-still.y)<max(3.0,still.radius) }
-    val motionConfirmed=backgroundStill && alternative!=null && pendingMotion!=null &&
-      time-pendingMotion.time in .001.. .10 && alternative.radius/pendingMotion.radius in .45..2.2 &&
-      hypot(alternative.x-pendingMotion.x,alternative.y-pendingMotion.y) in 2.0..width*.23
-    if(motionConfirmed) {
-      path.clear();previous=null;lost=null;acquisition=null;tinyAcquisition=pendingMotion
+    val recovered=reacquisition.choose(candidates,still,backgroundStill,width)
+    val motionConfirmed=recovered!=null
+    val clutterOwned=previous?.let { p-> !p.resolved && components.any { it.patterned && hypot(it.x-p.x,it.y-p.y)<max(4.0,p.radius*2) } } ?: false
+    if(motionConfirmed || clutterOwned) {
+      path.clear();previous=null;lost=null;acquisition=null;tinyAcquisition=null
     }
     val prior2 = path.getOrNull(path.size-2)
     val prediction = if (previous != null && prior2 != null && previous.time > prior2.time) {
@@ -687,7 +685,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val acquisitionPool=if(previous==null && plausible.size>1) plausible.filter { it.motionSupport>=.25 }.ifEmpty { plausible } else plausible
     // A resolved close ball must not be vetoed by a few unrelated 2–6 px wall fragments.
     // Unique moving small balls were already preferred above; two substantial balls stay ambiguous.
-    val acquiring=if(previous==null && acquisitionPool.any{it.radius>=max(16.0,min(width,height)*.08) && it.confidence>=.60}) acquisitionPool.filter{it.radius>=4} else acquisitionPool
+    val acquiring=if(recovered!=null)listOf(recovered) else if(previous==null && acquisitionPool.any{it.radius>=max(16.0,min(width,height)*.08) && it.confidence>=.60}) acquisitionPool.filter{it.radius>=4} else acquisitionPool
     val gated=acquiring.mapNotNull { b ->
       if(previous==null) b to -b.confidence*b.radius
       else {
@@ -773,9 +771,11 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val simple = if(settings.surface==ContactSurface.FLOOR) floorEvidence() else wallEvidence()
     val robust = if(simple==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
       ObservedContactFit.find(path,settings.surface) else null
-    val depth = if(simple==null && robust==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
+    val perspective = if(simple==null && robust==null && settings.surface==ContactSurface.FLOOR && floorReferenceKnown())
+      PerspectiveFloorFit.find(path,width,height) else null
+    val depth = if(simple==null && robust==null && perspective==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
       DepthContactFit.find(path,width,height) else null
-    val p = (simple ?: robust?.support ?: depth?.support) ?: run {
+    val p = (simple ?: robust?.support ?: perspective?.support ?: depth?.support) ?: run {
       contactReason=if(path.any{it.nearHand || it.occluded}) "Mão/oclusão na trajetória · aguardando voo livre" else "Sem retorno coerente observado dos dois lados do contato"
       return null
     }
@@ -799,7 +799,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     // The observed local maximum need not be the instant of contact. Estimate
     // the crossing of the observed incoming/outgoing legs, bounded by b and d.
     // This is two-sided interpolation, never an extrapolation from a lost ball.
-    val fit=(robust ?: depth)?.let{ContactFit(it.x,it.y,it.time,it.error)} ?: if (settings.surface==ContactSurface.FLOOR) {
+    val fit=(robust ?: perspective ?: depth)?.let{ContactFit(it.x,it.y,it.time,it.error)} ?: if (settings.surface==ContactSurface.FLOOR) {
       // A wide window establishes the rebound, but its curved outer legs must
       // not move the mark beyond the observed ball. Localise with the actual
       // samples around the observed maximum when they are continuous.

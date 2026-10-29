@@ -65,6 +65,7 @@ final class LocalTrainingStore {
     @Published var status="Preparando treino local"
     @Published var ready=false
     @Published var active=false
+    @Published var finishing=false
     @Published var denied=false
     @Published var cameraUnavailable=false
     @Published var error: String?
@@ -112,6 +113,8 @@ final class LocalTrainingStore {
     private var probeTrace=[[String:Any]](),probeInitialThermal=0
     private var probeAttached=false,probeWritten=false,diagnosticLaunched=false
     private var acceptedContacts=Set<String>()
+    private var analysisStartedAt=Double.infinity
+    private var reviewingSession:LocalTrainingSession?
     private var contactClock=VisionContactClock()
     var contactAnimationTimes:[Int:TimeInterval]{contactClock.arrivals}
     private var settingsRevision=0
@@ -186,13 +189,29 @@ final class LocalTrainingStore {
         UIApplication.shared.isIdleTimerDisabled=false;camera.stop(completion:completion)
         lineVoice.stop()
     }
-    func pause(){active=false;camera.setAnalysis(false);status="Treino pausado · dados no iPhone"}
+    func pause(){active=false;analysisStartedAt = .infinity;camera.setAnalysis(false);status="Treino pausado · dados no iPhone"}
+    func finishTraining(){
+        guard editing==0,!savingArea,!savingError,!finishing else{return}
+        pause();lineVoice.stop();let completed=session,next=LocalTrainingSession(key:key);finishing=true
+        status="Salvando e encerrando treino…"
+        store.save(settings:nil,key:key,session:completed,evidence:nil){[weak self] message in
+            guard let self else{return}
+            if let message{self.finishing=false;self.savingError=true;self.error=message;return}
+            self.store.save(settings:nil,key:self.key,session:next,evidence:nil){[weak self] message in
+                guard let self else{return};self.finishing=false
+                if let message{self.savingError=true;self.error=message;return}
+                self.session=next;self.overlayStartID=0;self.acceptedContacts.removeAll();self.contactClock.reset()
+                self.reviewing=nil;self.reviewImage=nil;self.history=self.store.history()
+                self.status="Treino encerrado · marcas limpas; contatos no Histórico"
+            }
+        }
+    }
     func begin(confirmed: Bool=false){
-        guard ready,editing==0,!testing,!savingError,!cameraProbe else{return}
+        guard ready,editing==0,!testing,!savingError,!finishing,!cameraProbe else{return}
         if active{pause();return}
         if session.events.count>=2000{error="Sessão chegou a 2.000 contatos. Comece outra; o histórico será mantido.";return}
         if VisionGeometry.projectedPolygon(config.polygon) && !self.confirmed && !confirmed{confirmArea=true;return}
-        self.confirmed=true;active=true;camera.setAnalysis(true);status="Treino no iPhone · aguardando bola"
+        self.confirmed=true;analysisStartedAt=ProcessInfo.processInfo.systemUptime;active=true;camera.setAnalysis(true);status="Treino no iPhone · aguardando bola"
     }
     func receive(_ frame: LocalCameraFrame,events: [LocalCameraFrame]){
         guard foreground,!testing else{return}
@@ -270,6 +289,7 @@ final class LocalTrainingStore {
         }
     }
     private func accept(_ f: LocalCameraFrame){
+        guard f.startedAt>=analysisStartedAt else{return}
         guard var hit=f.result.referenced(to:config).impact,session.events.count<2000 else{return}
         let contactKey="\(f.generation.uuidString):\(hit.id)"
         guard acceptedContacts.insert(contactKey).inserted else{return}
@@ -353,7 +373,7 @@ final class LocalTrainingStore {
     func changeLens(_ value: String){guard editing==0 else{return};pause();lensID=value;UserDefaults.standard.set(value,forKey:"local.lens");prepare(force:true)}
     func changeRate(_ value: Int){guard editing==0,[0,30,60,120,240].contains(value) else{return};pause();rate=value;UserDefaults.standard.set(value,forKey:"local.rate");prepare(force:true)}
     func newSession(){
-        guard !savingArea,editing==0 else{return}
+        guard !savingArea,!finishing,editing==0 else{return}
         settingsRevision+=1
         pause();store.clearAreas();config=config.withoutSessionArea;confirmed=false;confirmArea=false
         // Remove the previous result/area immediately; new frames use the cleared settings.
@@ -362,16 +382,16 @@ final class LocalTrainingStore {
         store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message}
         history=store.history();status="Nova sessão · marque o chão ou a parede; áreas anteriores descartadas"
     }
-    func review(_ event: VisionImpact){pause();reviewing=event;reviewImage=nil;let url=store.evidenceURL(session.id,event.id)
-        DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id{self?.reviewImage=image}}}
+    func review(_ event: VisionImpact,in saved:LocalTrainingSession?=nil){pause();let source=saved ?? session;reviewingSession=source;reviewing=event;reviewImage=nil;let url=store.evidenceURL(source.id,event.id)
+        DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id && self?.reviewingSession?.id==source.id{self?.reviewImage=image}}}
     }
     func revise(_ call: VisionCall){
-        guard let hit=reviewing,let i=session.events.firstIndex(where:{$0.id==hit.id}) else{return}
-        var next=session;next.events[i].reviewed=call
+        guard let hit=reviewing,var next=reviewingSession,let i=next.events.firstIndex(where:{$0.id==hit.id}) else{return}
+        next.events[i].reviewed=call
         store.save(settings:nil,key:key,session:next,evidence:nil){[weak self] message in
             guard let self else{return}
             if let message{self.error=message;return}
-            self.session=next;self.reviewing=nil;self.reviewImage=nil
+            if self.session.id==next.id{self.session=next};self.history=self.store.history();self.reviewing=nil;self.reviewImage=nil
         }
     }
     func exportSession(){pause();let snapshot=session

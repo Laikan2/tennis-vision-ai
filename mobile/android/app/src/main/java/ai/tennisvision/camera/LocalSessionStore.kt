@@ -69,11 +69,11 @@ class LocalSessionStore(context: Context) {
         .put("evidence_dx",e.evidenceOffset.x).put("evidence_dy",e.evidenceOffset.y).put("camera_revision",e.cameraRevision ?: JSONObject.NULL))
     } }).toString(2)
 
-  @Synchronized fun save(session: LocalSession) {
+  @Synchronized fun save(session: LocalSession,makeCurrent:Boolean=true) {
     val atomic=AtomicFile(File(directory,"${session.id}.json"))
     val output=atomic.startWrite()
     try { output.write(json(session).toByteArray(Charsets.UTF_8)); atomic.finishWrite(output) }
     catch (error: Exception) { atomic.failWrite(output); throw error }
-    check(prefs.edit().putString("current",session.id).commit()) { "Não salvou a sessão atual." }
+    if(makeCurrent)check(prefs.edit().putString("current",session.id).commit()) { "Não salvou a sessão atual." }
   }
 }

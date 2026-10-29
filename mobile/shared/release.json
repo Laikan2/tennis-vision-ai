@@ -1,6 +1,6 @@
 {
-  "version": "0.6.21",
-  "baseline": "settled-contact-recovery-and-fixed-camera-viewport-0.6.21",
+  "version": "0.6.22",
+  "baseline": "perspective-contact-recovery-and-finish-training-0.6.22",
   "platforms": [
     "android",
     "ios"
@@ -88,7 +88,12 @@
     "contact-candidates-independent-of-stale-in-out-area",
     "camera-settle-history-boundary",
     "fixed-live-camera-viewport",
-    "explicit-unavailable-contact-speed"
+    "explicit-unavailable-contact-speed",
+    "perspective-transverse-floor-fit",
+    "stationary-unresolved-clutter-memory",
+    "multi-candidate-motion-recovery",
+    "finish-training-clears-live-marks",
+    "saved-contact-review"
   ],
   "installation": {
     "android": "apk-confirmation",

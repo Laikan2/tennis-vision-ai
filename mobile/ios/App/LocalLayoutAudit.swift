@@ -2,7 +2,7 @@
 import SwiftUI
 import UIKit
 
-/// Opt-in simulator-only layout check; no camera, archive writes or voice calls.
+/// Opt-in simulator check; synthetic frames and isolated simulator archive, no camera/voice.
 /// Measures the real fullscreen SwiftUI/UIKit tree under changing live states.
 @MainActor enum LocalLayoutAudit {
     static var enabled:Bool{ProcessInfo.processInfo.arguments.contains("--vision-layout-check")}
@@ -65,7 +65,14 @@ import UIKit
                 try? screenshot.pngData()?.write(to:folder.appendingPathComponent("layout-\(i).png"))
             }
             let folder=FileManager.default.urls(for:.documentDirectory,in:.userDomainMask)[0]
-            let output:[String:Any]=["kind":"simulator-native-ui-not-camera-validation","states":rows]
+            model.editing=0
+            let old=model.session,area=model.config
+            model.finishTraining()
+            try? await Task.sleep(nanoseconds:600_000_000)
+            let finish:[String:Any]=["marks":model.visibleEvents.count,"newContacts":model.session.events.count,
+                "newSession":model.session.id != old.id,"areaRetained":model.config==area,"active":model.active,
+                "historyRetained":model.store.history().contains{$0.id==old.id && $0.events.map{$0.id}==old.events.map{$0.id}}]
+            let output:[String:Any]=["kind":"simulator-native-ui-not-camera-validation","states":rows,"finishTraining":finish]
             try? JSONSerialization.data(withJSONObject:output,options:[.prettyPrinted,.sortedKeys]).write(to:folder.appendingPathComponent("layout-audit.json"),options:.atomic)
         }
     }

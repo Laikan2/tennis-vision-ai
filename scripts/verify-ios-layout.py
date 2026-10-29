@@ -12,3 +12,6 @@ for row in states:
     delta = max(abs(a - b) for a, b in zip(reference, row["imageRect"]))
     assert delta < 0.5, f"Camera jumped in state {row['state']}: {row['imageRect']}"
 print("Six native simulator UI states: image position and size unchanged (less than 0.5 pt).")
+finish=data["finishTraining"]
+assert finish=={"marks":0,"newContacts":0,"newSession":True,"areaRetained":True,"active":False,"historyRetained":True},finish
+print("Finish training: live marks cleared, new session, area/history retained, analysis paused.")
