@@ -1,0 +1,9 @@
+{
+  "version": "0.6.22",
+  "minimumIOS": "17.4",
+  "bundleIdentifier": "ai.tennisvision.camera.ios",
+  "signing": "required-by-installation-tool",
+  "filename": "Tennis-Vision-Camera-iOS-v0.6.22-AltStore.ipa",
+  "bytes": 936868,
+  "sha256": "051f5a9be6b853fde24833388bd2fdf76a68247056c9419dac69fb87a12c5fb1"
+}

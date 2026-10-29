@@ -1,0 +1,67 @@
+{
+  "finishTraining" : {
+    "active" : false,
+    "areaRetained" : true,
+    "historyRetained" : true,
+    "marks" : 0,
+    "newContacts" : 0,
+    "newSession" : true
+  },
+  "kind" : "simulator-native-ui-not-camera-validation",
+  "states" : [
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 0
+    },
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 1
+    },
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 2
+    },
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 3
+    },
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 4
+    },
+    {
+      "imageRect" : [
+        71.8125,
+        118,
+        258.375,
+        459.33333333333326
+      ],
+      "state" : 5
+    }
+  ]
+}

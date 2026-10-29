@@ -1,0 +1,70 @@
+Tennis Vision mobile 0.6.22 â€” investigation and validation
+Date: 2026-10-29
+Android/core changes: de558707efee05e8214d9dfe6bf31df2ed931dcf
+iOS model changes: 34c0d098f8235f77585749309c69d523602220ad
+Final native validation workflow: 9532320d33feed46f6d07f38a9e9d169ac2b04a2
+Baseline: e257daf0d2d6ff96fc444c247d672d2c7cc55aff (0.6.21)
+
+Evidence reviewed
+- Two user screen recordings, approximately 59.03 s and 29.91 s.
+- Read-only backup of the connected iPhone 15 Pro (iOS 27.2), installed 0.6.21/build 22.
+- Two stored sessions, 120 contact records; selected raw evidence frames inspected.
+- The stored local replay is a still contact-evidence image, not a continuous original camera video.
+- The seven floor contacts selected from the recent recording included two IN and five depth-return reviews.
+- A wall mark was located on a printed detail without an apparent ball; actual visible balls were intermittently missed in the screen recording.
+- Screen recordings contain compressed camera pixels and app overlays; they are not suitable as unmodified raw detector ground truth. No all-bounce recall percentage is claimed.
+- Private camera images, archives, identifiers and recordings are not included in this repository or release.
+
+Causes and corrections
+1. Floor depth candidates matured before sufficient transverse rebound evidence.
+   Once emitted, the candidate consumed the incoming track and could not improve from REVIEW.
+   Floor depth-only candidates now wait a bounded 120 ms after the estimated turn, permitting a coherent transverse fit to mature first.
+   The preview does not wait for this confirmation.
+2. Variable apparent ball size could invalidate the constant-size floor fit.
+   A new bounded perspective-normalized fit requires resolved observed positions on both legs, continuity, stable brightness, bounded size change and actual transverse reversal.
+   It retains the estimated point/error in original image coordinates.
+   Pure approach/retreat, hands, missing frames and alternating size noise do not gain automatic IN/OUT.
+3. Unresolved stationary fragments could retain track ownership.
+   A bounded cache marks stationary unresolved/elongated fragments; clean still balls and held balls are retained.
+   Reacquisition compares multiple moving candidates over two frames and leaves equal alternatives ambiguous.
+   An initial regression on 3 px targets was found and corrected; subpixel-size variation keeps the earlier tolerances.
+4. Pausing previously retained marks without a clear finish action.
+   Encerrar treino saves the completed session before clearing live circles, pulses and counters.
+   It stops analysis/audio, starts a fresh session and retains the current area.
+   Pausing retains review marks. History remains accessible, including stored evidence and manual review.
+   Queued old contacts cannot enter the next training interval. A storage error retains the old session instead of reporting a successful finish.
+
+Controlled before/after comparison (same rendered image sequence)
+- Known floor rebound at x=337.33, y=370.00 in a 640x480 image, with depth and transverse motion.
+- 0.6.21: one REVIEW at approximately x=337.37, y=344.00 (centre rather than floor contact), uncertainty 33.15 px.
+- 0.6.22: one IN at approximately x=337.82, y=369.26, uncertainty 14.02 px.
+- Both versions estimate approximately 1.49 km/h lateral; this is not a 3-D speed/radar validation.
+- New contact timing error approximately 1.39 ms, point error approximately 0.89 px in this generated case only.
+- The baseline fails the new end-to-end IN assertion; the candidate passes.
+- This one controlled case is not a measured improvement rate on the user's throws or a real tennis match.
+
+Other completed local checks
+- Android: 321 test cases, 318 passed, 0 failures/errors, 3 optional private-sequence cases skipped because those separate fixture inputs were not supplied.
+- Includes known pixel sequences, tiny-ball/distractor recovery, fast motion, hand/occlusion negatives, pure-depth review, perspective evidence, IN/OUT rules, timing, storage and Robolectric UI.
+- Optional private still background plus a known rendered ball: 30/30 moving ball positions, 0 wrong positions, 0 contact events (no bounce). Frozen background: 0 false observations in the last 20 frames.
+  Both baseline and candidate pass this still-background case; this does not reproduce the moving/compressed false target in the recording.
+- Finish-training Android test exercises the actual button, rejects a queued old contact, verifies empty live marks/new session, retained area, preserved disk history and no voice.
+- Android release built, package version 0.6.22/code 35, signing identity unchanged.
+- Android synthetic UI screenshots included; no personal camera footage.
+- Native iOS, simulator, Android emulator and timing results are recorded separately after their checks complete.
+
+Limits
+- No physical camera test of 0.6.22 has been completed in this turn. The attached phone/archive was inspected read-only.
+- Wall returns remain REVIEW because one camera cannot prove that an image-space reversal touched the wall rather than a hand/racket.
+- A movement supported only by changing apparent size remains REVIEW. Near-line uncertainty, insufficient pixels, occlusion and camera/area mismatch still prevent automatic IN/OUT.
+- The changes do not recover a ball hidden in blur or absent between captured frames; they do not certify a 200 km/h serve or full-court accuracy.
+- Camera placement, exposure, light, distance and measured analysis cadence still determine usable evidence.
+- Speed is an apparent lateral estimate based on a 67 mm ball; unavailable estimates are not replaced with fabricated values.
+
+
+Additional verified checks
+- iOS optimized core: 180 XCTest cases passed. Swift Testing also reports an empty suite; that is separate from the 180 XCTest cases.
+- Android 15 emulator: nine offline/lifecycle/pipeline cases and two camera-permission cases passed.
+- Emulated MediaCodec replay: 191 H.264 frames, IN/OUT/REVIEW, one OUT sound queued; p50 analysis 2.148 ms, p95 8.670 ms. Does not establish physical-phone audibility or camera latency.
+- Release detector benchmark against 0.6.21: twelve generated scenes at three image sizes, identical common fixture outputs, two execution orders. First aggregate median speed ratio 1.36; repeat 0.989 (about 1.1 percent slower). Per-scene timings vary; no reliable overall FPS gain is claimed.
+- The initial native integration run hit RTSP 404 because its 10-second readiness wait included a cold Debug fixture compilation after switching the core test build to Release. Fixed by compiling TransportSmoke before the deadline and running that compiled Release product. This was test orchestration, not a validated camera failure.
