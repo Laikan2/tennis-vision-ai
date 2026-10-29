@@ -382,7 +382,7 @@ final class LocalTrainingStore {
         store.save(settings:nil,key:key,session:session,evidence:nil){[weak self] message in self?.error=message}
         history=store.history();status="Nova sessão · marque o chão ou a parede; áreas anteriores descartadas"
     }
-    func review(_ event: VisionImpact,in saved:LocalTrainingSession?=nil){pause();let source=saved ?? session;reviewingSession=source;reviewing=event;reviewImage=nil;let url=store.evidenceURL(source.id,event.id)
+    func review(_ event: VisionImpact,in saved:LocalTrainingSession?=nil){pause();let source=saved?.id==session.id ? session:(saved ?? session);reviewingSession=source;reviewing=event;reviewImage=nil;let url=store.evidenceURL(source.id,event.id)
         DispatchQueue.global(qos:.utility).async{[weak self] in let image=UIImage(contentsOfFile:url.path);Task{@MainActor in if self?.reviewing?.id==event.id && self?.reviewingSession?.id==source.id{self?.reviewImage=image}}}
     }
     func revise(_ call: VisionCall){

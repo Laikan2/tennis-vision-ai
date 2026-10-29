@@ -24,7 +24,9 @@ jobs:
         run: python3 mobile/ios/project.py
       - name: Core regression tests
         working-directory: mobile/ios
-        run: swift test --parallel
+        # Exercise the optimized core used in the shipped app. Debug image
+        # loops were dominating validation time; XCTest assertions remain active.
+        run: swift test -c release --parallel
       - name: Build for physical iPhone without signing
         run: xcodebuild -project mobile/ios/TennisVisionCamera.xcodeproj -scheme TennisVisionCamera -configuration Release -destination 'generic/platform=iOS' -derivedDataPath mobile/ios/DerivedData/device CODE_SIGNING_ALLOWED=NO build | tee /tmp/ios-device-build.log
       - name: Build for simulator
