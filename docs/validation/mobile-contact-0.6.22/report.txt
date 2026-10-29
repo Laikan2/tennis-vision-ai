@@ -1,4 +1,4 @@
-Tennis Vision mobile 0.6.22 â€” investigation and validation
+Tennis Vision mobile 0.6.22 — investigation and validation
 Date: 2026-10-29
 Android/core changes: de558707efee05e8214d9dfe6bf31df2ed931dcf
 iOS model changes: 34c0d098f8235f77585749309c69d523602220ad
@@ -51,7 +51,7 @@ Other completed local checks
 - Finish-training Android test exercises the actual button, rejects a queued old contact, verifies empty live marks/new session, retained area, preserved disk history and no voice.
 - Android release built, package version 0.6.22/code 35, signing identity unchanged.
 - Android synthetic UI screenshots included; no personal camera footage.
-- Native iOS, simulator, Android emulator and timing results are recorded separately after their checks complete.
+- Native iOS and simulator builds, installation package, 60 decoded H.264/RTSP frames, simulator launch, six viewport states and finish-training assertions passed. Fullscreen image bounds were unchanged (measured delta 0 pt); finish reported zero marks, zero new contacts, a new session, retained area/history and inactive analysis.
 
 Limits
 - No physical camera test of 0.6.22 has been completed in this turn. The attached phone/archive was inspected read-only.
@@ -68,3 +68,9 @@ Additional verified checks
 - Emulated MediaCodec replay: 191 H.264 frames, IN/OUT/REVIEW, one OUT sound queued; p50 analysis 2.148 ms, p95 8.670 ms. Does not establish physical-phone audibility or camera latency.
 - Release detector benchmark against 0.6.21: twelve generated scenes at three image sizes, identical common fixture outputs, two execution orders. First aggregate median speed ratio 1.36; repeat 0.989 (about 1.1 percent slower). Per-scene timings vary; no reliable overall FPS gain is claimed.
 - The initial native integration run hit RTSP 404 because its 10-second readiness wait included a cold Debug fixture compilation after switching the core test build to Release. Fixed by compiling TransportSmoke before the deadline and running that compiled Release product. This was test orchestration, not a validated camera failure.
+
+Successful verification runs
+- iOS native/Release core/simulator/layout/finish/transport: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40813390000
+- Android 15 offline emulator: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40812005532
+- iOS throughput/AddressSanitizer: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40812005594
+- iOS build 23; Android versionCode 35. Existing signing identity and archive schemas retained.

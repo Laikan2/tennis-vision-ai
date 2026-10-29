@@ -10,6 +10,8 @@ Melhorias compartilhadas entre Android e iPhone para quicadas com variação de 
 
 Na comparação controlada com a versão 0.6.21, uma quicada gerada com perspectiva passou de REVISAR para um único IN, mantendo a velocidade estimada e aproximando a marca do ponto conhecido de contato. Isso não mede a taxa de acerto dos vídeos reais.
 
+Validação: 318 testes Android aprovados (3 casos opcionais não executados), 180 testes do núcleo iOS, 11 cenários em emulador Android 15, compilação nativa, transmissão H.264/RTSP e interface iOS no simulador. O encerramento foi conferido nas duas plataformas.
+
 Retornos na parede, contatos vistos somente em profundidade, bola sem detalhe suficiente, dúvidas perto da linha e área deslocada ainda podem exigir revisão. A velocidade é lateral e estimada. A versão ainda precisa de teste físico com quicadas conhecidas no seu aparelho.
 
 Instale sobre a versão existente: APK no Android; IPA pelo iLoader ou AltStore no iPhone, usando a mesma conta Apple. Não desinstale para atualizar. O ZIP contém somente o projeto Xcode. A atualização do Windows permanece independente.
