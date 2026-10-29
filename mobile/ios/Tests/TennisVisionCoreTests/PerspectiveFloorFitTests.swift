@@ -3,12 +3,17 @@ import XCTest
 
 final class PerspectiveFloorFitTests:XCTestCase {
     func observations(_ transverse:Bool=true)->[VisionBall] {
-        (0...20).map{i in
-            let t=Double(i-10)/60,radius=26+75*abs(t)
-            let y=transverse ? 360-850*abs(t)+120*t*t:360
-            var b=VisionBall(x:320+(20+80*t)*radius/30,y:240+(y-240)*radius/30,radius:radius,time:Double(i)/60,confidence:0.85)
-            b.luminance=150;b.feltChroma=150;b.greenDominant=true;return b
+        var samples=[VisionBall]()
+        for i in 0...20{
+            let t=Double(i-10)/60.0
+            let radius=26.0+75.0*abs(t)
+            let y:Double=transverse ? 360.0-300.0*abs(t)+120.0*t*t:360.0
+            let imageX=320.0+(20.0+400.0*t)*radius/30.0
+            let imageY=240.0+(y-240.0)*radius/30.0
+            var b=VisionBall(x:imageX,y:imageY,radius:radius,time:Double(i)/60.0,confidence:0.85)
+            b.luminance=150;b.feltChroma=150;b.greenDominant=true;samples.append(b)
         }
+        return samples
     }
     func testTransverseReboundSurvivesPerspectiveScaleChange(){
         let p=observations()

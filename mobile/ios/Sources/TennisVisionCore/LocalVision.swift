@@ -598,6 +598,11 @@ public final class LocalVision {
         let robust=simple==nil && (settings.surface == .wall || floorReferenceKnown()) ? ObservedContactFit.find(path,surface:settings.surface):nil
         let perspective=simple==nil && robust==nil && settings.surface == .floor && floorReferenceKnown() ? PerspectiveFloorFit.find(path,width:width,height:height):nil
         let depth=simple==nil && robust==nil && perspective==nil && (settings.surface == .wall || floorReferenceKnown()) ? DepthContactFit.find(path,width:width,height:height):nil
+        // A premature depth candidate consumes the track before a visible
+        // transverse rebound matures. Wait only a bounded post-contact window.
+        if let depth,settings.surface == .floor,let end=path.last,end.time-depth.time<0.12{
+            return rejectContact("Confirmando retorno no piso · aguardando trajetória após o contato")
+        }
         guard let p=simple ?? robust?.support ?? perspective?.support ?? depth?.support else{
             contactReason=path.contains{$0.nearHand || $0.occluded} ? "Mão/oclusão na trajetória · aguardando voo livre":"Sem retorno coerente observado dos dois lados do contato";return nil
         }

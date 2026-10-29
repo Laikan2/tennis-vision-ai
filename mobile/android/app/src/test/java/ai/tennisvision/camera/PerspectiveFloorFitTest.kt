@@ -8,8 +8,8 @@ class PerspectiveFloorFitTest {
   private fun observations(transverse:Boolean=true)= (0..20).map { i ->
     val t=(i-10)/60.0
     val radius=26+75*abs(t)
-    val y=if(transverse)360-850*abs(t)+120*t*t else 360.0
-    BallObservation(320+(20+80*t)*radius/30,240+(y-240)*radius/30,radius,i/60.0,.85,
+    val y=if(transverse)360-300*abs(t)+120*t*t else 360.0
+    BallObservation(320+(20+400*t)*radius/30,240+(y-240)*radius/30,radius,i/60.0,.85,
       luminance=150.0,feltChroma=150.0,greenDominant=true)
   }
   @Test fun perspectiveChangeDoesNotDiscardAnObservedTransverseFloorRebound() {
@@ -35,7 +35,8 @@ class PerspectiveFloorFitTest {
       for(y in max(0,(b.y-b.radius).toInt())..min(h-1,(b.y+b.radius).toInt()))
         for(x in max(0,(b.x-b.radius).toInt())..min(w-1,(b.x+b.radius).toInt()))
           if(hypot(x-b.x,y-b.y)<=b.radius)pixels[y*w+x]=0xffc7eb4d.toInt()
-      core.process(pixels,w,h,b.time+10/60.0).impact?.let{hits.add(it)}
+      val result=core.process(pixels,w,h,b.time+10/60.0)
+      result.impact?.let{hits.add(it)}
     }
     println("PERSPECTIVE_PIXEL contacts="+hits.joinToString())
     assertEquals(1,hits.size);val hit=hits.single()

@@ -775,6 +775,11 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
       PerspectiveFloorFit.find(path,width,height) else null
     val depth = if(simple==null && robust==null && perspective==null && (settings.surface==ContactSurface.WALL || floorReferenceKnown()))
       DepthContactFit.find(path,width,height) else null
+    // Give a floor return a bounded extra observation window. A depth-only
+    // candidate can mature before the transverse rebound; emitting it then
+    // consumes the track and permanently labels the real bounce as REVIEW.
+    if(depth!=null && settings.surface==ContactSurface.FLOOR && path.last().time-depth.time<.12)
+      return rejectContact("Confirmando retorno no piso · aguardando trajetória após o contato")
     val p = (simple ?: robust?.support ?: perspective?.support ?: depth?.support) ?: run {
       contactReason=if(path.any{it.nearHand || it.occluded}) "Mão/oclusão na trajetória · aguardando voo livre" else "Sem retorno coerente observado dos dois lados do contato"
       return null
@@ -794,7 +799,7 @@ class LocalAnalysis(var settings: LocalSettings = LocalSettings()) {
     val outgoing=CourtPoint((e.x-d.x)/(e.time-d.time),(e.y-d.y)/(e.time-d.time))
     val sa=hypot(incoming.x,incoming.y);val sb=hypot(outgoing.x,outgoing.y)
     val wallTurn=sa>20 && sb>20 && (incoming.x*outgoing.x+incoming.y*outgoing.y)/(sa*sb)<.35
-    if (settings.surface == ContactSurface.FLOOR && !floorTurn && robust==null && depth==null) return null
+    if (settings.surface == ContactSurface.FLOOR && !floorTurn && robust==null && perspective==null && depth==null) return null
     if (settings.surface == ContactSurface.WALL && !wallTurn && robust==null && depth==null) return null
     // The observed local maximum need not be the instant of contact. Estimate
     // the crossing of the observed incoming/outgoing legs, bounded by b and d.
