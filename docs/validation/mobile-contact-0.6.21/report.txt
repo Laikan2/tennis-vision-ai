@@ -1,0 +1,70 @@
+Tennis Vision mobile 0.6.21 — contatos após estabilização e prévia fixa
+Data da solicitação: 2026-10-28. Execuções de CI terminaram em 2026-10-29 UTC.
+Código compilado: 839e5b188dce5c7edb7a6e5da78d43019531b117
+Referência anterior: b2a81f85d7208e9783f152635c0f56ff0ed43bf4 (0.6.20).
+Android versionCode 34. iOS build 22.
+
+PROBLEMAS REPRODUZIDOS
+Os três vídeos de tela fornecidos mostravam IMPACTOS SUSPENSOS mesmo após
+estabilização. A referência da área bloqueava não só decisões IN/OUT mas
+todo contato. Um teste com mudança de enquadramento seguida de quicada
+conhecida falhou no código anterior e passou com a correção.
+Os avisos dinâmicos alteravam o espaço disponível da prévia no iPhone,
+causando mudança de tamanho e posição. Também havia movimento físico
+da câmera nos vídeos; corrigir o layout não corrige esse movimento.
+Marcas históricas reapareciam sobre outro enquadramento ao pausar.
+Valores válidos abaixo de 1 km/h eram truncados para zero no painel.
+
+CORREÇÃO
+Separar movimento atual/estabilização da necessidade de confirmar a área.
+Após 650 ms de estabilidade, permitir candidatos de contato sustentados
+por trajetória observada, mantendo REVISAR e áudio desativado se a área
+não corresponde. Limites antigos não descartam esses candidatos.
+Apagar a trajetória ao sair do bloqueio de movimento, para não ligar
+observações em referências diferentes.
+Vincular contatos a uma revisão do enquadramento, filtrando marcas antigas
+mesmo se a interface não recebeu o quadro exato em que a câmera moveu.
+Histórico e formato legado de sessões continuam compatíveis.
+Fixar a região da imagem e colocar informações variáveis fora dela.
+
+TESTES E EVIDÊNCIA
+- Android JVM/Robolectric: 311 total, 308 aprovados, 3 opcionais ignorados,
+  zero falhas/erros. Inclui retorno no chão/parede após mudança de
+  referência, preservação das rejeições de oclusão, círculo com velocidade,
+  supressão de marcas antigas e invariância da posição da câmera.
+- iOS núcleo: 172 testes executados em macOS arm64; execução aprovada.
+  Não são 172 testes em iPhone físico.
+- Android emulador Android 15: 9 testes de fluxo/lifecycle + 2 testes de
+  permissão isolados aprovados. Fixture H.264 com 191 quadros decodificados:
+  IN, OUT e REVIEW; uma chamada OUT enfileirada. SoundPool aceitou o áudio;
+  isso não demonstra audibilidade por uma pessoa no alto-falante real.
+  Análise p50 2,817 ms e p95 14,074 ms nessa fixture/emulador.
+- iOS: Release para iPhone, simulador, IPA e integração H.264/RTSP aprovados.
+- Interface nativa iOS no simulador: seis estados (avisos curtos/longos,
+  movimento, área a conferir, contato e editor) mantiveram imageRect
+  [71.8125, 118, 258.375, 459.33333333333326] pontos. Desvio medido zero.
+  Imagens layout-*.png são explicitamente simuladas, sem dados privados.
+- Empacotamento e feed: 23 testes Python aprovados.
+- Comparação de processamento no mesmo executor, duas rodadas, 12 cenas/
+  resoluções e 24 quadros por cena: saídas idênticas à 0.6.20 nos cenários
+  que não exercitam o novo comportamento de referência. Tempos variaram
+  para cima e para baixo entre cenas/rodadas. Não há ganho sustentado de
+  FPS demonstrado nesta versão. Os JSONs contêm os valores completos.
+
+EXECUÇÕES REPRODUZÍVEIS
+iOS: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40803260287
+Android: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40803260281
+Comparação: https://github.com/Laikan2/tennis-vision-ai/actions/runs/40803260284
+
+LIMITES DA VALIDAÇÃO
+Os vídeos enviados são gravações da tela com desenhos da aplicação,
+não os quadros originais da câmera. Não foram usados para inventar
+uma medida de precisão do detector.
+Nenhuma quicada física da 0.6.21 foi validada ao preparar esta publicação.
+O usuário solicitou importar a IPA manualmente no iPhone.
+Não houve teste de quadra, bola a 200 km/h, distância longa, precisão
+métrica de impacto ou comparação de velocidade com radar.
+Velocidade é lateral aparente pela bola de 67 mm, não velocidade 3D.
+REVISAR não equivale a IN nem OUT confirmado. Posição de um contato
+oculto ou em profundidade continua estimada.
+Histórico privado e imagens do usuário permanecem fora do repositório.
