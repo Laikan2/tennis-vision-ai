@@ -10,10 +10,8 @@
  </LinearLayout>
  <LinearLayout android:id="@+id/localBody" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="horizontal" android:layout_marginTop="8dp">
   <ai.tennisvision.camera.LocalVideoPanel android:id="@+id/localVideoPanel" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/panel_background">
-   <TextView android:id="@+id/localStatus" style="@style/CameraLabel" android:text="Permita a câmera para começar" android:textSize="16sp" android:layout_marginTop="8dp" android:paddingHorizontal="12dp" android:accessibilityLiveRegion="polite" />
-   <TextView android:id="@+id/localMetrics" style="@style/CameraBody" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="Processamento local · sem computador" android:textSize="11sp" />
+   <TextView android:id="@+id/localStatus" android:lines="2" android:ellipsize="end" style="@style/CameraLabel" android:text="Permita a câmera para começar" android:textSize="16sp" android:layout_marginTop="8dp" android:paddingHorizontal="12dp" android:accessibilityLiveRegion="polite" />
    <TextView android:id="@+id/localSurface" style="@style/CameraLabel" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="CHÃO · QUICADAS" android:textSize="12sp" android:textColor="@color/tv_accent" android:accessibilityLiveRegion="polite" />
-   <Button android:id="@+id/localConfirmArea" style="@style/CameraSecondary" android:text="Área coincide · retomar impactos" android:visibility="gone" />
    <ai.tennisvision.camera.LocalCourtView android:id="@+id/localVideo" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_gravity="center_horizontal" />
    <LinearLayout android:id="@+id/localEditor" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="8dp" android:visibility="gone">
     <TextView android:id="@+id/localEditorHint" style="@style/CameraBody" android:textSize="12sp" />
@@ -29,6 +27,7 @@
    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="4dp">
     <TextView style="@style/CameraEyebrow" android:text="SEU TREINO, NO CELULAR" />
     <Button android:id="@+id/localStart" style="@style/CameraPrimary" android:layout_marginTop="12dp" android:text="Permitir câmera" />
+   <Button android:id="@+id/localConfirmArea" style="@style/CameraSecondary" android:text="Área coincide · habilitar IN/OUT" android:visibility="gone" />
     <TextView style="@style/CameraBody" android:textSize="11sp" android:layout_marginTop="6dp" android:text="O contorno procura a bola na prévia. Iniciar treino ativa a contagem de impactos." />
     <Button android:id="@+id/localFraming" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="Enquadramento e detalhe" />
     <Button android:id="@+id/localCourt" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Marcar quadra · 4 cantos" />
@@ -40,6 +39,7 @@
     <Button android:id="@+id/localFloor" style="@style/CameraSecondary" android:layout_marginTop="6dp" android:text="Ajustar limite parede/chão" />
     <TextView android:id="@+id/localDecision" style="@style/CameraLabel" android:text="Aguardando contato" android:textSize="22sp" android:layout_marginTop="16dp" android:accessibilityLiveRegion="polite" />
     <TextView android:id="@+id/localStats" style="@style/CameraBody" android:layout_marginTop="6dp" android:text="0 IN · 0 OUT · 0 para revisar" />
+   <TextView android:id="@+id/localMetrics" style="@style/CameraBody" android:paddingHorizontal="12dp" android:layout_marginTop="4dp" android:text="Processamento local · sem computador" android:textSize="11sp" />
     <Button android:id="@+id/localReview" style="@style/CameraSecondary" android:layout_marginTop="8dp" android:text="Revisar último contato" />
     <TextView style="@style/CameraBody" android:layout_marginTop="8dp" android:text="IN toca ou fica dentro da linha. OUT fica fora. Perto da linha, revise. Velocidade lateral estimada pelo tamanho da bola de 67 mm." android:textSize="11sp" />
     <LinearLayout android:id="@+id/updateSection" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="16dp">

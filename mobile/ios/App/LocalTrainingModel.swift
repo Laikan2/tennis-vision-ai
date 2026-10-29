@@ -124,7 +124,7 @@ final class LocalTrainingStore {
         switch config.surface{case .floor:return "CHÃO · QUICADAS";case .wall:return "PAREDE · CONTATOS PARA REVISÃO";case .track:return "RASTREAMENTO · SEM IMPACTOS"}
     }
     var surfaceHint:String{
-        if needsAreaCheck{return "IMPACTOS SUSPENSOS · fixe o iPhone e confira os cantos. Se coincidem, toque em Área coincide; caso contrário, ajuste a marcação."}
+        if needsAreaCheck{return "Área a conferir: com a câmera parada, batidas observadas geram marcas para revisão. Confira os cantos para habilitar IN/OUT."}
         if config.surface == .wall{return "Parede: retorno da bola gera candidato para revisão; uma câmera não comprova o contato em profundidade."}
         if config.surface == .track{return "Somente rastrear: impactos e IN/OUT estão desligados."}
         if config.court == .custom && !VisionGeometry.validLine(config.floorLine){return "Chão: use Marcar chão e conclua os dois passos: área e limite do piso. Sem a referência, o contato exige revisão."}
@@ -159,6 +159,9 @@ final class LocalTrainingStore {
         if let message=store.loadError{error=message;savingError=true}
     }
     func prepare(force:Bool=false){
+        #if targetEnvironment(simulator)
+        if LocalLayoutAudit.enabled{LocalLayoutAudit.prepare(self);return}
+        #endif
         foreground=true;guard !testing,!permissionPending else{return}
         if !force && (ready || opening){return}
         if ProcessInfo.processInfo.arguments.contains("--vision-diagnostics"),!diagnosticLaunched {
@@ -250,8 +253,11 @@ final class LocalTrainingStore {
             }
         }
         if active && editing==0 {
+            // Old marks must not reappear at new physical positions after moving.
+            // Keep them in history; only current-view contacts remain overlaid.
+            if frame.result.movingCamera{overlayStartID=session.events.map{$0.id}.max() ?? 0}
             for f in events where f.generation==frame.generation && f.key==key{accept(f)}
-            if needsAreaCheck{status=surfaceHint}
+            if needsAreaCheck && !frame.result.movingCamera{status=surfaceHint}
         }
         let now=ProcessInfo.processInfo.systemUptime
         if now-lastInfo>0.5 {

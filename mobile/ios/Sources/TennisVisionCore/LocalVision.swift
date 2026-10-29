@@ -442,6 +442,7 @@ public final class LocalVision {
     private let scene=VisionSceneReference()
     private var path=[VisionBall](),lastFrame = -1.0,lastImpact = -10.0,unstableUntil = -1.0,serial=0
     private var width=0,height=0,lost: VisionBall?,acquisition: VisionBall?,tiny: VisionBall?,motionAcquisition: VisionBall?
+    private var wasMotionBlocked=false
     private var floorBoundaryNoticeUntil = -1.0
     private var framingNoticeUntil = -1.0
     private var trackSerial=0,usableCandidates=0
@@ -469,7 +470,7 @@ public final class LocalVision {
         settings.translated(by:offset)
     }
     public func clearTrack(){path=[];lost=nil;acquisition=nil;tiny=nil;motionAcquisition=nil;lastImpact = -10}
-    public func reset(){clearTrack();detector.reset();scene.reset();lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
+    public func reset(){clearTrack();detector.reset();scene.reset();wasMotionBlocked=false;lastFrame = -1;unstableUntil = -1;floorBoundaryNoticeUntil = -1;framingNoticeUntil = -1;offset=VisionPoint(0,0)}
     public func process(_ pixels: [UInt32],width w: Int,height h: Int,time: Double) -> VisionResult {
         guard w>0,h>0,w<=8192,h<=8192,pixels.count==w*h,time.isFinite else{return VisionResult(message:"Quadro ou timestamp inválido · descartado")}
         if width != w || height != h{reset();width=w;height=h}
@@ -487,7 +488,10 @@ public final class LocalVision {
         }
         if cameraMoved || motion.large{unstableUntil=time+0.25;clearTrack()}
         scene.update(pixels,width:w,height:h,time:time,changed:sceneChanged,compensated:motion.reliable && !sceneChanged && (motion.dx != 0 || motion.dy != 0))
-        let blocked=time<unstableUntil || scene.blocked
+        let blocked=time<unstableUntil || scene.contactsBlocked
+        // A return straddling camera motion cannot be treated as a bounce.
+        if wasMotionBlocked && !blocked{clearTrack()}
+        wasMotionBlocked=blocked
         // Warm wood can pass the broad yellow mask. Motion alone does not turn
         // those low-chroma components into a tennis ball. A weak observation
         // may bridge a short gap only near an already colour-supported track.
@@ -563,7 +567,7 @@ public final class LocalVision {
             // still expires after 60 ms and no missing sample is manufactured.
             let hold=canBridgeFloorLoss() ? 0.16:0.10
             if age>hold{lost=previous ?? lost;path=[]}
-            return diagnosed(VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Treino ativo · confira a área; impactos suspensos":blocked ? "Treino ativo · aguardando imagem estável":time<framingNoticeUntil ? "Possível quicada fora da imagem · recue a câmera; contato não contado":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation))
+            return diagnosed(VisionResult(predicted:age<0.06 ? prediction:nil,trail:path.suffix(16).map{VisionPoint($0.x,$0.y)},movingCamera:blocked,message:scene.needsConfirmation ? "Área a conferir · contatos para revisão":blocked ? "Treino ativo · aguardando imagem estável":time<framingNoticeUntil ? "Possível quicada fora da imagem · recue a câmera; contato não contado":candidates.count>1 ? "Alvos verdes ambíguos · aguardando continuidade":"Bola não localizada · sem inventar posição",area:activeSettings,cameraOffset:offset,areaNeedsConfirmation:scene.needsConfirmation))
         }
         if !b.supportsBallColor{b.colorUncertain=true}
         if path.isEmpty{trackSerial+=1}
@@ -571,8 +575,8 @@ public final class LocalVision {
         while path.count>160 || (path.first.map{time-$0.time>0.6} ?? false){path.removeFirst()}
         let impact = !blocked ? contact():nil,speed=velocity(path)
         let message: String
-        if scene.needsConfirmation{message="Treino ativo · confira a área em Marcar área; impactos suspensos"}
-        else if blocked{message="Treino ativo · aguardando a imagem estabilizar; impactos suspensos"}
+        if blocked{message="Aguarde a câmera estabilizar · impactos suspensos"}
+        else if scene.needsConfirmation{message="Área a conferir · contatos para revisão"}
         else if time<framingNoticeUntil{message="Possível quicada fora da imagem · recue a câmera; contato não contado"}
         else if time<floorBoundaryNoticeUntil{message="Retorno acima do piso marcado · ajuste o limite ou use Toda a imagem é piso"}
         else if b.occluded{message="Bola parcialmente oculta · contato suspenso"}
@@ -635,18 +639,20 @@ public final class LocalVision {
         let localization=settings.surface == .floor ? floorLocalizationNoise(evidence,turn:c.time):0
         let uncertainty=max(2,c.radius*0.3+(c.blurred ? c.radius*0.6:0)+(fit?.error ?? 0)+missing+localization),area=activeSettings
         // The whole-image floor preset is not a measured physical separator.
-        if settings.surface == .wall,settings.floorLine != VisionFloorBoundaryDraft.wholeImage,
+        if !scene.needsConfirmation,settings.surface == .wall,settings.floorLine != VisionFloorBoundaryDraft.wholeImage,
            let distance=VisionGeometry.floorDistance(point,area.floorLine,width,height),distance>uncertainty+c.radius{
             return rejectContact("Retorno sobre o piso no modo parede · selecione Chão")
         }
         let floorDistance=settings.surface == .floor && settings.court == .custom ? VisionGeometry.floorDistance(point,area.floorLine,width,height):nil
-        if let dist=floorDistance,dist+uncertainty<0{floorBoundaryNoticeUntil=lastFrame+0.8;return rejectContact("Retorno acima do limite do piso · sem evidência de contato com o chão")}
+        if !scene.needsConfirmation,let dist=floorDistance,dist+uncertainty<0{floorBoundaryNoticeUntil=lastFrame+0.8;return rejectContact("Retorno acima do limite do piso · sem evidência de contato com o chão")}
         var call=VisionGeometry.classify(point,radius:c.radius,uncertainty:uncertainty,polygon:area.polygon,width:width,height:height)
         let courtKnown=settings.court != .custom && VisionGeometry.projectedPolygon(area.polygon)
         let floorKnown=settings.surface != .floor || courtKnown || VisionGeometry.onFloor(point,area.floorLine)
         if call != .unmarked && (!floorKnown || sparse || settings.surface == .floor && fit==nil || evidence.contains(where:{$0.nearHand || !$0.resolved}) || settings.surface == .wall || depth != nil){call = .review}
+        if scene.needsConfirmation{call = .review}
         let reason: String
-        if depth != nil{reason="Retorno em profundidade observado pelo tamanho da bola. Centro e contato são estimados; confirme a superfície na revisão."}
+        if scene.needsConfirmation{reason="Área precisa ser conferida após movimento da câmera. Retorno observado; posição de contato estimada, sem decisão IN/OUT."}
+        else if depth != nil{reason="Retorno em profundidade observado pelo tamanho da bola. Centro e contato são estimados; confirme a superfície na revisão."}
         else if settings.surface == .wall{reason="Mudança de direção observada; contato com a parede estimado entre quadros. Confirme na revisão."}
         else if evidence.contains(where:{!$0.resolved}){reason="Detalhe insuficiente na bola. Confira contato e linha."}
         else if !floorKnown{reason="Contato com o piso não comprovado. Confira a superfície e a marca."}

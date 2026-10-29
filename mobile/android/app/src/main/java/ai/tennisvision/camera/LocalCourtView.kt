@@ -263,7 +263,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
     }
     visibleMarks.takeLast(3).asReversed().forEach { e ->
       val s=screen(LocalGeometry.impactPoint(e,cameraOffset))
-      label("#${e.id} "+callLabel(e.decision)+(e.speedKmh?.let { " · ≈"+String.format(java.util.Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h" } ?: ""),s.x+11*density,s.y-8*density,callColor(e.decision),s)
+      label("#${e.id} "+callLabel(e.decision)+(e.speedKmh?.let { " · ≈"+String.format(java.util.Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h" } ?: " · velocidade —"),s.x+11*density,s.y-8*density,callColor(e.decision),s)
     }
     // Never leave a tracking box on a frozen image after capture interruption.
     if (android.os.SystemClock.elapsedRealtime()-age<350) result?.let { r ->
@@ -289,7 +289,7 @@ class LocalCourtView(context: Context, attrs: AttributeSet?=null): View(context,
           paint.style=Paint.Style.STROKE;paint.strokeWidth=density;canvas.drawRect(s.x-rx,s.y-ry,s.x+rx,s.y+ry,paint);paint.style=Paint.Style.FILL
           label("ID ${r.diagnostics.trackId ?: "—"} · visual ${(b.confidence*100).toInt()}%",s.x+rx+5*density,s.y+22*density,color)
         }
-        label(if(b.nearHand) "BOLA · PRÓXIMA À MÃO" else if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈${it.toInt()} km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
+        label(if(b.nearHand) "BOLA · PRÓXIMA À MÃO" else if(b.occluded) "BOLA PARCIAL · INCERTA" else if(!b.resolved) "BOLA INCERTA" else r.speedKmh?.let { "BOLA · ≈"+String.format(java.util.Locale.getDefault(),if(it<10) "%.1f" else "%.0f",it)+" km/h lateral" } ?: "BOLA",s.x+rx+5*density,s.y,color)
       }
       r.predicted?.let { p -> val s=screen(CourtPoint(p.x/iw,p.y/ih)); label("PREVISÃO",s.x,s.y,amber) }
     }

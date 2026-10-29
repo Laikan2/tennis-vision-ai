@@ -22,6 +22,48 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @LooperMode(LooperMode.Mode.PAUSED)
 class LocalCourtLayoutTest {
+  @Test fun changingLiveStatusAndAreaWarningDoesNotResizeOrMoveTheCamera() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture(true));shadowOf(Looper.getMainLooper()).idle()
+    val court=activity.findViewById<View>(R.id.localVideo)
+    fun bounds():List<Int>{val position=IntArray(2);court.getLocationOnScreen(position);return listOf(position[0],position[1],court.width,court.height)}
+    draw(activity,"stable-viewport-before",1920,864);val original=bounds()
+    activity.findViewById<TextView>(R.id.localStatus).text="IMPACTOS SUSPENSOS · estabilize o celular e confira os cantos da área antes da decisão IN/OUT"
+    activity.findViewById<TextView>(R.id.localMetrics).text="60 FPS\nConversão 2 ms\nAnálise 8 ms\nBola observada\nDiagnóstico adicional"
+    activity.findViewById<View>(R.id.localConfirmArea).visibility=View.VISIBLE
+    draw(activity,"stable-viewport-warning",1920,864)
+    assertEquals("Changing feedback must not make the preview shake",original,bounds())
+    controller.pause().stop().destroy()
+  }
+  @Test fun recoveredReviewCandidateDrawsItsCircleAndSpeedWithoutRestoringOldMarks() {
+    val controller=Robolectric.buildActivity(LocalTrainingActivity::class.java).create().start().resume().visible()
+    val activity=controller.get();shadowOf(Looper.getMainLooper()).idle()
+    activity.receiveFrame(fixture());shadowOf(Looper.getMainLooper()).idle()
+    val config=LocalSettings(polygon=area,floorLine=wholeImageFloorLine())
+    val old=LocalImpact(1,1.0,CourtPoint(.2,.8),5.0,LineCall.IN,8.0,2.0,"Historical",ContactSurface.FLOOR)
+    fun set(name:String,value:Any){LocalTrainingActivity::class.java.getDeclaredField(name).apply{isAccessible=true}.set(activity,value)}
+    set("config",config);set("session",LocalSession(events=listOf(old)));set("analyzing",true)
+    val court=activity.findViewById<LocalCourtView>(R.id.localVideo);court.settings=config;court.events=listOf(old)
+    val blocked=LocalResult(null,null,emptyList(),null,true,null,"Camera motion",activeArea=config,areaNeedsConfirmation=true)
+    activity.receiveFrame(fixture().copy(result=blocked));shadowOf(Looper.getMainLooper()).idle()
+    assertTrue(court.events.isEmpty());assertEquals(1,activity.testSession().events.size)
+    val hit=old.copy(id=2,time=2.0,point=CourtPoint(.5,.8),call=LineCall.REVIEW,speedKmh=8.2)
+    activity.receiveFrame(fixture().copy(result=blocked.copy(movingCamera=false,impact=hit,message="Área a conferir · contatos para revisão")))
+    shadowOf(Looper.getMainLooper()).idle();draw(activity,"recovered-review-contact",1920,864)
+    assertEquals(listOf(2L),court.events.map{it.id});assertEquals(2,activity.testSession().events.size)
+    assertEquals(0,activity.testSoundCount())
+    assertTrue(activity.findViewById<TextView>(R.id.localDecision).text.contains("marca #2"))
+    val image=Bitmap.createBitmap(court.width,court.height,Bitmap.Config.ARGB_8888);court.draw(Canvas(image))
+    val center=court.pointOnScreen(hit.point);var colored=0
+    for(y in (center.y.toInt()-20)..(center.y.toInt()+20))for(x in (center.x.toInt()-20)..(center.x.toInt()+20)){
+      val color=image.getPixel(x,y)
+      if(Color.green(color)>150 && Color.blue(color)>150)colored++
+    }
+    assertTrue("The candidate circle must actually be painted",colored>12);image.recycle()
+    controller.pause().stop().destroy()
+  }
+
   private val area=listOf(CourtPoint(.30,.15),CourtPoint(.70,.15),CourtPoint(.94,.92),CourtPoint(.06,.92))
   private fun fixture(portraitSource:Boolean=false): LocalFrame {
     val w=if(portraitSource)720 else 1280;val h=if(portraitSource)1280 else 720

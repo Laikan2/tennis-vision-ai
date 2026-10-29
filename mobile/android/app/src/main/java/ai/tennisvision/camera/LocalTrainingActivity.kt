@@ -250,6 +250,7 @@ class LocalTrainingActivity: AppCompatActivity() {
     val now=SystemClock.elapsedRealtime()
     court.present(frame)
     val currentResult=frame.result.referencedTo(config)
+    if(analyzing && currentResult.movingCamera)court.events=emptyList()
     findViewById<View>(R.id.localConfirmArea).visibility=if(currentResult.areaNeedsConfirmation && court.editing==0) View.VISIBLE else View.GONE
     if (now-lastInfo>600) {
       lastInfo=now
@@ -271,7 +272,8 @@ class LocalTrainingActivity: AppCompatActivity() {
     }
     if (currentResult.areaNeedsConfirmation && analyzing) {
       areaConfirmed=false;mustMarkArea=true
-      status.text="IMPACTOS SUSPENSOS · fixe o celular e confira os cantos em Marcar área"
+      status.text=if(currentResult.movingCamera) "IMPACTOS SUSPENSOS · estabilize o celular"
+        else "Impactos ativos para revisão · confira a área para habilitar IN/OUT"
       status.setTextColor(ContextCompat.getColor(this,R.color.tv_warning))
     }
   }
